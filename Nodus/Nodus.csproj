@@ -1,0 +1,88 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net7.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Folder Include="App\Models\" />
+        <AvaloniaResource Include="Assets\**"/>
+        <Folder Include="App\Styles\" />
+        <Folder Include="Assets\Icons\" />
+        <None Remove="App\Fonts\Nunito.ttf" />
+        <None Update="Assets\Shaders\SampleShader.glsl">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Remove="App\Fonts\Nunito-Black.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-Black.ttf" />
+        <None Remove="App\Fonts\Nunito-BlackItalic.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-BlackItalic.ttf" />
+        <None Remove="App\Fonts\Nunito-Bold.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-Bold.ttf" />
+        <None Remove="App\Fonts\Nunito-BoldItalic.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-BoldItalic.ttf" />
+        <None Remove="App\Fonts\Nunito-ExtraBold.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-ExtraBold.ttf" />
+        <None Remove="App\Fonts\Nunito-ExtraBoldItalic.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-ExtraBoldItalic.ttf" />
+        <None Remove="App\Fonts\Nunito-ExtraLight.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-ExtraLight.ttf" />
+        <None Remove="App\Fonts\Nunito-ExtraLightItalic.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-ExtraLightItalic.ttf" />
+        <None Remove="App\Fonts\Nunito-Italic.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-Italic.ttf" />
+        <None Remove="App\Fonts\Nunito-Light.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-Light.ttf" />
+        <None Remove="App\Fonts\Nunito-LightItalic.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-LightItalic.ttf" />
+        <None Remove="App\Fonts\Nunito-Medium.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-Medium.ttf" />
+        <None Remove="App\Fonts\Nunito-MediumItalic.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-MediumItalic.ttf" />
+        <None Remove="App\Fonts\Nunito-Regular.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-Regular.ttf" />
+        <None Remove="App\Fonts\Nunito-SemiBold.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-SemiBold.ttf" />
+        <None Remove="App\Fonts\Nunito-SemiBoldItalic.ttf" />
+        <AvaloniaResource Include="App\Fonts\Nunito-SemiBoldItalic.ttf" />
+    </ItemGroup>
+
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="11.0.2"/>
+        <PackageReference Include="Avalonia.Desktop" Version="11.0.2"/>
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.2"/>
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.2"/>
+        <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.2"/>
+        <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.2"/>
+    </ItemGroup>
+
+
+    <ItemGroup>
+      <Compile Update="App\App.axaml.cs">
+        <DependentUpon>App.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+    </ItemGroup>
+
+
+    <ItemGroup>
+      <UpToDateCheckInput Remove="Views\MainWindow.axaml" />
+    </ItemGroup>
+
+
+    <ItemGroup>
+      <AdditionalFiles Include="App\Views\MainWindow.axaml" />
+    </ItemGroup>
+
+
+    <ItemGroup>
+      <ProjectReference Include="..\Nodus.Core\Nodus.Core.csproj" />
+      <ProjectReference Include="..\Nodus.NodeEditor\Nodus.NodeEditor.csproj" />
+    </ItemGroup>
+</Project>

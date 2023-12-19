@@ -1,0 +1,65 @@
+﻿<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Design.PreviewWith>
+        <StackPanel Orientation="Horizontal">
+            <Border Margin="5 0" Classes="panel" Padding="20"><TextBlock Text="Panel Default"/></Border>
+            <Border Margin="5 0" Classes="panel active" Padding="20"><TextBlock Text="Panel Active"/></Border>
+        </StackPanel>
+    </Design.PreviewWith>
+    
+    <Style Selector="TextBox">
+        <Setter Property="Background" Value="{StaticResource BackgroundDark}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BackgroundLighter}"/>
+        
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+            </Transitions>
+        </Setter>
+        
+        <Style Selector="^:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource ForegroundLight}"/>
+            <Setter Property="Foreground" Value="{StaticResource BackgroundDefault}"/>
+        </Style>
+    </Style>
+
+    <Style Selector="Border.panel">
+        <Setter Property="CornerRadius" Value="10"/>
+        <Setter Property="Background" Value="{StaticResource BackgroundDefault}"/>
+        <Setter Property="BorderThickness" Value="2"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BackgroundLight}"/>
+        
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.14"/>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.07"/>
+            </Transitions>
+        </Setter>
+    </Style>
+    
+    <Style Selector="Border.panel.active">
+        <Setter Property="Background">
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                <GradientStop Color="{StaticResource BackgroundDefault}" Offset="0"/>
+                <GradientStop Color="{StaticResource AscentBackgroundActive}" Offset="1"/>
+            </LinearGradientBrush>
+        </Setter>
+        <Setter Property="BorderBrush">
+            <LinearGradientBrush StartPoint="0%,10%" EndPoint="0%,50%">
+                <GradientStop Color="{StaticResource BackgroundLight}" Offset="0"/>
+                <GradientStop Color="{StaticResource AscentActive}" Offset="1"/>
+            </LinearGradientBrush>
+        </Setter>
+    </Style>
+      
+    <Style Selector="Border.hotkey">
+        <Setter Property="Background" Value="{StaticResource Shine}"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="4 0"/>
+        
+        <Style Selector="^ > TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource BackgroundDefault}"/>
+            <Setter Property="FontWeight" Value="ExtraBold"/>
+        </Style>
+    </Style>
+</Styles>

@@ -1,0 +1,9 @@
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:c="clr-namespace:Nodus.Core;assembly=Nodus.Core"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <c:InitializedBitmap x:Key="TestBitmap"><x:Arguments><x:Uri>
+        avares://Nodus/Assets/Icons/cog.png
+    </x:Uri></x:Arguments></c:InitializedBitmap>
+    
+</ResourceDictionary>

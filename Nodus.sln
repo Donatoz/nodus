@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nodus", "Nodus\Nodus.csproj", "{C00BD383-19A1-4A9B-88F1-42BFC02FDAC7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nodus.Core", "Nodus.Core\Nodus.Core.csproj", "{37AD5F78-E10A-43FF-AD66-45DF8E4EA9D2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nodus.NodeEditor", "Nodus.NodeEditor\Nodus.NodeEditor.csproj", "{1538DB56-7EC7-4164-A517-AE81C8612B29}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Editors", "Editors", "{D3A72B1E-9E82-42C7-8F93-866D892AECE4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{4497CF67-1A4B-48F2-B5F9-95C22CC02C27}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C00BD383-19A1-4A9B-88F1-42BFC02FDAC7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C00BD383-19A1-4A9B-88F1-42BFC02FDAC7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C00BD383-19A1-4A9B-88F1-42BFC02FDAC7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C00BD383-19A1-4A9B-88F1-42BFC02FDAC7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{37AD5F78-E10A-43FF-AD66-45DF8E4EA9D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{37AD5F78-E10A-43FF-AD66-45DF8E4EA9D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{37AD5F78-E10A-43FF-AD66-45DF8E4EA9D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{37AD5F78-E10A-43FF-AD66-45DF8E4EA9D2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1538DB56-7EC7-4164-A517-AE81C8612B29}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1538DB56-7EC7-4164-A517-AE81C8612B29}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1538DB56-7EC7-4164-A517-AE81C8612B29}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1538DB56-7EC7-4164-A517-AE81C8612B29}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

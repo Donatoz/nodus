@@ -1,0 +1,34 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Nodus.App.App"
+             xmlns:local="using:Nodus"
+             xmlns:dt="clr-namespace:Nodus.Core.Controls.Templates;assembly=Nodus.Core"
+             RequestedThemeVariant="Dark">
+             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+
+    <Application.DataTemplates>
+        <local:ViewLocator/>
+        <dt:CumulativeTemplateSelector/>
+    </Application.DataTemplates>
+  
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Nodus.Core/Styles/ColorPalette.axaml"/>
+                <ResourceInclude Source="avares://Nodus.Core/Resources/Icons.axaml"/>
+                <ResourceInclude Source="avares://Nodus.NodeEditor/Resources/Icons.axaml"/>
+                <ResourceInclude Source="Resources/Icons.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            
+            <FontFamily x:Key="FontNunito">avares://Nodus/App/Fonts/#Nunito</FontFamily>
+        </ResourceDictionary>
+    </Application.Resources>
+             
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://Nodus.Core/Styles/Typography.axaml"/>
+        <StyleInclude Source="avares://Nodus.Core/Styles/DefaultControls.axaml"/>
+        <StyleInclude Source="avares://Nodus.NodeEditor/Styles/EditorElements.axaml"/>
+        <StyleInclude Source="avares://Nodus.NodeEditor/Styles/NodeGroups.axaml"/>
+    </Application.Styles>
+</Application>

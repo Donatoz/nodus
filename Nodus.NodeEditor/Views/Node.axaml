@@ -1,0 +1,58 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ec="clr-namespace:Nodus.Core.Controls;assembly=Nodus.Core"
+             xmlns:vm="using:Nodus.NodeEditor.ViewModels"
+             xmlns:v="using:Nodus.NodeEditor.Views"
+             xmlns:fx="clr-namespace:Nodus.Core.Effects;assembly=Nodus.Core"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nodus.NodeEditor.Views.Node"
+             ClipToBounds="False"
+             Design.Height="200" Design.Width="200"
+             x:DataType="vm:NodeViewModel">
+
+    <Grid Name="Container" ClipToBounds="False">
+        <Grid.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="Add In Port" Command="{Binding AddIntPort}">
+                    <MenuItem.Icon>
+                        <Image Source="{StaticResource PlusIcon}"/>
+                    </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Add Out Port" Command="{Binding AddOutPort}"/>
+                <MenuItem Header="Delete" ec:Hotkey.MenuItemHotkey="Delete" Command="{Binding DeleteSelf}"/>
+                <MenuItem Header="Switch Debug" Command="{Binding SwitchDebug}"/>
+            </ContextMenu>
+        </Grid.ContextMenu>
+        <Border ec:Draggable.ProvideDrag="True" Name="Body" Classes="panel node" Padding="10" ClipToBounds="False"
+                Classes.active="{Binding $parent[v:Node].SelectionHandler.IsSelected}">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="15" Color="Black" Opacity="0.4" OffsetX="0" />
+            </Border.Effect>
+            <ToolTip.Tip>
+                <ec:Tooltip IsVisible="{Binding Tooltip.Value.Tip, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                            Header="{Binding Tooltip.Value.Title, FallbackValue=Tooltip}" 
+                            Text="{Binding Tooltip.Value.Tip, FallbackValue=Tooltip Text}"/>
+            </ToolTip.Tip>
+            <Grid>
+                <Border Name="NodeGroupBorder" Height="6" Classes="nodegroup-default" VerticalAlignment="Top"
+                        Margin="-11 -11 -11 0" CornerRadius="15 15 0 0" />
+                <StackPanel Name="NodeHeader" Orientation="Vertical">
+                    <TextBlock ec:Draggable.ProvideDrag="True" TextAlignment="Center" Text="{Binding Title, FallbackValue=Node Title}" 
+                               HorizontalAlignment="Center" Classes="h2" />
+                    <TextBlock MaxWidth="200" ec:Draggable.ProvideDrag="True" Text="Node description" HorizontalAlignment="Center"
+                               Classes="h4" TextWrapping="Wrap" TextAlignment="Center" Foreground="{StaticResource Highlight}"/>
+
+                    <ContentControl Name="Content" />
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+        <StackPanel Name="InputPortsContainer" HorizontalAlignment="Left" ClipToBounds="False" VerticalAlignment="Center"/>
+        <StackPanel Name="OutputPortsContainer" HorizontalAlignment="Right" ClipToBounds="False" VerticalAlignment="Center"/>
+        
+        <TextBlock IsVisible="{Binding Debug.Value}" Text="{Binding NodeId}" Foreground="{StaticResource AscentActive}" VerticalAlignment="Bottom"
+                   ClipToBounds="False" TextWrapping="Wrap" MaxWidth="150" Margin="0 0 0 -40"/>
+    </Grid>
+</UserControl>

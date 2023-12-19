@@ -1,0 +1,44 @@
+﻿<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Design.PreviewWith>
+        <Border Padding="20">
+            <!-- Add Controls for Previewer Here -->
+        </Border>
+    </Design.PreviewWith>
+    
+    <Style Selector="Border.modal">
+        <Setter Property="Padding" Value="10"/>
+        <Setter Property="Background" Value="{StaticResource BackgroundDefault}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BackgroundLight}"/>
+        <Setter Property="BorderThickness" Value="2"/>
+        <Setter Property="CornerRadius" Value="5"/>
+        <Setter Property="Effect">
+            <DropShadowEffect BlurRadius="10" Color="Black" Opacity="0.5"/>
+        </Setter>
+    </Style>
+
+    <Style Selector="Border.nodesearch-node">
+        <Setter Property="Margin" Value="5"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Background" Value="{StaticResource BackgroundDark}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BackgroundLight}"/>
+        
+        <Style Selector="^ > Border">
+            <Setter Property="Background" Value="{StaticResource BackgroundDark}"/>
+            
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+            
+            <Style Selector="^:pointerover">
+                <Setter Property="Background" Value="{StaticResource BackgroundLight}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BackgroundLighter}"/>
+            </Style>
+        </Style>
+    </Style>
+</Styles>

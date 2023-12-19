@@ -1,0 +1,27 @@
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <Color x:Key="BackgroundDark">#272727</Color>
+
+    <Color x:Key="BackgroundDefault">#2e2e2e</Color>
+    <Color x:Key="BackgroundLight">#404040</Color>
+    <Color x:Key="BackgroundLighter">#4d4d4d</Color>
+    
+    <Color x:Key="ForegroundDefault">#575757</Color>
+    <Color x:Key="ForegroundLight">#636363</Color>
+    <Color x:Key="ForegroundLighter">#707070</Color>
+    
+    <Color x:Key="Highlight">#878787</Color>
+    <Color x:Key="Glow">#A4A4A4</Color>
+    <Color x:Key="Shine">#C5C5C5</Color>
+    
+    <Color x:Key="AscentActiveGlow">#7BEEA7</Color>
+    <Color x:Key="AscentActiveHightlight">#7AC89E</Color>
+    <Color x:Key="AscentActive">#599B80</Color>
+    <Color x:Key="AscentBackgroundActive">#26382F</Color>
+    
+    <Color x:Key="TextHightlight">#82D89F</Color>
+
+    <Color x:Key="GroupDefault">#5e5e5e</Color>
+    
+</ResourceDictionary>

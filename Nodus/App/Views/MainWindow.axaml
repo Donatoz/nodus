@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Nodus.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:v="using:Nodus.App.Views"
+        xmlns:fx="clr-namespace:Nodus.Core.Effects;assembly=Nodus.Core"
+        xmlns:views="using:Nodus.NodeEditor.Views"
+        xmlns:evm="clr-namespace:Nodus.NodeEditor.ViewModels;assembly=Nodus.NodeEditor"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="Nodus.App.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        TransparencyLevelHint="AcrylicBlur"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="Nodus">
+
+    <Design.DataContext>
+        <!-- This only sets the DataContext for the previewer in an IDE,
+             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+    
+    <Panel>
+        <views:NodeCanvas DataContext="{Binding $parent[v:MainWindow].NodeCanvas}"/>
+        
+        <StackPanel>
+            <TextBlock Classes="h2" Text="&#xf07b;" Foreground="White"/>
+        </StackPanel>
+        
+        <!--
+        <Canvas Background="{StaticResource BackgroundDefault}">
+            <fx:EffectPresenter IsOpaque="True" IsUpdatable="True" Bitmap="{StaticResource TestBitmap}" Canvas.Left="12" Width="455" Height="455" 
+                                HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                ShaderSource="avares://Nodus/Assets/Shaders/SampleShader.glsl" />
+        </Canvas>-->
+    </Panel>
+    
+</Window>
