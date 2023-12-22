@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reactive;
 using System.Windows.Input;
@@ -9,7 +10,9 @@ using Nodus.Core.Reactive;
 using Nodus.Core.Selection;
 using Nodus.Core.ViewModels;
 using Nodus.NodeEditor.Factories;
+using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
+using Nodus.NodeEditor.ViewModels.Events;
 using ReactiveUI;
 
 namespace Nodus.NodeEditor.ViewModels;
@@ -24,7 +27,7 @@ public interface INodeCanvasOperatorViewModel
 /// <summary>
 /// Represents the view model for a node-based canvas.
 /// </summary>
-public class NodeCanvasViewModel : ReactiveObject, INodeCanvasOperatorViewModel, IDisposable
+public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewModel, IDisposable
 {
     /// <summary>
     /// Represents a selector for nodes.
@@ -34,37 +37,46 @@ public class NodeCanvasViewModel : ReactiveObject, INodeCanvasOperatorViewModel,
     /// </remarks>
     public Selector<NodeViewModel> NodesSelector { get; }
     public BoundCollection<INodeModel, NodeViewModel> Nodes { get; }
-    public BoundProperty<IEnumerable<ConnectionViewModel>> Connections { get; }
+    public BoundCollection<Connection, ConnectionViewModel> Connections { get; }
     public ModalCanvasViewModel ModalCanvas { get; }
+    public NodeCanvasToolbarViewModel Toolbar { get; }
     
     public ICommand RequestNodeSelectionCommand { get; }
     public ICommand AddNodeCommand { get; }
+    public ICommand RemoveSelectedCommand { get; }
 
     private readonly NodeSearchModalViewModel nodeSearchModal;
     private readonly IDisposable nodeAlterationContract;
 
-    protected readonly INodeCanvasModel model;
+    protected INodeCanvasModel Model { get; }
+    protected IServiceProvider ServiceProvider { get; }
 
     /// <summary>
     /// Initializes a new instance of the NodeCanvasViewModel class.
     /// </summary>
     /// <param name="model">The INodeCanvasModel instance.</param>
-    public NodeCanvasViewModel(INodeCanvasModel model)
+    /// <param name="serviceProvider">Service provider</param>
+    public NodeCanvasViewModel(INodeCanvasModel model, IServiceProvider serviceProvider)
     {
-        this.model = model;
+        Model = model;
+        ServiceProvider = serviceProvider;
         
         NodesSelector = new Selector<NodeViewModel>();
+        
         Nodes = new BoundCollection<INodeModel, NodeViewModel>(model.Nodes, CreateNode);
         nodeAlterationContract = Nodes.AlterationStream.Subscribe(Observer.Create<CollectionChangedEvent<NodeViewModel>>(OnNodesAlteration));
+        Connections = new BoundCollection<Connection, ConnectionViewModel>(model.Connections, CreateConnection);
         
-        Connections = new BoundProperty<IEnumerable<ConnectionViewModel>>(
-            () => model.Connections.Value.Select(CreateConnection),
-            model.Connections);
+        Toolbar = new NodeCanvasToolbarViewModel(serviceProvider, model);
+        
         ModalCanvas = new ModalCanvasViewModel();
         nodeSearchModal = new NodeSearchModalViewModel(this, model.SearchModal);
 
         RequestNodeSelectionCommand = ReactiveCommand.Create<NodeViewModel?>(OnNodeSelectionRequested);
         AddNodeCommand = ReactiveCommand.Create(CreateNewNode);
+        RemoveSelectedCommand = ReactiveCommand.Create(RemoveCurrent);
+        
+        model.EventStream.OnEvent<MutationEvent<NodeData>>(OnNodeDataMutation);
     }
 
     /// <summary>
@@ -80,6 +92,14 @@ public class NodeCanvasViewModel : ReactiveObject, INodeCanvasOperatorViewModel,
         else
         {
             NodesSelector.Select(node);
+        }
+    }
+
+    private void RemoveCurrent()
+    {
+        if (NodesSelector.CurrentlySelected.Value != null)
+        {
+            RemoveNode(NodesSelector.CurrentlySelected.Value);
         }
     }
 
@@ -100,14 +120,31 @@ public class NodeCanvasViewModel : ReactiveObject, INodeCanvasOperatorViewModel,
         }
     }
     
+    private void OnNodeDataMutation(MutationEvent<NodeData> evt)
+    {
+        evt.MutatedValue.VisualData ??= new NodeVisualData();
+
+        var nodeVm = Nodes.Items.FirstOrDefault(x => x.NodeId == evt.MutatedValue.NodeId)
+            .NotNull($"Failed to find mutated node view model: {evt.MutatedValue.NodeId}");
+        
+        Trace.WriteLine($"Node data mutation");
+        
+        RaiseEvent(new NodeVisualMutationEvent(nodeVm, evt.MutatedValue.VisualData));
+    }
+    
     private void OnNodeRemoval(NodeDeleteRequest evt)
     {
-        if (NodesSelector.CurrentlySelected.Value == evt.Node)
+        RemoveNode(evt.Node);
+    }
+
+    protected void RemoveNode(NodeViewModel node)
+    {
+        if (NodesSelector.CurrentlySelected.Value == node)
         {
             NodesSelector.DeselectAll();
         }
         
-        model.Operator.RemoveNode(evt.Node.NodeId);
+        Model.Operator.RemoveNode(node.NodeId);
     }
 
     protected virtual ConnectionViewModel CreateConnection(Connection connection)
@@ -122,21 +159,25 @@ public class NodeCanvasViewModel : ReactiveObject, INodeCanvasOperatorViewModel,
 
     public void CreateNode(NodeTemplate template)
     {
-        model.Operator.CreateNode(template);
+        Model.Operator.CreateNode(template);
     }
 
     public void CreateConnection(string sourceNode, string sourcePort, string targetNode, string targetPort)
     {
-        model.Operator.Connect(sourceNode, sourcePort, targetNode, targetPort);
+        Model.Operator.Connect(sourceNode, sourcePort, targetNode, targetPort);
     }
     
     public void RemoveConnection(ConnectionViewModel connection)
     {
-        model.Operator.Disconnect(connection.Data);
+        Model.Operator.Disconnect(connection.Data);
     }
 
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
+        base.Dispose(disposing);
+        
+        if (!disposing) return;
+        
         Nodes.Dispose();
         Connections.Dispose();
         ModalCanvas.Dispose();

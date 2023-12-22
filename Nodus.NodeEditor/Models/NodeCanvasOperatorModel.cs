@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
+using Nodus.Core.Entities;
 using Nodus.Core.Extensions;
 using Nodus.NodeEditor.Extensions;
 using Nodus.NodeEditor.Factories;
+using Nodus.NodeEditor.Meta;
 
 namespace Nodus.NodeEditor.Models;
 
@@ -35,6 +37,9 @@ public class NodeCanvasOperatorModel : ICanvasOperatorModel
     public void CreateNode(NodeTemplate template)
     {
         var node = NodeFactory.CreateNode(template, PortFactory);
+
+        node.AddComponent(new ValueContainer<NodeData>(template.Data));
+        
         AddNode(node);
     }
 

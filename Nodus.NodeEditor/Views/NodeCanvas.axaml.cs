@@ -5,25 +5,21 @@ using System.Linq;
 using System.Numerics;
 using System.Reactive;
 using System.Reactive.Disposables;
+using System.Threading;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Markup.Xaml;
-using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
-using Avalonia.VisualTree;
-using DynamicData;
 using DynamicData.Binding;
 using Nodus.Core.Common;
 using Nodus.Core.Controls;
 using Nodus.Core.Extensions;
 using Nodus.Core.Reactive;
 using Nodus.Core.Utility;
-using Nodus.NodeEditor.Models;
+using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.ViewModels;
-using ISelectable = Nodus.Core.Selection.ISelectable;
+using Nodus.NodeEditor.ViewModels.Events;
 
 namespace Nodus.NodeEditor.Views;
 
@@ -49,6 +45,7 @@ public partial class NodeCanvas : UserControl
     private readonly ISet<NodeContainer> nodes;
 
     private readonly BoundCollectionPresenter<NodeViewModel, Draggable> nodesCollectionView;
+    private readonly BoundCollectionPresenter<ConnectionViewModel, ConnectionPath> connectionsCollectionView;
 
     private ScaleTransform CanvasScale =>
         (CanvasesGroup.RenderTransform as TransformGroup).Children[0] as ScaleTransform;
@@ -76,6 +73,10 @@ public partial class NodeCanvas : UserControl
         nodesCollectionView.DestructionPredicate =
             (c, vm) => c is Panel p && p.Children.Any(x => x.DataContext == vm);
 
+        connectionsCollectionView =
+            new BoundCollectionPresenter<ConnectionViewModel, ConnectionPath>(CreateConnectionControl,
+                ConnectionsCanvas, RemoveConnectionControl);
+
         AddHandler(Port.PortPressedEvent, OnPortPressed);
         AddHandler(Port.PortReleasedEvent, OnPortReleased);
         AddHandler(Port.PortDragEvent, OnPortDrag);
@@ -94,10 +95,10 @@ public partial class NodeCanvas : UserControl
         {
             nodesCollectionView.Repopulate(vm.Nodes.Items);
             nodesCollectionView.Subscribe(vm.Nodes.AlterationStream);
+            connectionsCollectionView.Repopulate(vm.Connections.Items);
+            connectionsCollectionView.Subscribe(vm.Connections.AlterationStream);
             
-            var connectionsStream = vm.Connections.WhenValueChanged(x => x.Value);
-            
-            disposables.Add(connectionsStream.Subscribe(Observer.Create<IEnumerable<ConnectionViewModel>>(RepopulateConnections)));
+            disposables.Add(vm.EventStream.OnEvent<NodeVisualMutationEvent>(OnNodeVisualDataMutation));
         }
         
     }
@@ -108,9 +109,10 @@ public partial class NodeCanvas : UserControl
     {
         var draggable = new Draggable();
 
-        var pos = lastPointerPosition.Equals(default) 
-            ? new Point(400, 0) * (CanvasRoot.Children.OfType<Draggable>().Count() + 1) + new Point(0, 200)
-            : lastPointerPosition;
+        var pos = ctx.VisualData?.Position 
+                  ?? (lastPointerPosition.Equals(default) 
+                    ? new Point(400, 0) * (CanvasRoot.Children.OfType<Draggable>().Count() + 1) + new Point(0, 200)
+                    : lastPointerPosition);
         
         draggable.SetValue(Canvas.LeftProperty, pos.X);
         draggable.SetValue(Canvas.TopProperty, pos.Y);
@@ -146,24 +148,7 @@ public partial class NodeCanvas : UserControl
 
     #region Connections Interactions
 
-    private void RepopulateConnections(IEnumerable<ConnectionViewModel> connections)
-    {
-        currentConnections.Clear();
-        ConnectionsCanvas.Children.Clear();
-        
-        foreach (var connection in connections)
-        {
-            var c = CreateConnectionControl(connection);
-            if (c == null) continue;
-            
-            currentConnections.Add(c.Value);
-            ConnectionsCanvas.Children.Add(c.Value.Path);
-            
-            UpdateConnection(c.Value);
-        }
-    }
-
-    protected virtual ConnectionContainer? CreateConnectionControl(ConnectionViewModel connection)
+    protected virtual ConnectionPath CreateConnectionControl(ConnectionViewModel connection)
     {
         var path = new ConnectionPath {DataContext = connection};
         var (data, lines) = GeometryUtility.CreatePolyLineGeometry(3);
@@ -177,7 +162,22 @@ public partial class NodeCanvas : UserControl
             .FindPort(connection.TargetPort.PortId);
         if (destPort == null) return null;
 
-        return new ConnectionContainer(path, lines, connection, sourcePort, destPort);
+        var container = new ConnectionContainer(path, lines, connection, sourcePort, destPort);
+        currentConnections.Add(container);
+
+        UpdateConnection(container);
+
+        return path;
+    }
+    
+    private void RemoveConnectionControl(Control connectionControl)
+    {
+        var c = currentConnections.FirstOrDefault(x => x.Path == connectionControl);
+
+        if (c.Path != null)
+        {
+            currentConnections.Remove(c);
+        }
     }
 
     private void UpdateConnections()
@@ -189,22 +189,15 @@ public partial class NodeCanvas : UserControl
     {
         var from = connection.From.GetCenterPoint(ConnectionsCanvas);
         var to = connection.To.GetCenterPoint(ConnectionsCanvas);
-
+        
         if (from == null || to == null)
         {
-            throw new Exception($"Failed to update connection: {connection}. Probably ports are not present in the canvas.");
+            return;
         }
-
-        const ushort lineFixedSpan = 30;
         
         connection.Path.SetValue(Canvas.LeftProperty, from.Value.X);
         connection.Path.SetValue(Canvas.TopProperty, from.Value.Y);
-        
-        var direction = (Point) to - (Point) from;
-
-        connection.Lines[0].Point = new Point(lineFixedSpan, 0);
-        connection.Lines[1].Point = direction - new Point(lineFixedSpan, 0);
-        connection.Lines[2].Point = direction;
+        connection.Path.UpdatePath((Point) from, (Point) to, connection.Lines);
     }
 
     #endregion
@@ -311,7 +304,6 @@ public partial class NodeCanvas : UserControl
     private void StopSelection()
     {
         SelectionRect.IsVisible = false;
-        
         selectionRectGeometry.Rect = default;
     }
 
@@ -396,17 +388,35 @@ public partial class NodeCanvas : UserControl
             BackgroundBrush.DestinationRect.Rect.Size + new Size(effectiveDelta, effectiveDelta) * 15, BackgroundBrush.DestinationRect.Unit);
     }
 
-    private void OnDraggableDrag(object? sender, DraggableEventArgs e)
+    protected virtual void OnDraggableDrag(object? sender, DraggableEventArgs e)
     {
         UpdateConnections();
     }
 
-    private void DeselectNodes()
+    protected void DeselectNodes()
     {
         if (DataContext is NodeCanvasViewModel vm)
         {
             vm.NodesSelector.DeselectAll();
         }
+    }
+
+    #endregion
+
+    #region Serialization
+
+    protected virtual void OnNodeVisualDataMutation(NodeVisualMutationEvent evt)
+    {
+        var container = nodes.FirstOrDefault(x => x.ViewModel == evt.ViewModel);
+
+        if (container.Node == null)
+        {
+            throw new Exception($"Failed to mutate node visual data: node not found ({evt.ViewModel.NodeId})");
+        }
+
+        var pos = container.Node.TranslatePoint(default, CanvasRoot);
+        
+        evt.MutatedValue.Position = (Point) pos;
     }
 
     #endregion

@@ -4,11 +4,17 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:Nodus.NodeEditor.ViewModels"
              xmlns:v="using:Nodus.NodeEditor.Views"
+             xmlns:cc="using:Nodus.Core.Controls"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Nodus.NodeEditor.Views.InputPort"
              x:DataType="vm:PortViewModel"
              ClipToBounds="False">
     <DockPanel>
+        <DockPanel.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="Delete Port"/>
+            </ContextMenu>
+        </DockPanel.ContextMenu>
         <Border Name="Handler" ClipToBounds="False" Classes="port" />
         <TextBlock Text="{Binding Label}" Foreground="White" Classes="h5" FontWeight="Light"
                    VerticalAlignment="Center" Margin="4 0 0 0" />

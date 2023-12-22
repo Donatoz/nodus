@@ -4,6 +4,7 @@
     <Color x:Key="BackgroundDark">#272727</Color>
 
     <Color x:Key="BackgroundDefault">#2e2e2e</Color>
+    <Color x:Key="BackgroundSemiLight">#353535</Color>
     <Color x:Key="BackgroundLight">#404040</Color>
     <Color x:Key="BackgroundLighter">#4d4d4d</Color>
     

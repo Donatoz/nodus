@@ -1,4 +1,5 @@
 ﻿using System;
+using Nodus.NodeEditor.Meta;
 
 namespace Nodus.NodeEditor.Models;
 
@@ -10,6 +11,8 @@ public interface IPortModel
     PortCapacity Capacity { get; }
 
     bool IsCompatible(IPortModel other);
+
+    PortData Serialize();
 }
 
 public class PortModel : IPortModel
@@ -27,7 +30,16 @@ public class PortModel : IPortModel
         Capacity = capacity;
     }
 
+    public PortModel(PortData data) : this(data.PortHeader, data.Type, data.Capacity, data.PortId)
+    {
+    }
+
     public virtual bool IsCompatible(IPortModel other) => Type != other.Type;
+    
+    public PortData Serialize()
+    {
+        return new PortData(Header, Type, Capacity) { PortId = Id };
+    }
 
     public override string ToString() => Id;
 }

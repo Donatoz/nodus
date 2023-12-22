@@ -11,7 +11,7 @@
     <Grid>
         <Canvas Name="ModalCanvas">
             <cc:Draggable Name="ModalDraggable">
-                <ContentControl Content="{Binding CurrentModal.Value}"/>
+                <ContentControl ClipToBounds="False" Content="{Binding CurrentModal.Value}"/>
             </cc:Draggable>
         </Canvas>
     </Grid>

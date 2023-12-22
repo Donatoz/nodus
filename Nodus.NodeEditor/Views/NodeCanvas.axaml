@@ -12,34 +12,44 @@
         <Grid.ContextMenu>
             <ContextMenu>
                 <MenuItem Header="Add Node" cc:Hotkey.MenuItemHotkey="Space" Command="{Binding AddNodeCommand}">
-                    <MenuItem.Icon><Image Source="{StaticResource PlusIcon}"/></MenuItem.Icon>
+                    <MenuItem.Icon>
+                        <Image Source="{StaticResource PlusIcon}" />
+                    </MenuItem.Icon>
                 </MenuItem>
+
+                <!-- Target-less commands -->
+                <MenuItem IsVisible="False" HotKey="Delete" Command="{Binding RemoveSelectedCommand}" />
             </ContextMenu>
         </Grid.ContextMenu>
-        
-        <TextBlock Text="Test Graph 1" FontSize="56" FontWeight="SemiBold" Opacity="0.1" HorizontalAlignment="Center" Margin="20"/>
-        
+
+        <TextBlock Text="Test Graph 1" FontSize="72" FontWeight="SemiBold" Opacity="0.1" HorizontalAlignment="Left"
+                   VerticalAlignment="Bottom" Margin="20" />
+
         <Grid Name="BackgroundVisual">
             <Grid.Background>
                 <VisualBrush DestinationRect="0 0 16 16" Stretch="None" TileMode="Tile">
                     <VisualBrush.Visual>
-                        <Ellipse Name="BackgroundEllipse" Height="2" Width="2" Fill="{StaticResource BackgroundLight}" />
+                        <Ellipse Name="BackgroundEllipse" Height="2" Width="2"
+                                 Fill="{StaticResource BackgroundLight}" />
                     </VisualBrush.Visual>
                 </VisualBrush>
             </Grid.Background>
         </Grid>
-        
+
         <Grid Name="CanvasesGroup">
             <Canvas Name="BackgroundCanvas">
-                <Path Name="SelectionRect" Fill="{StaticResource AscentBackgroundActive}" Opacity="0.7" Stroke="{StaticResource AscentActiveGlow}"
-                      StrokeThickness="1"/>
+                <Path Name="SelectionRect" Fill="{StaticResource AscentBackgroundActive}" Opacity="0.7"
+                      Stroke="{StaticResource AscentActiveGlow}"
+                      StrokeThickness="1" />
             </Canvas>
-            <Canvas Name="ConnectionsCanvas"/>
+            <Canvas Name="ConnectionsCanvas" />
             <Canvas Name="CanvasRoot">
-                <Path IsHitTestVisible="False" Name="ActiveConnection" Classes="connection" Stroke="{StaticResource AscentActiveHightlight}"/>
+                <Path IsHitTestVisible="False" Name="ActiveConnection" Classes="connection"
+                      Stroke="{StaticResource AscentActiveHightlight}" />
             </Canvas>
         </Grid>
         
-        <cc:ModalContainer DataContext="{Binding ModalCanvas}"/>
+        <v:NodeCanvasToolbar DataContext="{Binding Toolbar}" VerticalAlignment="Top" HorizontalAlignment="Stretch" MaxHeight="75" />
+        <cc:ModalContainer DataContext="{Binding ModalCanvas}" />
     </Grid>
 </UserControl>

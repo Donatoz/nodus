@@ -28,5 +28,6 @@
 
     <ItemGroup>
       <Folder Include="Assets\Fonts\" />
+      <Folder Include="Controls\Input\" />
     </ItemGroup>
 </Project>

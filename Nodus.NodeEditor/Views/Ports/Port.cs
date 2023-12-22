@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.ViewModels;
 
 namespace Nodus.NodeEditor.Views;
@@ -17,7 +18,7 @@ public abstract class Port : UserControl
     
     protected bool IsDragging { get; private set; }
     
-    public abstract Layoutable PortHandler { get; }
+    public abstract Interactive PortHandler { get; }
     public string PortId { get; private set; }
 
     static Port()
@@ -44,9 +45,9 @@ public abstract class Port : UserControl
 
     protected override void OnInitialized()
     {
-        AddHandler(PointerPressedEvent, OnPointerPressed);
-        AddHandler(PointerReleasedEvent, OnPointerReleased);
-        AddHandler(PointerMovedEvent, OnPointerMoved);
+        PortHandler.AddHandler(PointerPressedEvent, OnPointerPressed);
+        PortHandler.AddHandler(PointerReleasedEvent, OnPointerReleased);
+        PortHandler.AddHandler(PointerMovedEvent, OnPointerMoved);
     }
 
     private void OnPointerMoved(object? sender, PointerEventArgs e)
@@ -72,6 +73,19 @@ public abstract class Port : UserControl
     {
         return PortHandler.TranslatePoint(default, relativeTo) +
                 new Point(PortHandler.DesiredSize.Width / 2, PortHandler.DesiredSize.Height / 2);
+    }
+
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        if (DataContext is PortViewModel vm)
+        {
+            var offset = PortHandler.DesiredSize.Width / -2;
+            Margin = new Thickness(vm.Type == PortType.Input ? offset : 0, 10, 
+                vm.Type == PortType.Output ? offset : 0, 10);
+            HorizontalAlignment = vm.Type == PortType.Input ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        }
+        
+        return base.ArrangeOverride(finalSize);
     }
 }
 

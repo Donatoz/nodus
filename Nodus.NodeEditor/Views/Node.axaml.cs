@@ -95,17 +95,11 @@ public partial class Node : UserControl
             throw new ArgumentException($"Failed to create control for: {vm}");
         }
         
-        const int horizontalOffset = -9;
-        
-        port.Margin = new Thickness(vm.Type == PortType.Input ? horizontalOffset : 0, 10, 
-            vm.Type == PortType.Output ? horizontalOffset : 0, 10);
-        port.HorizontalAlignment = vm.Type == PortType.Input ? HorizontalAlignment.Left : HorizontalAlignment.Right;
-        
         ports.Add(port);
         GetContainerForPort(vm.Type).Children.Add(port);
     }
 
-    private Port? CreatePortControl(PortViewModel vm)
+    protected virtual Port? CreatePortControl(PortViewModel vm)
     {
         if (vm.Type == PortType.Input)
         {
@@ -119,7 +113,7 @@ public partial class Node : UserControl
         return null;
     }
 
-    private void RemovePort(PortViewModel vm)
+    protected void RemovePort(PortViewModel vm)
     {
         var p = ports.FirstOrDefault(x => x.DataContext == vm);
 
@@ -130,7 +124,7 @@ public partial class Node : UserControl
         }
     }
 
-    private Panel GetContainerForPort(PortType type)
+    protected Panel GetContainerForPort(PortType type)
     {
         return type == PortType.Input ? InputPortsContainer : OutputPortsContainer;
     }

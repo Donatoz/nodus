@@ -4,9 +4,11 @@ using System.Diagnostics;
 using System.Linq;
 using System.Windows.Input;
 using Nodus.Core.Common;
+using Nodus.Core.Entities;
 using Nodus.Core.Reactive;
 using Nodus.Core.Selection;
 using Nodus.Core.ViewModels;
+using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
 using ReactiveUI;
 
@@ -17,7 +19,8 @@ public class NodeViewModel : ReactiveViewModel, ISelectable
     public string Title { get; }
     public string NodeId { get; }
     public string? Group { get; }
-    
+    public NodeVisualData? VisualData { get; protected set; }
+
     public BoundProperty<NodeTooltip> Tooltip { get; }
     public BoundCollection<IPortModel, PortViewModel> Ports { get; }
 
@@ -41,6 +44,11 @@ public class NodeViewModel : ReactiveViewModel, ISelectable
 
         Ports = new BoundCollection<IPortModel, PortViewModel>(model.Ports, x => new PortViewModel(x));
         debug = new MutableReactiveProperty<bool>();
+
+        if (model.TryGetComponent(out ValueContainer<NodeData> data))
+        {
+            ApplyData(data.Value);
+        }
         
         AddIntPort = ReactiveCommand.Create(OnAddInPort);
         AddOutPort = ReactiveCommand.Create(OnAddOutPort);
@@ -76,6 +84,11 @@ public class NodeViewModel : ReactiveViewModel, ISelectable
     public virtual void Deselect()
     {
         RaiseEvent(new SelectionEvent(this, false));
+    }
+
+    protected virtual void ApplyData(NodeData data)
+    {
+        VisualData = data.VisualData;
     }
 
     protected override void Dispose(bool disposing)

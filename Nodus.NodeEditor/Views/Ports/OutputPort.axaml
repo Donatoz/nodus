@@ -6,7 +6,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Nodus.NodeEditor.Views.OutputPort"
-             x:DataType="vm:PortViewModel">
+             x:DataType="vm:PortViewModel" ClipToBounds="False">
     <DockPanel>
         <TextBlock Text="{Binding Label}" Foreground="White" Classes="h5" FontWeight="Light"
                    VerticalAlignment="Center" Margin="0 0 4 0" />

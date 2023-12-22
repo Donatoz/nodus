@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Reactive;
+using System.Reactive.Subjects;
 using Nodus.Core.Common;
 
 namespace Nodus.Core.Extensions;
@@ -16,5 +17,10 @@ public static class ObservableExtensions
                 handler.Invoke((T) evt);
             }
         }));
+    }
+
+    public static void RequestMutation<T>(this ISubject<IEvent> subject, T item) where T : class
+    {
+        subject.OnNext(new MutationEvent<T>(item));
     }
 }

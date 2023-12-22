@@ -6,11 +6,11 @@ namespace Nodus.NodeEditor.Models;
 public readonly struct NodeTemplate
 {
     public NodeData Data { get; }
-    public Func<NodeContext?> ContextFactory { get; }
+    public Func<INodeContext?> ContextFactory { get; }
 
-    public static Func<NodeContext?> EmptyContextFactory = () => null;
+    public static Func<INodeContext?> EmptyContextFactory = () => null;
 
-    public NodeTemplate(NodeData data, Func<NodeContext?>? contextFactory = null)
+    public NodeTemplate(NodeData data, Func<INodeContext?>? contextFactory = null)
     {
         ContextFactory = contextFactory ?? EmptyContextFactory;
         Data = data;

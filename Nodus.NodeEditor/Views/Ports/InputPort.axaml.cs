@@ -1,10 +1,10 @@
-﻿using Avalonia.Layout;
+﻿using Avalonia.Interactivity;
 
 namespace Nodus.NodeEditor.Views;
 
 public partial class InputPort : Port
 {
-    public override Layoutable PortHandler => Handler;
+    public override Interactive PortHandler => Handler;
 
     public InputPort()
     {

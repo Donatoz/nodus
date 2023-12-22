@@ -6,9 +6,12 @@
              xmlns:cc="clr-namespace:Nodus.Core.Controls;assembly=Nodus.Core"
              mc:Ignorable="d"
              x:Class="Nodus.NodeEditor.Views.Modals.NodeSearchModal"
-             x:DataType="vm:NodeSearchModalViewModel">
+             x:DataType="vm:NodeSearchModalViewModel" ClipToBounds="False">
     
     <Border Classes="modal" cc:Draggable.ProvideDrag="True">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="25" Color="Black" Opacity="0.4" OffsetX="0" />
+        </Border.Effect>
         <ScrollViewer MaxHeight="800">
             <StackPanel HorizontalAlignment="Center"> 
                 <TextBlock Text="Create a new node" cc:Draggable.ProvideDrag="True" Classes="h3" FontWeight="Normal" TextAlignment="Center"/>

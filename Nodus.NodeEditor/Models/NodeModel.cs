@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Nodus.Core.Entities;
 using Nodus.Core.Reactive;
+using Nodus.NodeEditor.Meta;
 
 namespace Nodus.NodeEditor.Models;
 
-public interface INodeModel : IDisposable
+public interface INodeModel : IEntity, IDisposable
 {
     string NodeId { get; }
     string Title { get; }
@@ -13,35 +15,43 @@ public interface INodeModel : IDisposable
     
     IReactiveProperty<NodeTooltip> Tooltip { get; }
     IReactiveProperty<IEnumerable<IPortModel>> Ports { get; }
-    IReactiveProperty<NodeContext?> Context { get; }
+    IReactiveProperty<INodeContext?> Context { get; }
 
     void AddPort(IPortModel port);
-    void ChangeContext(NodeContext? context);
+    void ChangeContext(INodeContext? context);
+
+    NodeData Serialize();
 }
 
-public class NodeModel : INodeModel
+public class NodeModel : Entity, INodeModel
 {
     public string NodeId { get; }
+    public override string EntityId => NodeId;
+
     public string Title { get; }
     public string? Group { get; }
 
-    private readonly MutableReactiveProperty<List<IPortModel>> ports;
+    private readonly MutableReactiveProperty<IList<IPortModel>> ports;
     private readonly MutableReactiveProperty<NodeTooltip> tooltip;
-    private readonly MutableReactiveProperty<NodeContext?> context;
+    private readonly MutableReactiveProperty<INodeContext?> context;
     
     public IReactiveProperty<NodeTooltip> Tooltip => tooltip;
     public IReactiveProperty<IEnumerable<IPortModel>> Ports => ports;
-    public IReactiveProperty<NodeContext?> Context => context;
+    public IReactiveProperty<INodeContext?> Context => context;
 
-    public NodeModel(string title, NodeTooltip tooltip = default, string? id = null, string? group = null)
+    private NodeModel()
+    {
+        ports = new MutableReactiveProperty<IList<IPortModel>>(new List<IPortModel>());
+        context = new MutableReactiveProperty<INodeContext?>();
+    }
+
+    public NodeModel(string title, NodeTooltip tooltip = default, string? id = null, string? group = null) : this()
     {
         NodeId = id ?? Guid.NewGuid().ToString();
         Title = title;
         Group = group;
         
         this.tooltip = new MutableReactiveProperty<NodeTooltip>(tooltip);
-        ports = new MutableReactiveProperty<List<IPortModel>>(new List<IPortModel>());
-        context = new MutableReactiveProperty<NodeContext?>();
     }
 
     public void AddPort(IPortModel port)
@@ -50,16 +60,29 @@ public class NodeModel : INodeModel
         ports.Invalidate();
     }
 
-    public void ChangeContext(NodeContext? context)
+    public void ChangeContext(INodeContext? context)
     {
         this.context.SetValue(context);
     }
     
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
+        base.Dispose(disposing);
+        
+        if (!disposing) return;
+        
         ports.Dispose();
         tooltip.Dispose();
         context.Dispose();
+    }
+
+    public virtual NodeData Serialize()
+    {
+        return new NodeData(Title, Tooltip.Value, Ports.Value.Select(x => x.Serialize()))
+        {
+            NodeId = NodeId,
+            Group = Group
+        };
     }
 }
 

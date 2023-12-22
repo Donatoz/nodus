@@ -61,4 +61,9 @@ public static class GraphExtensions
             throw new ArgumentException($"{port.Capacity}-capacity port ({port}) has too many connections.");
         }
     }
+
+    public static void Connect(this ICanvasOperatorModel canvas, Connection connection)
+    {
+        canvas.Connect(connection.SourceNodeId, connection.SourcePortId, connection.TargetNodeId, connection.TargetPortId);
+    }
 }
