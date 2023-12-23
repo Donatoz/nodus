@@ -2,6 +2,9 @@
 
 namespace Nodus.Core.Entities;
 
+/// <summary>
+/// Represents a simple abstract base for entities.
+/// </summary>
 public abstract class Entity : IEntity, IDisposable
 {
     public abstract string EntityId { get; }
