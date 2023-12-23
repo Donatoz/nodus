@@ -5,11 +5,20 @@ using Nodus.Core.ViewModels;
 
 namespace Nodus.Core.Selection;
 
+/// <summary>
+/// Represents a selectable component that can be used in an Avalonia UI.
+/// </summary>
 public sealed class SelectableComponent : AvaloniaObject, IDisposable
 {
     public static readonly StyledProperty<bool> IsSelectedProperty =
         AvaloniaProperty.Register<SelectableComponent, bool>(nameof(IsSelected));
-    
+
+    /// <summary>
+    /// A value indicating whether the item is selected.
+    /// </summary>
+    /// <value>
+    /// <c>true</c> if the item is selected; otherwise, <c>false</c>.
+    /// </value>
     public bool IsSelected
     {
         get => GetValue(IsSelectedProperty);
@@ -18,7 +27,7 @@ public sealed class SelectableComponent : AvaloniaObject, IDisposable
 
     private IDisposable? eventContract;
     private readonly Control parent;
-    
+
     public SelectableComponent(Control parent)
     {
         this.parent = parent;
