@@ -27,7 +27,7 @@ public interface INodeCanvasOperatorViewModel
 /// <summary>
 /// Represents the view model for a node-based canvas.
 /// </summary>
-public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewModel, IDisposable
+public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewModel
 {
     /// <summary>
     /// Represents a selector for nodes.
@@ -35,7 +35,7 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     /// <remarks>
     /// This property allows you to select nodes based on certain criteria.
     /// </remarks>
-    public Selector<NodeViewModel> NodesSelector { get; }
+    public ISelector<NodeViewModel> NodesSelector { get; }
     public BoundCollection<INodeModel, NodeViewModel> Nodes { get; }
     public BoundCollection<Connection, ConnectionViewModel> Connections { get; }
     public ModalCanvasViewModel ModalCanvas { get; }
@@ -52,11 +52,13 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     protected IServiceProvider ServiceProvider { get; }
 
     /// <summary>
-    /// Initializes a new instance of the NodeCanvasViewModel class.
+    /// Initialize a new instance of the NodeCanvasViewModel class.
     /// </summary>
     /// <param name="model">The INodeCanvasModel instance.</param>
     /// <param name="serviceProvider">Service provider</param>
-    public NodeCanvasViewModel(INodeCanvasModel model, IServiceProvider serviceProvider)
+    /// <param name="componentFactory">VM components factory</param>
+    public NodeCanvasViewModel(INodeCanvasModel model, IServiceProvider serviceProvider, 
+        INodeCanvasViewModelComponentFactory componentFactory)
     {
         Model = model;
         ServiceProvider = serviceProvider;
@@ -65,12 +67,12 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         
         Nodes = new BoundCollection<INodeModel, NodeViewModel>(model.Nodes, CreateNode);
         nodeAlterationContract = Nodes.AlterationStream.Subscribe(Observer.Create<CollectionChangedEvent<NodeViewModel>>(OnNodesAlteration));
-        Connections = new BoundCollection<Connection, ConnectionViewModel>(model.Connections, CreateConnection);
+        Connections = new BoundCollection<Connection, ConnectionViewModel>(model.Connections, 
+            c => componentFactory.CreateConnection(c, Nodes.Items, this));
         
-        Toolbar = new NodeCanvasToolbarViewModel(serviceProvider, model);
-        
-        ModalCanvas = new ModalCanvasViewModel();
-        nodeSearchModal = new NodeSearchModalViewModel(this, model.SearchModal);
+        Toolbar = componentFactory.CreateToolbar(serviceProvider, model);
+        ModalCanvas = componentFactory.CreateModalCanvas();
+        nodeSearchModal = componentFactory.CreateSearchModal(this, model.SearchModal);
 
         RequestNodeSelectionCommand = ReactiveCommand.Create<NodeViewModel?>(OnNodeSelectionRequested);
         AddNodeCommand = ReactiveCommand.Create(CreateNewNode);
@@ -79,10 +81,6 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         model.EventStream.OnEvent<MutationEvent<NodeData>>(OnNodeDataMutation);
     }
 
-    /// <summary>
-    /// Handles the request to select a node.
-    /// </summary>
-    /// <param name="node">The node to be selected.</param>
     private void OnNodeSelectionRequested(NodeViewModel? node)
     {
         if (node == null || NodesSelector.CurrentlySelected.Value == node)
@@ -116,6 +114,11 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     {
         if (!evt.Added)
         {
+            if (NodesSelector.CurrentlySelected.Value == evt.Item)
+            {
+                NodesSelector.DeselectAll();
+            }
+            
             evt.Item.Dispose();
         }
     }
@@ -139,11 +142,6 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
 
     protected void RemoveNode(NodeViewModel node)
     {
-        if (NodesSelector.CurrentlySelected.Value == node)
-        {
-            NodesSelector.DeselectAll();
-        }
-        
         Model.Operator.RemoveNode(node.NodeId);
     }
 

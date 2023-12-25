@@ -10,6 +10,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Editors", "Editors", "{D3A7
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{4497CF67-1A4B-48F2-B5F9-95C22CC02C27}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Generators", "Generators", "{CCCDDE4E-B4AA-47E9-94DA-32395BEB281F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonGenerators", "CommonGenerators\CommonGenerators\CommonGenerators.csproj", "{AD803999-B3EE-4274-B3AE-EAF2F6CE5C0E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,5 +32,12 @@ Global
 		{1538DB56-7EC7-4164-A517-AE81C8612B29}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1538DB56-7EC7-4164-A517-AE81C8612B29}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1538DB56-7EC7-4164-A517-AE81C8612B29}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AD803999-B3EE-4274-B3AE-EAF2F6CE5C0E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AD803999-B3EE-4274-B3AE-EAF2F6CE5C0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AD803999-B3EE-4274-B3AE-EAF2F6CE5C0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AD803999-B3EE-4274-B3AE-EAF2F6CE5C0E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{AD803999-B3EE-4274-B3AE-EAF2F6CE5C0E} = {CCCDDE4E-B4AA-47E9-94DA-32395BEB281F}
 	EndGlobalSection
 EndGlobal

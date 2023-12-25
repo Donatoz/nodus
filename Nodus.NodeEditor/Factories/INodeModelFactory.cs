@@ -9,7 +9,7 @@ public interface INodeModelFactory
     INodeModel CreateNode(NodeTemplate template, IPortModelFactory portFactory);
 }
 
-public class NodeModelFactory : INodeModelFactory
+internal class NodeModelFactory : INodeModelFactory
 {
     public INodeModel CreateNode(NodeTemplate template, IPortModelFactory portFactory)
     {

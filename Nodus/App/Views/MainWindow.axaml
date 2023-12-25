@@ -21,7 +21,7 @@
     </Design.DataContext>
     
     <Panel>
-        <views:NodeCanvas DataContext="{Binding $parent[v:MainWindow].NodeCanvas}"/>
+        <views:NodeCanvas DataContext="{Binding CanvasViewModel}"/>
         
         <!--
         <Canvas Background="{StaticResource BackgroundDefault}">
