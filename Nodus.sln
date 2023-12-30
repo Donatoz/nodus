@@ -14,6 +14,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Generators", "Generators", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonGenerators", "CommonGenerators\CommonGenerators\CommonGenerators.csproj", "{AD803999-B3EE-4274-B3AE-EAF2F6CE5C0E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nodus.FlowEditor", "Nodus.FlowEditor\Nodus.FlowEditor.csproj", "{582036FD-328A-45B0-9E7B-B1CEA89099F2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nodus.DI", "Nodus.DI\Nodus.DI.csproj", "{0D67F53E-7452-49A4-A61D-41A903CEE86F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nodus.FlowEngine", "Nodus.FlowEngine\Nodus.FlowEngine.csproj", "{37D91041-46CF-4C4B-9D34-1071D9DBF57C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,8 +42,22 @@ Global
 		{AD803999-B3EE-4274-B3AE-EAF2F6CE5C0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AD803999-B3EE-4274-B3AE-EAF2F6CE5C0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AD803999-B3EE-4274-B3AE-EAF2F6CE5C0E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{582036FD-328A-45B0-9E7B-B1CEA89099F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{582036FD-328A-45B0-9E7B-B1CEA89099F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{582036FD-328A-45B0-9E7B-B1CEA89099F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{582036FD-328A-45B0-9E7B-B1CEA89099F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0D67F53E-7452-49A4-A61D-41A903CEE86F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D67F53E-7452-49A4-A61D-41A903CEE86F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D67F53E-7452-49A4-A61D-41A903CEE86F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D67F53E-7452-49A4-A61D-41A903CEE86F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{37D91041-46CF-4C4B-9D34-1071D9DBF57C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{37D91041-46CF-4C4B-9D34-1071D9DBF57C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{37D91041-46CF-4C4B-9D34-1071D9DBF57C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{37D91041-46CF-4C4B-9D34-1071D9DBF57C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{AD803999-B3EE-4274-B3AE-EAF2F6CE5C0E} = {CCCDDE4E-B4AA-47E9-94DA-32395BEB281F}
+		{582036FD-328A-45B0-9E7B-B1CEA89099F2} = {D3A72B1E-9E82-42C7-8F93-866D892AECE4}
+		{37D91041-46CF-4C4B-9D34-1071D9DBF57C} = {4497CF67-1A4B-48F2-B5F9-95C22CC02C27}
 	EndGlobalSection
 EndGlobal

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using Nodus.Core.Entities;
 using Nodus.Core.Extensions;
+using Nodus.DI.Factories;
 using Nodus.NodeEditor.Extensions;
 using Nodus.NodeEditor.Factories;
 using Nodus.NodeEditor.Meta;
@@ -21,22 +22,25 @@ public interface ICanvasOperatorModel
 public class NodeCanvasOperatorModel : ICanvasOperatorModel
 {
     protected INodeCanvasModel Canvas { get; }
-    protected INodeModelFactory NodeFactory { get; }
-    protected IPortModelFactory PortFactory { get; }
     protected INodeCanvasMutationProvider MutationProvider { get; }
+    protected IComponentFactoryProvider<INodeCanvasModel> FactoryProvider { get; }
+    protected INodeContextProvider NodeContextProvider { get; }
     
-    public NodeCanvasOperatorModel(INodeCanvasModel canvas, INodeCanvasMutationProvider mutationProvider)
+    public NodeCanvasOperatorModel(INodeCanvasModel canvas, INodeCanvasMutationProvider mutationProvider, 
+        IComponentFactoryProvider<INodeCanvasModel> factoryProvider, INodeContextProvider nodeContextProvider)
     {
         Canvas = canvas;
         MutationProvider = mutationProvider;
-        
-        NodeFactory = CreateNodeFactory();
-        PortFactory = CreatePortFactory();
+        FactoryProvider = factoryProvider;
+        NodeContextProvider = nodeContextProvider;
     }
     
     public void CreateNode(NodeTemplate template)
     {
-        var node = NodeFactory.CreateNode(template, PortFactory);
+        var nodeFactory = FactoryProvider.GetFactory<INodeModelFactory>();
+        var portFactory = FactoryProvider.GetFactory<IPortModelFactory>();
+        
+        var node = nodeFactory.CreateNode(template.WithContext(NodeContextProvider.TryGetContextFactory(template.Data.ContextId ?? string.Empty)), portFactory);
 
         node.AddComponent(new ValueContainer<NodeData>(template.Data));
         
@@ -74,7 +78,7 @@ public class NodeCanvasOperatorModel : ICanvasOperatorModel
     public void Connect(string sourceNode, string sourcePort, string destinationNode, string destinationPort)
     {
         var sourcePortModel = Canvas.Nodes.Value.FirstOrDefault(x => x.NodeId == sourceNode)?.TryFindPort(sourcePort)
-            .NotNull($"Failed find source port: {sourcePort}");
+            .NotNull($"Failed to find source port: {sourcePort}");
         var targetPortModel = Canvas.Nodes.Value.FirstOrDefault(x => x.NodeId == destinationNode)?.TryFindPort(destinationPort)
             .NotNull($"Failed to find destination port: {destinationPort}");
 
@@ -108,15 +112,5 @@ public class NodeCanvasOperatorModel : ICanvasOperatorModel
     protected virtual void ResolveConnection(Connection connection)
     {
         MutationProvider.AddConnection(connection);
-    }
-    
-    protected virtual INodeModelFactory CreateNodeFactory()
-    {
-        return new NodeModelFactory();
-    }
-
-    protected virtual IPortModelFactory CreatePortFactory()
-    {
-        return new PortModelFactory();
     }
 }

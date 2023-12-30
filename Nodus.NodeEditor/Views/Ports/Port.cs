@@ -1,10 +1,14 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Media.Immutable;
+using Nodus.Core.Extensions;
 using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.ViewModels;
 
@@ -18,8 +22,10 @@ public abstract class Port : UserControl
     
     protected bool IsDragging { get; private set; }
     
-    public abstract Interactive PortHandler { get; }
+    public abstract Border PortHandler { get; }
     public string PortId { get; private set; }
+    public virtual Color HandlerColor => PortHandler.BorderBrush is ImmutableSolidColorBrush s ? s.Color : Colors.Black;
+    protected virtual string PortTypeClassPrefix => "port-type-";
 
     static Port()
     {
@@ -40,6 +46,9 @@ public abstract class Port : UserControl
         if (DataContext is PortViewModel vm)
         {
             PortId = vm.PortId;
+            PortHandler.Classes.Where(x => x.StartsWith(PortTypeClassPrefix))
+                .ForEach(x => PortHandler.Classes.Remove(x));
+            PortHandler.Classes.Add(PortTypeClassPrefix + (vm.Type == PortType.Input ? "input" : "output"));
         }
     }
 

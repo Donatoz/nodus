@@ -11,10 +11,10 @@
              ClipToBounds="False"
              Design.Height="200" Design.Width="200"
              x:DataType="vm:NodeViewModel">
-
+    
     <Grid Name="Container" ClipToBounds="False">
         <Grid.ContextMenu>
-            <ContextMenu>
+            <ContextMenu Name="NodeContextMenu">
                 <MenuItem Header="Add In Port" Command="{Binding AddIntPort}">
                     <MenuItem.Icon>
                         <Image Source="{StaticResource PlusIcon}"/>
@@ -25,6 +25,7 @@
                 <MenuItem Header="Switch Debug" Command="{Binding SwitchDebug}"/>
             </ContextMenu>
         </Grid.ContextMenu>
+        
         <Border ec:Draggable.ProvideDrag="True" Name="Body" Classes="panel node" Padding="10" ClipToBounds="False"
                 Classes.active="{Binding $parent[v:Node].SelectionHandler.IsSelected}">
             <Border.Effect>
@@ -41,7 +42,7 @@
                 <StackPanel Name="NodeHeader" Orientation="Vertical">
                     <TextBlock ec:Draggable.ProvideDrag="True" TextAlignment="Center" Text="{Binding Title, FallbackValue=Node Title}" 
                                HorizontalAlignment="Center" Classes="h2" />
-                    <TextBlock MaxWidth="200" ec:Draggable.ProvideDrag="True" Text="Node description" HorizontalAlignment="Center"
+                    <TextBlock MaxWidth="170" ec:Draggable.ProvideDrag="True" Text="{Binding Tooltip.Value.Tip}" HorizontalAlignment="Center"
                                Classes="h4" TextWrapping="Wrap" TextAlignment="Center" Foreground="{StaticResource Highlight}"/>
 
                     <ContentControl Name="Content" />

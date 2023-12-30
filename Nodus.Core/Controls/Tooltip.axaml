@@ -7,16 +7,8 @@
              x:Class="Nodus.Core.Controls.Tooltip">
     <Grid>
         <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
-            <Border Margin="0 0 0 3">
-                <Border.Background>
-                    <LinearGradientBrush Opacity="0.3">
-                        <GradientStop Color="{StaticResource BackgroundDefault}" />
-                        <GradientStop Color="{StaticResource AscentActive}" Offset="0.5" />
-                        <GradientStop Color="{StaticResource BackgroundDefault}" Offset="1" />
-                    </LinearGradientBrush>
-                </Border.Background>
-                <TextBlock Text="{Binding $parent[c:Tooltip].Header, FallbackValue=Tooltip}" Foreground="{StaticResource TextHightlight}"
-                           TextAlignment="Center" Classes="h4" />
+            <Border Classes="tooltip-header">
+                <TextBlock Text="{Binding $parent[c:Tooltip].Header, FallbackValue=Tooltip}" Classes="tooltip-header-text h4"/>
             </Border>
             <TextBlock Text="{Binding $parent[c:Tooltip].Text, FallbackValue=Tooltip text}" TextAlignment="Center" />
         </StackPanel>

@@ -1,0 +1,11 @@
+﻿<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <Style Selector="Border.nodegroup-flow">
+        <Setter Property="Background" Value="{StaticResource AscentActive}"/>
+    </Style>
+    
+    <Style Selector="Border.nodegroup-const">
+        <Setter Property="Background" Value="#BF868A"/>
+    </Style>
+</Styles>

@@ -1,9 +1,10 @@
-﻿using Nodus.NodeEditor.Models;
+﻿using Ninject;
+using Nodus.NodeEditor.Models;
 using ReactiveUI;
 
 namespace Nodus.NodeEditor.ViewModels;
 
-public class PortViewModel : ReactiveObject
+public class PortViewModel
 {
     public string PortId { get; }
     public string Label { get; }

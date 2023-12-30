@@ -30,13 +30,9 @@ public class PortModel : IPortModel
         Capacity = capacity;
     }
 
-    public PortModel(PortData data) : this(data.PortHeader, data.Type, data.Capacity, data.PortId)
-    {
-    }
-
     public virtual bool IsCompatible(IPortModel other) => Type != other.Type;
     
-    public PortData Serialize()
+    public virtual PortData Serialize()
     {
         return new PortData(Header, Type, Capacity) { PortId = Id };
     }

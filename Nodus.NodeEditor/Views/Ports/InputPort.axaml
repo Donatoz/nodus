@@ -10,11 +10,6 @@
              x:DataType="vm:PortViewModel"
              ClipToBounds="False">
     <DockPanel>
-        <DockPanel.ContextMenu>
-            <ContextMenu>
-                <MenuItem Header="Delete Port"/>
-            </ContextMenu>
-        </DockPanel.ContextMenu>
         <Border Name="Handler" ClipToBounds="False" Classes="port" />
         <TextBlock Text="{Binding Label}" Foreground="White" Classes="h5" FontWeight="Light"
                    VerticalAlignment="Center" Margin="4 0 0 0" />

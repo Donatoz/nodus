@@ -1,13 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Windows.Input;
+﻿using System.Windows.Input;
 using Nodus.Core.Common;
 using Nodus.Core.Entities;
 using Nodus.Core.Reactive;
 using Nodus.Core.Selection;
 using Nodus.Core.ViewModels;
+using Nodus.DI.Factories;
+using Nodus.NodeEditor.Factories;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
 using ReactiveUI;
@@ -33,8 +31,11 @@ public class NodeViewModel : ReactiveViewModel, ISelectable
     public ICommand DeleteSelf { get; }
 
     protected readonly INodeModel model;
+    protected IComponentFactoryProvider<INodeCanvasModel> ModelFactoryProvider { get; }
 
-    public NodeViewModel(INodeModel model)
+    public NodeViewModel(INodeModel model, 
+        IComponentFactoryProvider<NodeCanvasViewModel> componentFactoryProvider,
+        IComponentFactoryProvider<INodeCanvasModel> modelFactoryProvider)
     {
         this.model = model;
         Title = model.Title;
@@ -42,7 +43,10 @@ public class NodeViewModel : ReactiveViewModel, ISelectable
         Tooltip = model.Tooltip.ToBound();
         Group = model.Group;
 
-        Ports = new BoundCollection<IPortModel, PortViewModel>(model.Ports, x => new PortViewModel(x));
+        ModelFactoryProvider = modelFactoryProvider;
+
+        Ports = new BoundCollection<IPortModel, PortViewModel>(model.Ports, 
+            componentFactoryProvider.GetFactory<IPortViewModelFactory>().Create);
         debug = new MutableReactiveProperty<bool>();
 
         if (model.TryGetComponent(out ValueContainer<NodeData> data))
@@ -56,14 +60,16 @@ public class NodeViewModel : ReactiveViewModel, ISelectable
         DeleteSelf = ReactiveCommand.Create(OnDeleteSelf);
     }
 
-    private void OnAddInPort()
+    protected virtual void OnAddInPort()
     {
-        model.AddPort(new PortModel("Value", PortType.Input, PortCapacity.Single));
+        model.AddPort(ModelFactoryProvider.GetFactory<IPortModelFactory>()
+            .CreatePort(new PortData("Value", PortType.Input, PortCapacity.Single)));
     }
     
-    private void OnAddOutPort()
+    protected virtual void OnAddOutPort()
     {
-        model.AddPort(new PortModel("Value", PortType.Output, PortCapacity.Multiple));
+        model.AddPort(ModelFactoryProvider.GetFactory<IPortModelFactory>()
+            .CreatePort(new PortData("Value", PortType.Output, PortCapacity.Multiple)));
     }
 
     private void OnDeleteSelf()

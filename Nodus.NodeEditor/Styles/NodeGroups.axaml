@@ -9,8 +9,4 @@
     <Style Selector="Border.nodegroup-default">
         <Setter Property="Background" Value="{StaticResource GroupDefault}"/>
     </Style>
-    
-    <Style Selector="Border.nodegroup-flow">
-        <Setter Property="Background" Value="{StaticResource AscentActive}"/>
-    </Style>
 </Styles>

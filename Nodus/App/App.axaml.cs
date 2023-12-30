@@ -1,35 +1,67 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
-using DynamicData.Binding;
 using Microsoft.Extensions.DependencyInjection;
 using Ninject;
-using Ninject.Modules;
+using Ninject.Parameters;
 using Nodus.App.Views;
-using Nodus.NodeEditor.DI;
-using Nodus.NodeEditor.Factories;
+using Nodus.DI.Modules;
+using Nodus.DI.Runtime;
 using Nodus.NodeEditor.Services;
 using Nodus.ViewModels;
 using ReactiveUI;
 
 namespace Nodus.App;
 
-public partial class App : Application
+internal readonly struct AppElementProvider : IRuntimeElementProvider
 {
     private readonly IKernel diKernel;
-    private readonly IServiceProvider services;
     
-    public App()
+    public AppElementProvider(IKernel diKernel)
     {
-        services = CreateServices();
-        diKernel = CreateDIKernel();
+        this.diKernel = diKernel;
     }
+    
+    public T GetRuntimeElement<T>()
+    {
+        return diKernel.Get<T>();
+    }
+
+    public T GetRuntimeElement<T>(params IParameter[] parameters)
+    {
+        return diKernel.Get<T>(parameters);
+    }
+}
+
+internal readonly struct AppModuleLoader : IRuntimeModuleLoader
+{
+    private readonly IKernel diKernel;
+    private readonly IModuleInjector injector;
+
+    public AppModuleLoader(IKernel diKernel, IModuleInjector injector)
+    {
+        this.diKernel = diKernel;
+        this.injector = injector;
+    }
+    
+    public void LoadModulesFor(object context)
+    {
+        injector.InjectModules(diKernel, context);
+    }
+
+    public void Repopulate()
+    {
+        injector.Repopulate();
+    }
+}
+
+public partial class App : Application
+{
+    private IKernel diKernel;
+    private IServiceProvider services;
     
     public override void Initialize()
     {
@@ -42,19 +74,17 @@ public partial class App : Application
     /// <returns></returns>
     private IKernel CreateDIKernel()
     {
-        var kernel = new StandardKernel(GetKernelModules().ToArray());
+        var kernel = new StandardKernel();
         
         // Create primary service scope
         kernel.Bind<IServiceScope>().ToConstant(services.CreateScope()).InSingletonScope();
         // Expose the service scope as a service provider
         kernel.Bind<IServiceProvider>().ToMethod(x => x.Kernel.Get<IServiceScope>().ServiceProvider);
+        // Bind runtime modules resolvers
+        kernel.Bind<IRuntimeElementProvider>().ToConstant(new AppElementProvider(kernel)).InSingletonScope();
+        kernel.Bind<IRuntimeModuleLoader>().ToConstant(new AppModuleLoader(kernel, new ModuleInjector())).InSingletonScope();
 
         return kernel;
-    }
-
-    private IEnumerable<INinjectModule> GetKernelModules()
-    {
-        yield return new NodeCanvasDIModule();
     }
 
     /// <summary>
@@ -73,12 +103,13 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        services = CreateServices();
+        diKernel = CreateDIKernel();
+        
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow
-            {
-                DataContext = diKernel.Get<MainWindowViewModel>()
-            };
+            desktop.MainWindow = diKernel.Get<MainWindow>();
+            desktop.MainWindow.DataContext = diKernel.Get<MainWindowViewModel>();
 
             desktop.WhenAnyValue(x => x.MainWindow)
                 .Subscribe(UpdateWindowServicesScope);

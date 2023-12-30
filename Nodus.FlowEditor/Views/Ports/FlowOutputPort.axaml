@@ -1,0 +1,20 @@
+﻿<v:FlowPort xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:v="clr-namespace:FlowEditor.Views"
+             xmlns:cc="clr-namespace:Nodus.Core.Controls;assembly=Nodus.Core"
+             xmlns:vm="clr-namespace:FlowEditor.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="FlowEditor.Views.FlowOutputPort"
+             x:DataType="vm:FlowPortViewModel">
+    <DockPanel Name="Container">
+        <ToolTip.Tip>
+            <cc:Tooltip Header="Flow Port"/>
+        </ToolTip.Tip>
+        
+        <TextBlock Text="{Binding Label}" Foreground="White" Classes="h5" FontWeight="Light"
+                   VerticalAlignment="Center" Margin="0 0 4 0" />
+        <Border Name="Handler" ClipToBounds="False" Classes="port flow-port" />
+    </DockPanel>
+</v:FlowPort>

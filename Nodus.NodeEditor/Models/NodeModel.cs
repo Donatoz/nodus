@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Nodus.Core.Entities;
 using Nodus.Core.Reactive;
@@ -30,6 +31,7 @@ public class NodeModel : Entity, INodeModel
 
     public string Title { get; }
     public string? Group { get; }
+    private string? ContextId { get; }
 
     private readonly MutableReactiveProperty<IList<IPortModel>> ports;
     private readonly MutableReactiveProperty<NodeTooltip> tooltip;
@@ -45,11 +47,12 @@ public class NodeModel : Entity, INodeModel
         context = new MutableReactiveProperty<INodeContext?>();
     }
 
-    public NodeModel(string title, NodeTooltip tooltip = default, string? id = null, string? group = null) : this()
+    public NodeModel(string title, NodeTooltip tooltip = default, string? id = null, string? group = null, string? ctxId = null) : this()
     {
         NodeId = id ?? Guid.NewGuid().ToString();
         Title = title;
         Group = group;
+        ContextId = ctxId;
         
         this.tooltip = new MutableReactiveProperty<NodeTooltip>(tooltip);
     }
@@ -81,7 +84,8 @@ public class NodeModel : Entity, INodeModel
         return new NodeData(Title, Tooltip.Value, Ports.Value.Select(x => x.Serialize()))
         {
             NodeId = NodeId,
-            Group = Group
+            Group = Group,
+            ContextId = ContextId
         };
     }
 }

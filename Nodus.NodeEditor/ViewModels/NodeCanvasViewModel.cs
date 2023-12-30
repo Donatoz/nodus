@@ -9,6 +9,7 @@ using Nodus.Core.Extensions;
 using Nodus.Core.Reactive;
 using Nodus.Core.Selection;
 using Nodus.Core.ViewModels;
+using Nodus.DI.Factories;
 using Nodus.NodeEditor.Factories;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
@@ -50,18 +51,23 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
 
     protected INodeCanvasModel Model { get; }
     protected IServiceProvider ServiceProvider { get; }
+    protected INodeCanvasViewModelComponentFactory ComponentFactory { get; }
+    protected IComponentFactoryProvider<NodeCanvasViewModel> ElementsFactoryProvider { get; }
 
     /// <summary>
     /// Initialize a new instance of the NodeCanvasViewModel class.
     /// </summary>
     /// <param name="model">The INodeCanvasModel instance.</param>
     /// <param name="serviceProvider">Service provider</param>
+    /// <param name="elementsFactoryProvider">Elements factory</param>
     /// <param name="componentFactory">VM components factory</param>
     public NodeCanvasViewModel(INodeCanvasModel model, IServiceProvider serviceProvider, 
-        INodeCanvasViewModelComponentFactory componentFactory)
+        IComponentFactoryProvider<NodeCanvasViewModel> elementsFactoryProvider, INodeCanvasViewModelComponentFactory componentFactory)
     {
         Model = model;
         ServiceProvider = serviceProvider;
+        ElementsFactoryProvider = elementsFactoryProvider;
+        ComponentFactory = componentFactory;
         
         NodesSelector = new Selector<NodeViewModel>();
         
@@ -103,7 +109,7 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
 
     protected virtual NodeViewModel CreateNode(INodeModel model)
     {
-        var vm = NodeViewModelFactory.Create(model);
+        var vm = ElementsFactoryProvider.GetFactory<INodeViewModelFactory>().Create(model);
 
         vm.EventStream.OnEvent<NodeDeleteRequest>(OnNodeRemoval);
         
@@ -143,11 +149,6 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     protected void RemoveNode(NodeViewModel node)
     {
         Model.Operator.RemoveNode(node.NodeId);
-    }
-
-    protected virtual ConnectionViewModel CreateConnection(Connection connection)
-    {
-        return new ConnectionViewModel(connection, Nodes.Items, this);
     }
     
     private void CreateNewNode()

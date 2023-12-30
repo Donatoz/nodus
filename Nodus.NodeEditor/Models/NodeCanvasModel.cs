@@ -4,12 +4,13 @@ using System.Reactive.Subjects;
 using Nodus.Core.Common;
 using Nodus.Core.Extensions;
 using Nodus.Core.Reactive;
+using Nodus.DI.Factories;
 using Nodus.NodeEditor.Extensions;
 using Nodus.NodeEditor.Meta;
 
 namespace Nodus.NodeEditor.Models;
 
-public interface INodeCanvasModel : IObservable<IEvent>
+public interface INodeCanvasModel : IDisposable
 {
     IObservable<IEvent> EventStream { get; }
     
@@ -49,18 +50,20 @@ public class NodeCanvasModel : INodeCanvasModel
     public ICanvasOperatorModel Operator { get; }
 
     protected INodeCanvasMutationProvider MutationProvider { get; }
+    protected INodeContextProvider NodeContextProvider { get; }
     protected virtual string DefaultGraphName => "New Graph";
     
-    public NodeCanvasModel()
+    public NodeCanvasModel(IComponentFactoryProvider<INodeCanvasModel> componentFactoryProvider, INodeContextProvider contextProvider)
     {
         graphName = new MutableReactiveProperty<string>(DefaultGraphName);
         eventSubject = new Subject<IEvent>();
         nodes = new MutableReactiveProperty<IList<INodeModel>>(new List<INodeModel>());
         connections = new MutableReactiveProperty<IList<Connection>>(new List<Connection>());
         searchModal = new NodeSearchModalModel();
-        
+
+        NodeContextProvider = contextProvider;
         MutationProvider = CreateMutationProvider();
-        Operator = CreateOperator();
+        Operator = CreateOperator(componentFactoryProvider, contextProvider);
     }
 
     protected virtual INodeCanvasMutationProvider CreateMutationProvider()
@@ -68,15 +71,15 @@ public class NodeCanvasModel : INodeCanvasModel
         return new NodeCanvasMutationProvider(nodes, connections);
     }
 
-    protected virtual NodeCanvasOperatorModel CreateOperator()
+    protected virtual NodeCanvasOperatorModel CreateOperator(IComponentFactoryProvider<INodeCanvasModel> componentFactoryProvider, INodeContextProvider contextProvider)
     {
-        return new NodeCanvasOperatorModel(this, MutationProvider);
+        return new NodeCanvasOperatorModel(this, MutationProvider, componentFactoryProvider, contextProvider);
     }
     
     public virtual void LoadGraph(NodeGraph graph)
     {
-        nodes.Value.Clear();
-        connections.Value.Clear();
+        nodes.ClearAndInvalidate();
+        connections.ClearAndInvalidate();
         
         graph.Nodes.ForEach(x => Operator.CreateNode(new NodeTemplate(x)));
         graph.Connections.ForEach(x => Operator.Connect(x));
@@ -97,6 +100,25 @@ public class NodeCanvasModel : INodeCanvasModel
         return new NodeGraph(GraphName.Value,
             nodes,
             Connections.Value);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            nodes.Value.DisposeAll();
+            
+            graphName.Dispose();
+            eventSubject.Dispose();
+            nodes.Dispose();
+            connections.Dispose();
+        }
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 
     private class NodeCanvasMutationProvider : INodeCanvasMutationProvider
@@ -130,10 +152,5 @@ public class NodeCanvasModel : INodeCanvasModel
         {
             connections.RemoveAndInvalidate(connection);
         }
-    }
-
-    public IDisposable Subscribe(IObserver<IEvent> observer)
-    {
-        throw new NotImplementedException();
     }
 }

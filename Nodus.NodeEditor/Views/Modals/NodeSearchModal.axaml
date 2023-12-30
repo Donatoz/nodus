@@ -36,7 +36,7 @@
                                                 CornerRadius="{Binding $parent[Border].CornerRadius}"/>
                                         <StackPanel Margin="5 3">
                                             <TextBlock Text="{Binding Label}" Classes="h4" FontWeight="Light"/>
-                                            <TextBlock Text="Node tooltip goes here" Foreground="{StaticResource Shine}" FontWeight="Light"/>
+                                            <TextBlock Text="{Binding Template.Data.Tooltip.Tip}" Foreground="{StaticResource Shine}" FontWeight="Light"/>
                                         </StackPanel>
                                     </DockPanel>
                                 </Border>

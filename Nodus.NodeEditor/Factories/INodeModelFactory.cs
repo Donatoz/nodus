@@ -9,7 +9,7 @@ public interface INodeModelFactory
     INodeModel CreateNode(NodeTemplate template, IPortModelFactory portFactory);
 }
 
-internal class NodeModelFactory : INodeModelFactory
+public class NodeModelFactory : INodeModelFactory
 {
     public INodeModel CreateNode(NodeTemplate template, IPortModelFactory portFactory)
     {
@@ -23,6 +23,6 @@ internal class NodeModelFactory : INodeModelFactory
 
     protected virtual INodeModel CreateBase(NodeData data)
     {
-        return new NodeModel(data.Title, data.Tooltip, data.NodeId, data.Group);
+        return new NodeModel(data.Title, data.Tooltip, data.NodeId, data.Group, data.ContextId);
     }
 }

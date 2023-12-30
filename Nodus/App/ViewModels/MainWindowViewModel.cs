@@ -1,4 +1,11 @@
 ﻿using System;
+using FlowEditor.Models;
+using FlowEditor.Models.Contexts;
+using FlowEditor.ViewModels;
+using Ninject.Parameters;
+using Nodus.DI;
+using Nodus.DI.Factories;
+using Nodus.DI.Runtime;
 using Nodus.NodeEditor.Factories;
 using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.ViewModels;
@@ -10,22 +17,30 @@ public class MainWindowViewModel : ReactiveObject
 {
     public NodeCanvasViewModel CanvasViewModel { get; }
     
-    public MainWindowViewModel(IServiceProvider serviceProvider, INodeCanvasViewModelComponentFactory componentFactory)
+    public MainWindowViewModel(IRuntimeElementProvider elementProvider, IRuntimeModuleLoader moduleLoader)
     {
-        CanvasViewModel = new NodeCanvasViewModel(PrepareCanvas(), serviceProvider, componentFactory);
+        moduleLoader.Repopulate();
+        
+        moduleLoader.LoadModulesForType<NodeCanvasModel>();
+        moduleLoader.LoadModulesForType<FlowCanvasModel>();
+        
+        DefaultFlowContexts.Register(elementProvider.GetRuntimeElement<INodeContextProvider>());
+        
+        CanvasViewModel = elementProvider.GetRuntimeElement<FlowCanvasViewModel>(
+            new ConstructorArgument("model", PrepareCanvas(elementProvider)));
     }
 
-    private INodeCanvasModel PrepareCanvas()
+    private INodeCanvasModel PrepareCanvas(IRuntimeElementProvider elementProvider)
     {
-        var node = new NodeModel("My Node", new NodeTooltip("My Node", "This is example node"));
-        var port = new PortModel("Some Port", PortType.Output, PortCapacity.Multiple);
+        var node = new FlowNodeModel("My Node", new NodeTooltip("My Node", "This is example node"));
+        var port = new FlowPortModel("Some Port", PortType.Output, PortCapacity.Multiple);
         node.AddPort(port);
         
-        var node2 = new NodeModel("My Node2", new NodeTooltip("My Node", "This is example node"));
-        var port2 = new PortModel("Some Port2", PortType.Input, PortCapacity.Single);
+        var node2 = new FlowNodeModel("My Node2", new NodeTooltip("My Node", "This is example node"));
+        var port2 = new FlowPortModel("Some Port2", PortType.Input, PortCapacity.Single);
         node2.AddPort(port2);
 
-        var canvas = new NodeCanvasModel();
+        var canvas = elementProvider.GetRuntimeElement<FlowCanvasModel>();
         canvas.Operator.AddNode(node);
         canvas.Operator.AddNode(node2);
 

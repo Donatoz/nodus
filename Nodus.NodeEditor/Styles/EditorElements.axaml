@@ -14,7 +14,7 @@
         <Setter Property="Height" Value="18"/>
         <Setter Property="BorderThickness" Value="3"/>
         <Setter Property="Background" Value="{StaticResource BackgroundDefault}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource AscentActiveHightlight}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource AscentActiveHighlight}"/>
         
         <Style Selector="^:pointerover">
             <Setter Property="Background" Value="{StaticResource AscentActive}"/>
@@ -23,9 +23,8 @@
     
     <Style Selector="Path.connection">
         <Setter Property="ClipToBounds" Value="False"/>
-        <Setter Property="Stroke" Value="{StaticResource AscentActive}"/>
         <Setter Property="StrokeThickness" Value="5"/>
-        
+
         <Setter Property="Transitions">
             <Transitions>
                 <BrushTransition Property="Stroke" Duration="0:0:0.07"/>
@@ -34,8 +33,7 @@
         </Setter>
         
         <Style Selector="^:pointerover">
-            <Setter Property="Stroke" Value="{StaticResource AscentActiveHightlight}"/>
-            <Setter Property="StrokeThickness" Value="6"/>
+            <Setter Property="StrokeThickness" Value="8"/>
         </Style>
     </Style>
     

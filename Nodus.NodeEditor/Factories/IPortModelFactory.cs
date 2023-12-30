@@ -7,19 +7,13 @@ namespace Nodus.NodeEditor.Factories;
 public interface IPortModelFactory
 {
     IPortModel CreatePort(PortData data);
-
-    public static IPortModelFactory Default { get; } = new PortModelFactory();
 }
 
 public class PortModelFactory : IPortModelFactory
 {
     public IPortModel CreatePort(PortData data)
     {
-        var b = CreateBase(data);
-        
-        Trace.WriteLine($"------- Created port: {b}");
-        
-        return b;
+        return CreateBase(data);
     }
 
     protected virtual IPortModel CreateBase(PortData data)

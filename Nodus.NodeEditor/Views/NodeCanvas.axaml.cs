@@ -6,20 +6,26 @@ using System.Numerics;
 using System.Reactive;
 using System.Reactive.Disposables;
 using System.Threading;
+using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Media.Immutable;
 using DynamicData.Binding;
+using Ninject;
 using Nodus.Core.Common;
 using Nodus.Core.Controls;
 using Nodus.Core.Extensions;
+using Nodus.Core.Factories;
 using Nodus.Core.Reactive;
 using Nodus.Core.Utility;
+using Nodus.DI.Factories;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.ViewModels;
 using Nodus.NodeEditor.ViewModels.Events;
+using ReactiveUI;
 
 namespace Nodus.NodeEditor.Views;
 
@@ -40,21 +46,28 @@ public partial class NodeCanvas : UserControl
     private LineSegment activeConnectionSegment;
     private RectangleGeometry selectionRectGeometry;
     private CompositeDisposable? disposables;
+    private RelativeRect initialBackgroundRect;
 
     private readonly ISet<ConnectionContainer> currentConnections;
     private readonly ISet<NodeContainer> nodes;
 
     private readonly BoundCollectionPresenter<NodeViewModel, Draggable> nodesCollectionView;
     private readonly BoundCollectionPresenter<ConnectionViewModel, ConnectionPath> connectionsCollectionView;
+    
+    public ICommand ResetPositionCommand { get; }
 
     private ScaleTransform CanvasScale =>
         (CanvasesGroup.RenderTransform as TransformGroup).Children[0] as ScaleTransform;
     private TranslateTransform CanvasTranslate =>
         (CanvasesGroup.RenderTransform as TransformGroup).Children[1] as TranslateTransform;
     private VisualBrush BackgroundBrush => BackgroundVisual.Background as VisualBrush;
+    
+    protected IComponentFactoryProvider<NodeCanvas> FactoryProvider { get; }
 
-    public NodeCanvas()
+    public NodeCanvas(IComponentFactoryProvider<NodeCanvas> factoryProvider)
     {
+        FactoryProvider = factoryProvider;
+        
         InitializeComponent();
         InitializeActiveConnection();
         InitializeSelectionRect();
@@ -77,11 +90,20 @@ public partial class NodeCanvas : UserControl
             new BoundCollectionPresenter<ConnectionViewModel, ConnectionPath>(CreateConnectionControl,
                 ConnectionsCanvas, RemoveConnectionControl);
 
+        ResetPositionCommand = ReactiveCommand.Create(OnResetPosition);
+
         AddHandler(Port.PortPressedEvent, OnPortPressed);
         AddHandler(Port.PortReleasedEvent, OnPortReleased);
         AddHandler(Port.PortDragEvent, OnPortDrag);
         AddHandler(Node.NodePressedEvent, OnNodePressed);
         AddHandler(Draggable.OnDragEvent, OnDraggableDrag);
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+
+        initialBackgroundRect = BackgroundBrush.DestinationRect;
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -117,7 +139,7 @@ public partial class NodeCanvas : UserControl
         draggable.SetValue(Canvas.LeftProperty, pos.X);
         draggable.SetValue(Canvas.TopProperty, pos.Y);
 
-        var node = new Node { DataContext = ctx };
+        var node = FactoryProvider.GetFactory<IControlFactory<Node, NodeViewModel>>().Create(ctx);
         
         draggable.Children.Add(node);
 
@@ -150,7 +172,7 @@ public partial class NodeCanvas : UserControl
 
     protected virtual ConnectionPath CreateConnectionControl(ConnectionViewModel connection)
     {
-        var path = new ConnectionPath {DataContext = connection};
+        var path = FactoryProvider.GetFactory<IControlFactory<ConnectionPath, ConnectionViewModel>>().Create(connection);
         var (data, lines) = GeometryUtility.CreatePolyLineGeometry(3);
         path.PathContainer.Data = data;
         
@@ -198,6 +220,7 @@ public partial class NodeCanvas : UserControl
         connection.Path.SetValue(Canvas.LeftProperty, from.Value.X);
         connection.Path.SetValue(Canvas.TopProperty, from.Value.Y);
         connection.Path.UpdatePath((Point) from, (Point) to, connection.Lines);
+        connection.Path.UpdateColor(connection.From.HandlerColor, connection.To.HandlerColor);
     }
 
     #endregion
@@ -262,6 +285,7 @@ public partial class NodeCanvas : UserControl
 
         ActiveConnection.SetValue(Canvas.LeftProperty, portPosition.Value.X);
         ActiveConnection.SetValue(Canvas.TopProperty, portPosition.Value.Y);
+        ActiveConnection.Stroke = new ImmutableSolidColorBrush(e.Port.HandlerColor);
         ActiveConnection.IsVisible = true;
 
         activeConnectionOffset = new Vector2((float)ActiveConnection.GetValue(Canvas.LeftProperty),
@@ -386,6 +410,16 @@ public partial class NodeCanvas : UserControl
         
         BackgroundBrush.DestinationRect = new RelativeRect(BackgroundBrush.DestinationRect.Rect.Position,
             BackgroundBrush.DestinationRect.Rect.Size + new Size(effectiveDelta, effectiveDelta) * 15, BackgroundBrush.DestinationRect.Unit);
+    }
+    
+    private void OnResetPosition()
+    {
+        currentZoom = 1;
+        CanvasTranslate.X = 0; 
+        CanvasTranslate.Y = 0;
+        CanvasScale.ScaleX = 1;
+        CanvasScale.ScaleY = 1;
+        BackgroundBrush.DestinationRect = initialBackgroundRect;
     }
 
     protected virtual void OnDraggableDrag(object? sender, DraggableEventArgs e)

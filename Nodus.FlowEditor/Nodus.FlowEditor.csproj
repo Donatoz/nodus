@@ -1,0 +1,48 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <RootNamespace>FlowEditor</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <AvaloniaResource Include="Assets\**"/>
+    </ItemGroup>
+
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="11.0.2"/>
+        <PackageReference Include="Avalonia.Desktop" Version="11.0.2"/>
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.2"/>
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.2"/>
+        <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.2"/>
+        <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.2"/>
+    </ItemGroup>
+
+
+    <ItemGroup>
+      <ProjectReference Include="..\Nodus.Core\Nodus.Core.csproj" />
+      <ProjectReference Include="..\Nodus.FlowEngine\Nodus.FlowEngine.csproj" />
+      <ProjectReference Include="..\Nodus.NodeEditor\Nodus.NodeEditor.csproj" />
+    </ItemGroup>
+
+
+    <ItemGroup>
+      <Compile Update="Views\Ports\FlowInputPort.axaml.cs">
+        <DependentUpon>FlowInputPort.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+      <Compile Update="Views\Ports\FlowOutputPort.axaml.cs">
+        <DependentUpon>FlowOutputPort.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
+    </ItemGroup>
+
+
+    <ItemGroup>
+      <Folder Include="Controls\" />
+    </ItemGroup>
+</Project>

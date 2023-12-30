@@ -84,6 +84,7 @@
 
 
     <ItemGroup>
+      <ProjectReference Include="..\Nodus.FlowEditor\Nodus.FlowEditor.csproj" />
       <ProjectReference Include="..\Nodus.Core\Nodus.Core.csproj" />
       <ProjectReference Include="..\Nodus.NodeEditor\Nodus.NodeEditor.csproj" />
     </ItemGroup>

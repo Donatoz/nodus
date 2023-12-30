@@ -15,4 +15,9 @@ public readonly struct NodeTemplate
         ContextFactory = contextFactory ?? EmptyContextFactory;
         Data = data;
     }
+
+    public NodeTemplate WithContext(Func<INodeContext>? contextFactory)
+    {
+        return new NodeTemplate(Data, contextFactory);
+    }
 }

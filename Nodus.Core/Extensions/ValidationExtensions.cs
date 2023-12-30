@@ -24,7 +24,7 @@ public static class ValidationExtensions
         return o;
     }
 
-    public static T NotNull<T>(this T? o, string onFailure = null) where T : class
+    public static T NotNull<T>(this T? o, string? onFailure = null) where T : class
     {
         if (o == null)
         {
@@ -34,7 +34,7 @@ public static class ValidationExtensions
         return o;
     }
 
-    public static TType MustBeOfType<TType>(this object o, string onFailure = null)
+    public static TType MustBeOfType<TType>(this object o, string? onFailure = null)
     {
         if (o?.GetType() != typeof(TType))
         {
@@ -44,7 +44,7 @@ public static class ValidationExtensions
         return (TType) o;
     }
 
-    public static TType MustBe<TType>(this object o, string onFailure = null)
+    public static TType MustBe<TType>(this object o, string? onFailure = null)
     {
         if (o is not TType t)
         {

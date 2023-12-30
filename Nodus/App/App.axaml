@@ -29,5 +29,8 @@
         <StyleInclude Source="avares://Nodus.Core/Styles/DefaultControls.axaml"/>
         <StyleInclude Source="avares://Nodus.NodeEditor/Styles/EditorElements.axaml"/>
         <StyleInclude Source="avares://Nodus.NodeEditor/Styles/NodeGroups.axaml"/>
+        <StyleInclude Source="avares://Nodus.FlowEditor/Styles/FlowEditorElements.axaml"/>
+        <StyleInclude Source="avares://Nodus.FlowEditor/Styles/FlowPortTypes.axaml"/>
+        <StyleInclude Source="avares://Nodus.FlowEditor/Styles/FlowNodeGroups.axaml"/>
     </Application.Styles>
 </Application>

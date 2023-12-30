@@ -13,18 +13,14 @@ public class NodeData
     public NodeVisualData? VisualData { get; set; }
     public string Title { get; init; }
     public NodeTooltip Tooltip { get; init; }
-    public IEnumerable<PortData> Ports { get; init; }
+    public PortData[] Ports { get; init; }
+    public string? ContextId { get; init; }
     
     public NodeData(string title, NodeTooltip tooltip, IEnumerable<PortData> ports)
     {
         Title = title;
         Tooltip = tooltip;
-        Ports = ports;
-    }
-    
-    public PortData? FindPort(string portId)
-    {
-        return Ports.FirstOrDefault(x => x.PortId == portId);
+        Ports = ports.ToArray();
     }
 }
 

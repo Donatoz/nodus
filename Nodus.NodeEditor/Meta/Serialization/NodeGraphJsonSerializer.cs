@@ -6,10 +6,20 @@ namespace Nodus.NodeEditor.Meta.Serialization;
 public class NodeGraphJsonSerializer : INodeGraphSerializer
 {
     public static NodeGraphJsonSerializer Default { get; } = new();
+
+    private readonly JsonSerializerSettings serializerSettings;
+
+    public NodeGraphJsonSerializer(JsonSerializerSettings? settings = null)
+    {
+        serializerSettings = settings ?? new JsonSerializerSettings
+        {
+            TypeNameHandling = TypeNameHandling.All
+        };
+    }
     
     public object Serialize(NodeGraph graph)
     {
-        return JsonConvert.SerializeObject(graph, Formatting.Indented);
+        return JsonConvert.SerializeObject(graph, Formatting.Indented, serializerSettings);
     }
 
     public NodeGraph? Deserialize(object data)
@@ -19,6 +29,6 @@ public class NodeGraphJsonSerializer : INodeGraphSerializer
             throw new ArgumentException($"Data must be a json string: {data}");
         }
         
-        return JsonConvert.DeserializeObject<NodeGraph>(s);
+        return JsonConvert.DeserializeObject<NodeGraph>(s, serializerSettings);
     }
 }

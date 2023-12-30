@@ -9,6 +9,9 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.Media;
+using Avalonia.Media.Immutable;
+using Avalonia.Styling;
 using Avalonia.VisualTree;
 using Nodus.Core.Common;
 using Nodus.Core.Extensions;
@@ -16,6 +19,7 @@ using Nodus.Core.Selection;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.ViewModels;
+using ReactiveUI;
 
 namespace Nodus.NodeEditor.Views;
 
@@ -30,6 +34,13 @@ public partial class Node : UserControl
 
     public IEnumerable<Port> Ports => ports;
     public string NodeId { get; private set; }
+
+    protected ContextMenu Menu => NodeContextMenu;
+
+    private LinearGradientBrush borderAscent;
+    private GradientStop borderAscentStop;
+    private LinearGradientBrush backgroundAscent;
+    private GradientStop backgroundAscentStop;
     
     public Node()
     {
@@ -37,11 +48,39 @@ public partial class Node : UserControl
         ports = new HashSet<Port>();
         NodeId = string.Empty;
         
+        InitializeAscentColors();
         InitializeComponent();
         
         Body.AddHandler(PointerPressedEvent, OnPointerPressed);
     }
 
+    private void InitializeAscentColors()
+    {
+        borderAscentStop = new GradientStop(default, 1);
+        borderAscent = new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(default, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
+            GradientStops = new GradientStops
+            {
+                new(Color.Parse("#404040"), 0),
+                borderAscentStop
+            }
+        };
+
+        backgroundAscentStop = new GradientStop(default, 1);
+        backgroundAscent = new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(0, 0.1, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative),
+            GradientStops = new GradientStops
+            {
+                new(Color.Parse("#2e2e2e"), 0),
+                backgroundAscentStop
+            }
+        };
+    }
+    
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
@@ -58,10 +97,29 @@ public partial class Node : UserControl
             {
                 NodeGroupBorder.Classes.Clear();
                 NodeGroupBorder.Classes.Add(NodeGroups.NodeGroupPrefix + vm.Group.ToLower());
-                
-                Trace.WriteLine(NodeGroupBorder.Classes.First());
             }
         }
+    }
+
+    protected void UpdateAscents()
+    {
+        var brush = NodeGroupBorder.Background;
+        
+        if (brush is not ISolidColorBrush b) return;
+
+        var style = new Style(x => x.OfType<Border>().Class("active"));
+
+        borderAscentStop.Color = b.Color;
+        style.Setters.Add(new Setter(Border.BorderBrushProperty, borderAscent));
+
+        var backgroundAscent = b.Color.Lerp(Color.Parse("#2e2e2e"), 0.94f).ToHsv();
+        backgroundAscent = new HsvColor(backgroundAscent.A, backgroundAscent.H, backgroundAscent.S * 2f,
+            backgroundAscent.V);
+
+        backgroundAscentStop.Color = backgroundAscent.ToRgb();
+        style.Setters.Add(new Setter(Border.BackgroundProperty, this.backgroundAscent));
+        
+        Body.Styles.Add(style);
     }
 
     private void OnPortsChanged(CollectionChangedEvent<PortViewModel> evt)
@@ -101,16 +159,12 @@ public partial class Node : UserControl
 
     protected virtual Port? CreatePortControl(PortViewModel vm)
     {
-        if (vm.Type == PortType.Input)
+        return vm.Type switch
         {
-            return new InputPort { DataContext = vm };
-        }
-        if (vm.Type == PortType.Output)
-        {
-            return new OutputPort { DataContext = vm };
-        }
-
-        return null;
+            PortType.Input => new InputPort { DataContext = vm },
+            PortType.Output => new OutputPort { DataContext = vm },
+            _ => null
+        };
     }
 
     protected void RemovePort(PortViewModel vm)
@@ -143,6 +197,8 @@ public partial class Node : UserControl
         OutputPortsContainer.Margin = new Thickness(OutputPortsContainer.Margin.Left, NodeHeader.DesiredSize.Height + 15,
             OutputPortsContainer.Margin.Right, OutputPortsContainer.Margin.Bottom);
         
+        UpdateAscents();
+        
         return base.ArrangeOverride(finalSize);
     }
 
@@ -155,7 +211,7 @@ public partial class Node : UserControl
     {
         return ports.Any(p => p.PortId == portId);
     }
-    
+
     protected override void OnUnloaded(RoutedEventArgs e)
     {
         base.OnUnloaded(e);

@@ -16,6 +16,7 @@
                         <Image Source="{StaticResource PlusIcon}" />
                     </MenuItem.Icon>
                 </MenuItem>
+                <MenuItem Header="Reset Position" cc:Hotkey.MenuItemHotkey="Escape" Command="{Binding $parent[v:NodeCanvas].ResetPositionCommand}"/>
 
                 <!-- Target-less commands -->
                 <MenuItem IsVisible="False" HotKey="Delete" Command="{Binding RemoveSelectedCommand}" />
@@ -45,7 +46,7 @@
             <Canvas Name="ConnectionsCanvas" />
             <Canvas Name="CanvasRoot">
                 <Path IsHitTestVisible="False" Name="ActiveConnection" Classes="connection"
-                      Stroke="{StaticResource AscentActiveHightlight}" />
+                      Stroke="{StaticResource AscentActiveHighlight}" />
             </Canvas>
         </Grid>
         

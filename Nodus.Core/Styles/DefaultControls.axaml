@@ -62,4 +62,21 @@
             <Setter Property="FontWeight" Value="ExtraBold"/>
         </Style>
     </Style>
+    
+    <Style Selector="Border.tooltip-header">
+        <Setter Property="Background">
+            <LinearGradientBrush Opacity="0.3">
+                <GradientStop Color="{StaticResource BackgroundDefault}" />
+                <GradientStop Color="{StaticResource AscentActive}" Offset="0.5" />
+                <GradientStop Color="{StaticResource BackgroundDefault}" Offset="1" />
+            </LinearGradientBrush>
+        </Setter>
+        
+        <Setter Property="Margin" Value="0 0 0 3"/>
+    </Style>
+    
+    <Style Selector="TextBlock.tooltip-header-text">
+        <Setter Property="Foreground" Value="{StaticResource TextHighlight}"/>
+        <Setter Property="TextAlignment" Value="Center"/>
+    </Style>
 </Styles>
