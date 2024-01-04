@@ -5,6 +5,8 @@
              xmlns:v="using:Nodus.NodeEditor.Views"
              xmlns:vm="using:Nodus.NodeEditor.ViewModels"
              xmlns:cc="clr-namespace:Nodus.Core.Controls;assembly=Nodus.Core"
+             xmlns:conv="clr-namespace:Nodus.Core.Converters;assembly=Nodus.Core"
+             xmlns:r="using:Nodus.Core.Reactive"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Nodus.NodeEditor.Views.NodeCanvas"
              x:DataType="vm:NodeCanvasViewModel">
@@ -23,7 +25,7 @@
             </ContextMenu>
         </Grid.ContextMenu>
 
-        <TextBlock Text="Test Graph 1" FontSize="72" FontWeight="SemiBold" Opacity="0.1" HorizontalAlignment="Left"
+        <TextBlock Text="{Binding GraphName.Value}" FontSize="72" FontWeight="SemiBold" Opacity="0.1" HorizontalAlignment="Left"
                    VerticalAlignment="Bottom" Margin="20" />
 
         <Grid Name="BackgroundVisual">
@@ -50,7 +52,12 @@
             </Canvas>
         </Grid>
         
-        <v:NodeCanvasToolbar DataContext="{Binding Toolbar}" VerticalAlignment="Top" HorizontalAlignment="Stretch" MaxHeight="75" />
+        <Grid IsVisible="{ReflectionBinding NodesSelector.CurrentlySelected.Value, Converter={x:Static ObjectConverters.IsNotNull}}"
+              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0 75 15 0">
+            <v:NodeContextContainer DataContext="{Binding NodeContextContainer}" />
+        </Grid>
+        <v:NodeCanvasToolbar Name="Toolbar" DataContext="{Binding Toolbar}" VerticalAlignment="Top" 
+                             HorizontalAlignment="Stretch" MaxHeight="75" />
         <cc:ModalContainer DataContext="{Binding ModalCanvas}" />
     </Grid>
 </UserControl>

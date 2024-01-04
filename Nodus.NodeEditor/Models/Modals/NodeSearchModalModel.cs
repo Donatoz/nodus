@@ -6,8 +6,6 @@ namespace Nodus.NodeEditor.Models;
 public interface INodeSearchModalModel
 {
     IReactiveProperty<IEnumerable<NodeTemplate>> AvailableNodes { get; }
-
-    void FetchAvailableNodes();
 }
 
 public class NodeSearchModalModel : INodeSearchModalModel

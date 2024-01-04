@@ -1,13 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading.Tasks;
+using Nodus.Core.Reactive;
 using Nodus.FlowEngine;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
 
 namespace FlowEditor.Models;
 
-public interface IFlowNodeContext : INodeContext
+public interface IFlowNodeContext : INodeContext, IDisposable
 {
+    public IReactiveProperty<bool> IsBeingResolved { get; }
+    
     void Bind(IFlowNodeModel node);
     object? ResolvePortValue(IFlowPortModel port, GraphContext context);
     IFlowToken GetFlowToken(GraphContext context);
@@ -16,13 +21,17 @@ public interface IFlowNodeContext : INodeContext
 public abstract class FlowNodeContextBase : IFlowNodeContext
 {
     private readonly IDictionary<IFlowPortModel, Func<object>> portValueBindings;
+    private readonly MutableReactiveProperty<bool> isBeingResolved;
     protected IFlowNodeModel? Node { get; private set; }
+
+    public IReactiveProperty<bool> IsBeingResolved => isBeingResolved;
 
     public FlowNodeContextBase()
     {
         portValueBindings = new Dictionary<IFlowPortModel, Func<object>>();
+        isBeingResolved = new MutableReactiveProperty<bool>();
     }
-    
+
     public virtual void Bind(IFlowNodeModel node)
     {
         Node = node;
@@ -53,7 +62,29 @@ public abstract class FlowNodeContextBase : IFlowNodeContext
         return new FlowTokenContainer(f => Resolve(f, context));
     }
 
-    protected virtual void Resolve(IFlow flow, GraphContext context) { }
+    protected virtual void Resolve(IFlow flow, GraphContext context)
+    {
+        flow.Append(new FlowDelegate(() =>
+        {
+            isBeingResolved.SetValue(true);
+            Task.Delay(1000).ContinueWith(_ => isBeingResolved.SetValue(false));
+            
+            return Task.CompletedTask;
+        }));
+    }
+    
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing) return;
+        
+        isBeingResolved.Dispose();
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
 
     private class FlowTokenContainer : IFlowToken
     {

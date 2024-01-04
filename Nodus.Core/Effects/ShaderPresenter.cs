@@ -1,26 +1,27 @@
 ﻿using System;
-using System.Diagnostics;
-using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
-using System.Reactive.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Avalonia.Platform;
 using Avalonia.Threading;
-using Nodus.Core.Extensions;
+using Nodus.Core.Utility;
 
 namespace Nodus.Core.Effects;
 
-public class EffectPresenter : Control
+public class ShaderPresenter : Control
 {
     public static readonly StyledProperty<Uri?> ShaderSourceProperty;
     public static readonly StyledProperty<bool> IsOpaqueProperty; 
     public static readonly StyledProperty<Bitmap?> BitmapProperty;
     public static readonly StyledProperty<bool> IsUpdatableProperty;
     public static readonly StyledProperty<float> UpdateSpeedProperty;
+    public static readonly StyledProperty<Uri?> UniformsSchemeProperty;
+    public static readonly StyledProperty<object?> UniformsOverrideProperty;
+    public static readonly StyledProperty<Visual?> SurfaceProperty;
 
     public Uri? ShaderSource
     {
@@ -51,20 +52,43 @@ public class EffectPresenter : Control
         get => GetValue(UpdateSpeedProperty);
         set => SetValue(UpdateSpeedProperty, value);
     }
-    
+
+    public Uri? UniformsScheme
+    {
+        get => GetValue(UniformsSchemeProperty);
+        set => SetValue(UniformsSchemeProperty, value);
+    }
+
+    public object? UniformsOverride
+    {
+        get => GetValue(UniformsOverrideProperty);
+        set => SetValue(UniformsOverrideProperty, value);
+    }
+
+    public Visual? Surface
+    {
+        get => GetValue(SurfaceProperty);
+        set => SetValue(SurfaceProperty, value);
+    }
+
     private ShaderDrawOperation? drawOperation;
     private const float RenderTimerTick = 3f;
     private float time;
+
+    private readonly IShaderUniformFactory uniformFactory;
     
     protected static DispatcherTimer EffectRenderTimer { get; }
     
-    static EffectPresenter()
+    static ShaderPresenter()
     {
-        ShaderSourceProperty = AvaloniaProperty.Register<EffectPresenter, Uri?>(nameof(ShaderSource));
-        BitmapProperty = AvaloniaProperty.Register<EffectPresenter, Bitmap?>(nameof(Bitmap));
-        IsOpaqueProperty = AvaloniaProperty.Register<EffectPresenter, bool>(nameof(IsOpaque));
-        IsUpdatableProperty = AvaloniaProperty.Register<EffectPresenter, bool>(nameof(IsUpdatable));
-        UpdateSpeedProperty = AvaloniaProperty.Register<EffectPresenter, float>(nameof(UpdateSpeed), 300);
+        ShaderSourceProperty = AvaloniaProperty.Register<ShaderPresenter, Uri?>(nameof(ShaderSource));
+        BitmapProperty = AvaloniaProperty.Register<ShaderPresenter, Bitmap?>(nameof(Bitmap));
+        IsOpaqueProperty = AvaloniaProperty.Register<ShaderPresenter, bool>(nameof(IsOpaque));
+        IsUpdatableProperty = AvaloniaProperty.Register<ShaderPresenter, bool>(nameof(IsUpdatable));
+        UpdateSpeedProperty = AvaloniaProperty.Register<ShaderPresenter, float>(nameof(UpdateSpeed), 300);
+        UniformsSchemeProperty = AvaloniaProperty.Register<ShaderPresenter, Uri?>(nameof(UniformsScheme));
+        UniformsOverrideProperty = AvaloniaProperty.Register<ShaderPresenter, object?>(nameof(UniformsOverride));
+        SurfaceProperty = AvaloniaProperty.Register<ShaderPresenter, Visual?>(nameof(Surface));
         
         EffectRenderTimer = new DispatcherTimer(DispatcherPriority.Render)
         {
@@ -72,7 +96,13 @@ public class EffectPresenter : Control
         };
         EffectRenderTimer.Start();
         
-        AffectsRender<EffectPresenter>(ShaderSourceProperty, IsOpaqueProperty, IsUpdatableProperty);
+        AffectsRender<ShaderPresenter>(ShaderSourceProperty, IsOpaqueProperty, IsUpdatableProperty);
+    }
+
+    public ShaderPresenter()
+    {
+        // TODO: Move to DI container
+        uniformFactory = new ShaderUniformFactory();
     }
 
     protected override void OnInitialized()
@@ -80,6 +110,8 @@ public class EffectPresenter : Control
         base.OnInitialized();
         
         TryUpdateSource();
+        TryLoadUniformsScheme();
+        TryUpdateUniforms(UniformsOverride);
 
         if (IsUpdatable)
         {
@@ -93,15 +125,41 @@ public class EffectPresenter : Control
 
         if (ShaderSource != null)
         {
-            if (!AssetLoader.Exists(ShaderSource))
-            {
-                throw new Exception($"Shader source asset ({ShaderSource.PathAndQuery}) was not found");
-            }
+            drawOperation = CreateOperation(AssetUtility.TryReadAsset(ShaderSource));
+        }
+    }
 
-            using var stream = AssetLoader.Open(ShaderSource);
-            using var reader = new StreamReader(stream);
-            
-            drawOperation = CreateOperation(reader.ReadToEnd());
+    private void TryLoadUniformsScheme()
+    {
+        if (UniformsScheme != null)
+        {
+            TryUpdateUniforms(AssetUtility.TryReadAsset(UniformsScheme));
+        }
+    }
+
+    private void TryUpdateUniforms(object? uniformsObject)
+    {
+        if (drawOperation == null) return;
+
+        switch (uniformsObject)
+        {
+            case string s:
+            {
+                var spliced = s
+                    .Replace(Environment.NewLine, string.Empty)
+                    .Replace(" ", string.Empty)
+                    .Split(';');
+
+                drawOperation.UserUniforms ??= new HashSet<IShaderUniform>();
+                drawOperation.UserUniforms = drawOperation.UserUniforms.Concat(spliced
+                    .Select(x => uniformFactory.Create(x))
+                    .Where(x => x != null)
+                    .Cast<IShaderUniform>());
+                break;
+            }
+            case IEnumerable<IShaderUniform> uniforms:
+                drawOperation.UserUniforms = uniforms;
+                break;
         }
     }
 

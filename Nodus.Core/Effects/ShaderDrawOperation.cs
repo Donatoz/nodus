@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Reactive.Disposables;
 using Avalonia;
@@ -7,6 +8,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
+using Nodus.Core.Extensions;
 using SkiaSharp;
 
 namespace Nodus.Core.Effects;
@@ -25,6 +27,7 @@ public class ShaderDrawOperation : ICustomDrawOperation
     public Vector2 ObjectSize { get; set; }
     public bool IsOpaque { get; set; }
     public float Time { get; set; }
+    public IEnumerable<IShaderUniform>? UserUniforms { get; set; }
 
     private Bitmap? targetBitmap;
     public Bitmap? TargetBitmap
@@ -99,7 +102,7 @@ public class ShaderDrawOperation : ICustomDrawOperation
             Children.Add("input", targetShader);
         }
     }
-
+    
     private void RenderSurface(ISkiaSharpApiLease lease)
     {
         UpdateUniforms();
@@ -117,6 +120,8 @@ public class ShaderDrawOperation : ICustomDrawOperation
     /// </summary>
     protected virtual void UpdateUniforms()
     {
+        UserUniforms?.ForEach(x => Uniforms[x.UniformName] = x.UniformValueGetter.Invoke());
+
         offsetBuffer[0] = ObjectOffset.X;
         offsetBuffer[1] = ObjectOffset.Y;
         sizeBuffer[0] = ObjectSize.X;

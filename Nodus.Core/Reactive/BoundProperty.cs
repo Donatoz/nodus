@@ -1,7 +1,10 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Reactive.Disposables;
+using System.Reactive.Subjects;
 using System.Runtime.CompilerServices;
+using Nodus.Core.Extensions;
 using ReactiveUI;
 
 namespace Nodus.Core.Reactive;
@@ -13,28 +16,36 @@ public class BoundProperty<T> : IReactiveObject, IDisposable
     public event PropertyChangedEventHandler? PropertyChanged;
     public event PropertyChangingEventHandler? PropertyChanging;
     
-    private readonly CompositeDisposable contract;
+    private CompositeDisposable alterationContracts;
     private readonly Func<T> getter;
     private readonly Action<T> setter;
     
     public BoundProperty(Func<T> getter, params IReactiveObject[] sources)
     {
-        contract = new CompositeDisposable();
+        alterationContracts = new CompositeDisposable();
         this.getter = getter;
 
-        foreach (var s in sources)
-        {
-            s.PropertyChanged += OnAlteration;
-            contract.Add(Disposable.Create(() => s.PropertyChanged -= OnAlteration));
-        }
+        sources.ForEach(AddSource);
         
-        OnAlteration(null, null);
+        SetValue(getter.Invoke());
     }
 
     protected virtual void OnAlteration(object? sender, PropertyChangedEventArgs args)
     {
         var value = getter.Invoke();
         SetValue(value);
+    }
+
+    public void AddSource(IReactiveObject source)
+    {
+        source.PropertyChanged += OnAlteration;
+        alterationContracts.Add(Disposable.Create(() => source.PropertyChanged -= OnAlteration));
+    }
+
+    public void ClearSources()
+    {
+        alterationContracts.Dispose();
+        alterationContracts = new CompositeDisposable();
     }
 
     public void SetValue(T value)
@@ -56,10 +67,27 @@ public class BoundProperty<T> : IReactiveObject, IDisposable
 
     public void Dispose()
     {
-        contract.Dispose();
+        alterationContracts.Dispose();
     }
 
     public override string ToString() => Value?.ToString() ?? string.Empty;
+}
+
+public sealed class NotifyingBoundProperty<T> : BoundProperty<T>
+{
+    private readonly ISubject<T> alterationSubject;
+    public IObservable<T> AlterationStream => alterationSubject;
+    
+    public NotifyingBoundProperty(Func<T> getter, params IReactiveObject[] sources) : base(getter, sources)
+    {
+        alterationSubject = new Subject<T>();
+    }
+
+    protected override void OnAlteration(object? sender, PropertyChangedEventArgs args)
+    {
+        base.OnAlteration(sender, args);
+        alterationSubject.OnNext(Value);
+    }
 }
 
 public static class BoundPropertyEx

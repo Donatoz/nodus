@@ -5,23 +5,11 @@
              xmlns:v="clr-namespace:FlowEditor.Views"
              xmlns:cc="clr-namespace:Nodus.Core.Controls;assembly=Nodus.Core"
              xmlns:vm="clr-namespace:FlowEditor.ViewModels"
+             xmlns:c="clr-namespace:FlowEditor.Controls"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="FlowEditor.Views.FlowInputPort"
              x:DataType="vm:FlowPortViewModel">
     <DockPanel Name="Container">
-        <ToolTip.Tip>
-            <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
-                <Border Classes="tooltip-header" Margin="0 0 0 5">
-                    <TextBlock Text="Flow Port" Classes="tooltip-header-text h4"/>
-                </Border>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Port type:" Margin="0 0 5 0"/>
-                    <cc:PointLabel Label="{Binding PortValueType.Value.Name}" 
-                                   DotBrush="{Binding #Handler.BorderBrush}"/>
-                </StackPanel>
-            </StackPanel>
-        </ToolTip.Tip>
-        
         <Border Name="Handler" ClipToBounds="False" Classes="port flow-port" />
         <TextBlock Text="{Binding Label}" Foreground="White" Classes="h5" FontWeight="Light"
                    VerticalAlignment="Center" Margin="4 0 0 0" />

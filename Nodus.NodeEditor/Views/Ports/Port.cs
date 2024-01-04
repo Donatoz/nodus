@@ -24,7 +24,7 @@ public abstract class Port : UserControl
     
     public abstract Border PortHandler { get; }
     public string PortId { get; private set; }
-    public virtual Color HandlerColor => PortHandler.BorderBrush is ImmutableSolidColorBrush s ? s.Color : Colors.Black;
+    public virtual Color HandlerColor => PortHandler.BorderBrush is ISolidColorBrush s ? s.Color : Colors.Black;
     protected virtual string PortTypeClassPrefix => "port-type-";
 
     static Port()

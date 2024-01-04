@@ -38,11 +38,3 @@ internal class FlowCanvasControlFactoryProvider : TypedComponentFactoryProvider<
         this.RegisterControlFactory<ConnectionPath, ConnectionViewModel>();
     }
 }
-
-internal class FlowCanvasFlowFactoryProvider : TypedComponentFactoryProvider<IFlowCanvasModel>
-{
-    public FlowCanvasFlowFactoryProvider()
-    {
-        RegisterFactory(typeof(IFlowProducerFactory), new FlowProducerFactory());
-    }
-}

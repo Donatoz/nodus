@@ -48,9 +48,9 @@ public partial class NodeCanvas : UserControl
     private CompositeDisposable? disposables;
     private RelativeRect initialBackgroundRect;
 
-    private readonly ISet<ConnectionContainer> currentConnections;
-    private readonly ISet<NodeContainer> nodes;
-
+    protected readonly ISet<ConnectionContainer> currentConnections;
+    protected readonly ISet<NodeContainer> nodes;
+    
     private readonly BoundCollectionPresenter<NodeViewModel, Draggable> nodesCollectionView;
     private readonly BoundCollectionPresenter<ConnectionViewModel, ConnectionPath> connectionsCollectionView;
     
@@ -462,7 +462,7 @@ public partial class NodeCanvas : UserControl
         nodesCollectionView.Dispose();
     }
 
-    private readonly struct NodeContainer
+    protected readonly struct NodeContainer
     {
         public Control Parent { get; }
         public Node Node { get; }

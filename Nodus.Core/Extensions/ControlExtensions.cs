@@ -5,6 +5,7 @@ using System.Reactive;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
+using DynamicData;
 using Nodus.Core.Common;
 using Nodus.Core.ViewModels;
 
@@ -29,5 +30,17 @@ public static class ControlExtensions
     public static bool HasVisualAncestorOrSelf(this Control c, Visual ancestor)
     {
         return c == ancestor || c.GetVisualAncestors().Any(x => x == ancestor);
+    }
+
+    public static void SwitchClass(this StyledElement control, string className, bool isPresent)
+    {
+        if (isPresent)
+        {
+            control.Classes.Add(className);
+        }
+        else
+        {
+            control.Classes.Remove(className);
+        }
     }
 }

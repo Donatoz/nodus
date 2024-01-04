@@ -9,7 +9,7 @@ using Nodus.Core.Extensions;
 
 namespace Nodus.Core.Reactive;
 
-public class BoundCollection<TSource, TProduced> : IDisposable
+public sealed class BoundCollection<TSource, TProduced> : IDisposable
 {
     public IObservable<CollectionChangedEvent<TProduced>> AlterationStream => subject;
     public IEnumerable<TProduced> Items => productionBindings.Values;

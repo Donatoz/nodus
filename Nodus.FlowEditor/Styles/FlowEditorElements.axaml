@@ -9,4 +9,9 @@
         </Style>
     </Style>
     
+    <Style Selector="Border.node.resolved">
+        <Setter Property="BorderBrush" Value="Green"/>
+        <Setter Property="BorderThickness" Value="4"/>
+    </Style>
+    
 </Styles>

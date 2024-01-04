@@ -1,4 +1,5 @@
-﻿using Nodus.Core.Reactive;
+﻿using System;
+using Nodus.Core.Reactive;
 
 namespace Nodus.Core.Selection;
 
@@ -6,7 +7,7 @@ namespace Nodus.Core.Selection;
 /// Represents a selector for objects of type <typeparamref name="T"/>.
 /// </summary>
 /// <typeparam name="T">The type of objects to select.</typeparam>
-public interface ISelector<T> where T : ISelectable
+public interface ISelector<T> : IDisposable where T : ISelectable
 {
     /// <summary>
     /// The currently selected value.
@@ -65,5 +66,10 @@ public class Selector<T> : ISelector<T> where T : ISelectable
     {
         currentlySelected.Value?.Deselect();
         currentlySelected.SetValue(default);
+    }
+
+    public void Dispose()
+    {
+        currentlySelected.Dispose();
     }
 }

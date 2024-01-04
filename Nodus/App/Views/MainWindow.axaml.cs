@@ -1,6 +1,7 @@
 using System;
 using Avalonia;
 using Avalonia.Controls;
+using FlowEditor.Views;
 using Nodus.DI.Runtime;
 using Nodus.NodeEditor.Views;
 using Nodus.ViewModels;
@@ -26,9 +27,9 @@ public partial class MainWindow : Window
         
         if (DataContext is MainWindowViewModel vm)
         {
-            var canvas = ElementProvider.GetRuntimeElement<NodeCanvas>();
+            var canvas = ElementProvider.GetRuntimeElement<FlowCanvas>();
             canvas.DataContext = vm.CanvasViewModel;
-            Container.Children.Add(canvas);
+            Container.Children.Insert(0, canvas);
         }
     }
 }

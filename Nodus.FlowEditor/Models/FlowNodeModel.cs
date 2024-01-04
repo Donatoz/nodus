@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reactive;
 using Nodus.Core.Extensions;
-using Nodus.Core.Reactive;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
 
@@ -52,5 +50,6 @@ public class FlowNodeModel : NodeModel, IFlowNodeModel
         base.Dispose(disposing);
         
         contextValueContract.Dispose();
+        this.TryGetFlowContext()?.Dispose();
     }
 }

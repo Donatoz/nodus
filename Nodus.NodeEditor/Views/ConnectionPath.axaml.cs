@@ -1,12 +1,9 @@
 ﻿using System.Collections.Generic;
-using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Media;
-using Avalonia.Styling;
-using DynamicData;
+using Nodus.Core.Extensions;
 using Nodus.NodeEditor.ViewModels;
 
 namespace Nodus.NodeEditor.Views;
@@ -59,5 +56,10 @@ public partial class ConnectionPath : UserControl
             new(from, 0),
             new(to, 1)
         };
+    }
+
+    public void SetActive(bool isActive)
+    {
+        PathContainer.SwitchClass("active", isActive);
     }
 }

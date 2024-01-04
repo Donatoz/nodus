@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using FlowEditor.Models.Templates;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
@@ -15,10 +16,11 @@ public static class DefaultFlowContexts
         provider.RegisterFactory(DefaultNodes.ConstantNodeContextId, () => new ConstantContext(_ => () => "Hello World"));
     }
     
-    private static Action<IFlowNodeModel, GraphContext> DebugNodeContext { get; } = (n, g) =>
+    private static GenericFlowContext.GenericFlowHandler DebugNodeContext { get; } = (n, g) =>
     {
         var port = n.GetFlowPorts().First(x => x.ValueType.Value == typeof(object));
         var msg = n.GetPortValue(port.Id, g);
         Trace.WriteLine($"DEBUG: {msg}");
+        return Task.CompletedTask;
     };
 }

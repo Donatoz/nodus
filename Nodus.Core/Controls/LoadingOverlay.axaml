@@ -1,0 +1,81 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:fx="clr-namespace:Nodus.Core.Effects"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nodus.Core.Controls.LoadingOverlay">
+    
+    <UserControl.Resources>
+        <StreamGeometry x:Key="LoadingShape">
+            Q 100,0 0,100 Q -100,200 0,200 Q 100,200 0,100 Q -100,0 0,0
+        </StreamGeometry>
+    </UserControl.Resources>
+    <UserControl.Styles>
+        <Style Selector="Path.primary">
+            <Style.Animations>
+                <Animation Duration="0:0:3" IterationCount="INFINITE">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="StrokeDashOffset" Value="0"/>
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="StrokeDashOffset" Value="-61.5"/>
+                    </KeyFrame>
+                </Animation>
+                
+            </Style.Animations>
+        </Style>
+        <Style Selector="Path.secondary">
+            <Style.Animations>
+                <Animation Duration="0:0:3" IterationCount="INFINITE">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="StrokeDashOffset" Value="0"/>
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <!-- for 8 dashes (61.5 / 8) -->
+                        <Setter Property="StrokeDashOffset" Value="-7.6875"/>
+                    </KeyFrame>
+                </Animation>
+                
+            </Style.Animations>
+        </Style>
+    </UserControl.Styles>
+    
+    <Grid>
+        <Rectangle Fill="Black" Opacity="0.5"/>
+        <fx:ShaderPresenter IsUpdatable="True" ShaderSource="avares://Nodus.Core/Assets/Shaders/Particles.glsl"
+                            UniformsScheme="avares://Nodus.Core/Assets/Shaders/ParticlesUnfiforms.uniforms"
+                            UniformsOverride="LAYERS_COUNT=50">
+            <fx:ShaderPresenter.Surface>
+                <Border Width="100" Height="100"/>
+            </fx:ShaderPresenter.Surface>
+        </fx:ShaderPresenter>
+        <Ellipse Name="TestEllipse" Fill="{StaticResource AscentActive}" Width="400" Height="400" 
+                   VerticalAlignment="Center" HorizontalAlignment="Center" Opacity="0.15">
+            <Ellipse.Effect>
+                <BlurEffect Radius="250"/>
+            </Ellipse.Effect>
+        </Ellipse>
+        
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Grid>
+                <Path Classes="secondary" Margin="0 0 -25 0" HorizontalAlignment="Center" VerticalAlignment="Center" Stroke="#2A4C41"
+                      StrokeJoin="Round" StrokeThickness="10" StrokeDashArray="3.84375" StrokeLineCap="Round" RenderTransformOrigin="50%,50%"
+                      Data="{StaticResource LoadingShape}">
+                </Path>
+                <Path Classes="primary" Margin="0 0 -25 0" HorizontalAlignment="Center" VerticalAlignment="Center" Stroke="#28DC99"
+                      StrokeJoin="Round" StrokeThickness="10" StrokeDashArray="30.75" StrokeLineCap="Round" RenderTransformOrigin="50%,50%"
+                      Data="{StaticResource LoadingShape}">
+                    <Path.Effect>
+                        <DropShadowEffect BlurRadius="25" Color="#28DC99" OffsetX="0" OffsetY="0" Opacity="0.6"/>
+                    </Path.Effect>
+                </Path>
+            </Grid>
+            
+            <TextBlock Text="Loading..." TextAlignment="Center" LetterSpacing="2" FontSize="40" FontWeight="SemiLight" Margin="0 25 0 0"/>
+            
+        </StackPanel>
+
+    </Grid>
+    
+</UserControl>

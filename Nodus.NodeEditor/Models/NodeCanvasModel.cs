@@ -14,6 +14,7 @@ public interface INodeCanvasModel : IDisposable
 {
     IObservable<IEvent> EventStream { get; }
     
+    IReactiveProperty<string> GraphName { get; }
     IReactiveProperty<IEnumerable<INodeModel>> Nodes { get; }
     IReactiveProperty<IEnumerable<Connection>> Connections { get; }
     INodeSearchModalModel SearchModal { get; }
@@ -81,6 +82,8 @@ public class NodeCanvasModel : INodeCanvasModel
         nodes.ClearAndInvalidate();
         connections.ClearAndInvalidate();
         
+        graphName.SetValue(graph.GraphName);
+        
         graph.Nodes.ForEach(x => Operator.CreateNode(new NodeTemplate(x)));
         graph.Connections.ForEach(x => Operator.Connect(x));
     }
@@ -104,15 +107,14 @@ public class NodeCanvasModel : INodeCanvasModel
 
     protected virtual void Dispose(bool disposing)
     {
-        if (disposing)
-        {
-            nodes.Value.DisposeAll();
+        if (!disposing) return;
+        
+        nodes.Value.DisposeAll();
             
-            graphName.Dispose();
-            eventSubject.Dispose();
-            nodes.Dispose();
-            connections.Dispose();
-        }
+        graphName.Dispose();
+        eventSubject.Dispose();
+        nodes.Dispose();
+        connections.Dispose();
     }
 
     public void Dispose()

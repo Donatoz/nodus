@@ -41,6 +41,8 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     public BoundCollection<Connection, ConnectionViewModel> Connections { get; }
     public ModalCanvasViewModel ModalCanvas { get; }
     public NodeCanvasToolbarViewModel Toolbar { get; }
+    public NodeContextContainerViewModel NodeContextContainer { get; }
+    public BoundProperty<string> GraphName { get; }
     
     public ICommand RequestNodeSelectionCommand { get; }
     public ICommand AddNodeCommand { get; }
@@ -79,10 +81,15 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         Toolbar = componentFactory.CreateToolbar(serviceProvider, model);
         ModalCanvas = componentFactory.CreateModalCanvas();
         nodeSearchModal = componentFactory.CreateSearchModal(this, model.SearchModal);
+        NodeContextContainer =
+            componentFactory.CreateNodeContextContainer(() => model.Context,
+                NodesSelector.CurrentlySelected.AlterationStream);
 
         RequestNodeSelectionCommand = ReactiveCommand.Create<NodeViewModel?>(OnNodeSelectionRequested);
         AddNodeCommand = ReactiveCommand.Create(CreateNewNode);
         RemoveSelectedCommand = ReactiveCommand.Create(RemoveCurrent);
+
+        GraphName = model.GraphName.ToBound();
         
         model.EventStream.OnEvent<MutationEvent<NodeData>>(OnNodeDataMutation);
     }
@@ -182,5 +189,7 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         ModalCanvas.Dispose();
         nodeAlterationContract.Dispose();
         nodeSearchModal.Dispose();
+        NodeContextContainer.Dispose();
+        NodesSelector.Dispose();
     }
 }

@@ -9,10 +9,6 @@
              x:Class="FlowEditor.Views.FlowOutputPort"
              x:DataType="vm:FlowPortViewModel">
     <DockPanel Name="Container">
-        <ToolTip.Tip>
-            <cc:Tooltip Header="Flow Port"/>
-        </ToolTip.Tip>
-        
         <TextBlock Text="{Binding Label}" Foreground="White" Classes="h5" FontWeight="Light"
                    VerticalAlignment="Center" Margin="0 0 4 0" />
         <Border Name="Handler" ClipToBounds="False" Classes="port flow-port" />

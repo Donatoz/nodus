@@ -2,6 +2,7 @@
 using Ninject.Modules;
 using Nodus.DI.Factories;
 using Nodus.DI.Modules;
+using Nodus.FlowEngine;
 using Nodus.NodeEditor.DI;
 using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.ViewModels;
@@ -26,8 +27,12 @@ public class FlowCanvasDIModule : NinjectModule
             .To<FlowCanvasControlFactoryProvider>()
             .InTransientScope();
 
-        Rebind<IComponentFactoryProvider<IFlowCanvasModel>>()
-            .To<FlowCanvasFlowFactoryProvider>()
-            .InTransientScope();
+        Bind<IFlowProducer>()
+            .To<SingleThreadProducer>()
+            .InSingletonScope();
+
+        Bind<IGraphFlowBuilder>()
+            .To<GraphFlowBuilder>()
+            .InSingletonScope();
     }
 }

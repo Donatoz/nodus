@@ -12,9 +12,9 @@ namespace FlowEditor.ViewModels;
 
 public class FlowCanvasViewModel : NodeCanvasViewModel
 {
-    private readonly FlowCanvasModel model;
+    private readonly IFlowCanvasModel model;
     
-    public FlowCanvasViewModel(FlowCanvasModel model, IServiceProvider serviceProvider, IComponentFactoryProvider<NodeCanvasViewModel> elementsFactoryProvider, INodeCanvasViewModelComponentFactory componentFactory) : base(model, serviceProvider, elementsFactoryProvider, componentFactory)
+    public FlowCanvasViewModel(IFlowCanvasModel model, IServiceProvider serviceProvider, IComponentFactoryProvider<NodeCanvasViewModel> elementsFactoryProvider, INodeCanvasViewModelComponentFactory componentFactory) : base(model, serviceProvider, elementsFactoryProvider, componentFactory)
     {
         this.model = model;
     }

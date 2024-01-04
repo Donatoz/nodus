@@ -39,10 +39,9 @@
         <DependentUpon>FlowOutputPort.axaml</DependentUpon>
         <SubType>Code</SubType>
       </Compile>
-    </ItemGroup>
-
-
-    <ItemGroup>
-      <Folder Include="Controls\" />
+      <Compile Update="Controls\FlowPortTooltip.axaml.cs">
+        <DependentUpon>FlowPortTooltip.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
     </ItemGroup>
 </Project>

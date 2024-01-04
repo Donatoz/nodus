@@ -7,6 +7,7 @@
         xmlns:fx="clr-namespace:Nodus.Core.Effects;assembly=Nodus.Core"
         xmlns:views="using:Nodus.NodeEditor.Views"
         xmlns:evm="clr-namespace:Nodus.NodeEditor.ViewModels;assembly=Nodus.NodeEditor"
+        xmlns:c="clr-namespace:Nodus.Core.Controls;assembly=Nodus.Core"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="Nodus.App.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -21,12 +22,7 @@
     </Design.DataContext>
     
     <Panel Name="Container">
-        <!--
-        <Canvas Background="{StaticResource BackgroundDefault}">
-            <fx:EffectPresenter IsOpaque="True" IsUpdatable="True" Bitmap="{StaticResource TestBitmap}" Canvas.Left="12" Width="455" Height="455" 
-                                HorizontalAlignment="Center" VerticalAlignment="Center" 
-                                ShaderSource="avares://Nodus/Assets/Shaders/SampleShader.glsl" />
-        </Canvas>-->
+        <c:LoadingOverlay IsVisible="False"/>
     </Panel>
     
 </Window>

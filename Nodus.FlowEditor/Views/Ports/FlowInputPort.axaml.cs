@@ -9,7 +9,7 @@ namespace FlowEditor.Views;
 public partial class FlowInputPort : FlowPort
 {
     public override Border PortHandler => Handler;
-    protected override Control PortContainer => Container;
+    protected override Control? TooltipContainer => Container;
 
     public FlowInputPort()
     {

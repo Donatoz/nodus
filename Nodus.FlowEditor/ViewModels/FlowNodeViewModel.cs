@@ -1,8 +1,11 @@
-﻿using System.Linq;
+﻿using System;
+using System.Diagnostics;
+using System.Linq;
 using FlowEditor.Meta;
 using FlowEditor.Models;
 using Nodus.Core.Common;
 using Nodus.Core.Extensions;
+using Nodus.Core.Reactive;
 using Nodus.DI.Factories;
 using Nodus.FlowEngine;
 using Nodus.NodeEditor.Factories;
@@ -14,13 +17,29 @@ namespace FlowEditor.ViewModels;
 
 public class FlowNodeViewModel : NodeViewModel
 {
+    public NotifyingBoundProperty<bool> IsBeingResolved { get; }
+    
     private readonly IFlowNodeModel model;
+    private readonly IDisposable contextContract;
     
     public FlowNodeViewModel(IFlowNodeModel model, 
         IComponentFactoryProvider<NodeCanvasViewModel> componentFactoryProvider, 
         IComponentFactoryProvider<INodeCanvasModel> modelFactoryProvider) : base(model, componentFactoryProvider, modelFactoryProvider)
     {
         this.model = model;
+        IsBeingResolved = new NotifyingBoundProperty<bool>(() => model.TryGetFlowContext()?.IsBeingResolved.Value ?? false);
+
+        contextContract = model.Context.AlterationStream.Subscribe(OnContextChanged);
+    }
+
+    private void OnContextChanged(INodeContext? context)
+    {
+        IsBeingResolved.ClearSources();
+        
+        if (context is IFlowNodeContext flowCtx)
+        {
+            IsBeingResolved.AddSource(flowCtx.IsBeingResolved);
+        }
     }
 
     public void RunFlow()
@@ -47,6 +66,7 @@ public class FlowNodeViewModel : NodeViewModel
         if (!disposing) return;
         
         Ports.Items.OfType<FlowPortViewModel>().DisposeAll();
+        contextContract.Dispose();
     }
 }
 

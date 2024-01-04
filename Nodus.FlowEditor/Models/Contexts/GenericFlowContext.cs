@@ -7,24 +7,24 @@ namespace FlowEditor.Models.Contexts;
 
 public sealed class GenericFlowContext : FlowNodeContextBase
 {
-    private readonly Action<IFlowNodeModel, GraphContext> resolveContext;
+    public delegate Task GenericFlowHandler(IFlowNodeModel node, GraphContext graph);
     
-    public GenericFlowContext(Action<IFlowNodeModel, GraphContext> resolveContext)
+    private readonly GenericFlowHandler resolveContext;
+    
+    public GenericFlowContext(GenericFlowHandler resolveContext)
     {
         this.resolveContext = resolveContext;
     }
 
     protected override void Resolve(IFlow flow, GraphContext context)
     {
+        base.Resolve(flow, context);
+        
         if (Node == null)
         {
             throw new Exception("Failed to resolve node context: node is not bound.");
         }
         
-        flow.Append(new FlowDelegate(() =>
-        {
-            resolveContext.Invoke(Node, context);
-            return Task.CompletedTask;
-        }));
+        flow.Append(new FlowDelegate(() => resolveContext.Invoke(Node, context)));
     }
 }

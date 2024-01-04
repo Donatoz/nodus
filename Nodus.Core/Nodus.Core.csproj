@@ -30,4 +30,14 @@
       <Folder Include="Assets\Fonts\" />
       <Folder Include="Controls\Input\" />
     </ItemGroup>
+
+
+    <ItemGroup>
+      <None Remove="Assets\Shaders\LoadingBackground.glsl" />
+      <AvaloniaResource Include="Assets\Shaders\LoadingBackground.glsl" />
+      <None Remove="Assets\Shaders\Particles.glsl" />
+      <AvaloniaResource Include="Assets\Shaders\Particles.glsl" />
+      <None Remove="Assets\Shaders\ParticlesUnfiforms.uniforms" />
+      <AvaloniaResource Include="Assets\Shaders\ParticlesUnfiforms.uniforms" />
+    </ItemGroup>
 </Project>

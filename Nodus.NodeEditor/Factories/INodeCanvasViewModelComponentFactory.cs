@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Nodus.Core.ViewModels;
+using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.ViewModels;
 
@@ -37,6 +38,9 @@ public interface INodeCanvasViewModelComponentFactory
     /// <param name="nodes">The collection of nodes.</param>
     /// <param name="canvasOperator">The node canvas operator.</param>
     ConnectionViewModel CreateConnection(Connection model, IEnumerable<NodeViewModel> nodes, INodeCanvasOperatorViewModel canvasOperator);
+
+    NodeContextContainerViewModel CreateNodeContextContainer(Func<GraphContext> graphGetter,
+        IObservable<NodeViewModel?> nodeChangeStream);
 }
 
 internal class NodeCanvasViewModelComponentFactory : INodeCanvasViewModelComponentFactory
@@ -59,5 +63,10 @@ internal class NodeCanvasViewModelComponentFactory : INodeCanvasViewModelCompone
     public ConnectionViewModel CreateConnection(Connection model, IEnumerable<NodeViewModel> nodes, INodeCanvasOperatorViewModel canvasOperator)
     {
         return new ConnectionViewModel(model, nodes, canvasOperator);
+    }
+
+    public NodeContextContainerViewModel CreateNodeContextContainer(Func<GraphContext> graphGetter, IObservable<NodeViewModel?> nodeChangeStream)
+    {
+        return new NodeContextContainerViewModel(graphGetter, nodeChangeStream);
     }
 }
