@@ -2,17 +2,17 @@
 
 public interface IFlowUnit
 {
-    Task GetContext();
+    Task Execute(CancellationToken ct = default);
 }
 
 public readonly struct FlowDelegate : IFlowUnit
 {
-    private readonly Func<Task> contextFactory;
+    private readonly Func<CancellationToken, Task> contextFactory;
 
-    public FlowDelegate(Func<Task> contextFactory)
+    public FlowDelegate(Func<CancellationToken, Task> contextFactory)
     {
         this.contextFactory = contextFactory;
     }
 
-    public Task GetContext() => contextFactory.Invoke();
+    public Task Execute(CancellationToken ct = default) => contextFactory.Invoke(ct);
 }

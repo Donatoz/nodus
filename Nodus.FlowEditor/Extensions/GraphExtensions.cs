@@ -54,13 +54,6 @@ public static class GraphExtensions
         return port == null ? default : context.FindPortFirstConnection(port.Id);
     }
     
-    public static IFlowNodeModel? GetFlowPredecessor(this GraphContext context, IFlowNodeModel target)
-    {
-        var connection = context.GetFlowConnection(target, PortType.Input);
-        
-        return !connection.IsValid ? null : context.FindNode(connection.SourceNodeId) as IFlowNodeModel;
-    }
-    
     public static IFlowNodeModel? GetFlowSuccessor(this GraphContext context, IFlowNodeModel target)
     {
         var connection = context.GetFlowConnection(target, PortType.Output);

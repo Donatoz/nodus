@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Numerics;
 using System.Reactive.Disposables;
 using Avalonia;
@@ -47,6 +49,8 @@ public class ShaderDrawOperation : ICustomDrawOperation
     protected SKRuntimeEffectChildren Children { get; }
     
     private SKShader? targetShader;
+    
+    protected bool IsDirty { get; private set; }
 
     public ShaderDrawOperation(Visual container, string shaderSource)
     {
@@ -97,7 +101,7 @@ public class ShaderDrawOperation : ICustomDrawOperation
                 skb.GetPixels(), stride * height, stride);
             
             targetShader?.Dispose();
-            targetShader = skb.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat);
+            targetShader = skb.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Clamp);
             
             Children.Add("input", targetShader);
         }
@@ -154,5 +158,7 @@ public class ShaderDrawOperation : ICustomDrawOperation
     {
         disposables.Dispose();
         targetShader?.Dispose();
+        Uniforms.Reset();
+        Children.Reset();
     }
 }

@@ -16,6 +16,7 @@
     <Color x:Key="Glow">#A4A4A4</Color>
     <Color x:Key="Shine">#C5C5C5</Color>
     
+    <Color x:Key="AscentActiveSaturated">#47ed87</Color>
     <Color x:Key="AscentActiveGlow">#7BEEA7</Color>
     <Color x:Key="AscentActiveHighlight">#7AC89E</Color>
     <Color x:Key="AscentActive">#599B80</Color>

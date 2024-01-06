@@ -1,6 +1,9 @@
 ﻿using Avalonia;
 using Avalonia.ReactiveUI;
 using System;
+using Avalonia.Logging;
+using Projektanker.Icons.Avalonia;
+using Projektanker.Icons.Avalonia.FontAwesome;
 
 namespace Nodus;
 
@@ -15,9 +18,13 @@ class Program
 
     // Avalonia configuration, don't remove; also used by visual designer.
     public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App.App>()
+    {
+        IconProvider.Current.Register<FontAwesomeIconProvider>();
+        
+        return AppBuilder.Configure<App.App>()
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace()
             .UseReactiveUI();
+    }
 }

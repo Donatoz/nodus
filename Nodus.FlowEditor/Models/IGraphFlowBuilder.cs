@@ -45,7 +45,6 @@ public class GraphFlowBuilder : IGraphFlowBuilder
 
         for (var i = 0; i < tokens.Count; i++)
         {
-            tokens[i].Predecessor = i > 0 ? tokens[i - 1] : null;
             tokens[i].Successor = i < tokens.Count - 1 ? tokens[i + 1] : null;
         }
 

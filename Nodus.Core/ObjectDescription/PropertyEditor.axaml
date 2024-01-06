@@ -1,0 +1,26 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:cc="clr-namespace:Nodus.Core.Controls;assembly=Nodus.Core"
+             xmlns:b="clr-namespace:Nodus.Core.Behaviors;assembly=Nodus.Core"
+             xmlns:dsc="clr-namespace:Nodus.Core.ObjectDescription"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nodus.Core.ObjectDescription.PropertyEditor"
+             x:DataType="dsc:PropertyEditorViewModel" 
+             ClipToBounds="False">
+    <Grid>
+        <Border HorizontalAlignment="Stretch" Margin="-5" Background="{StaticResource BackgroundDark}"/>
+        <StackPanel>
+            <DockPanel>
+                <TextBlock b:TextCompressor.MaxCharacterLength="10" Text="{Binding PropertyName}" MaxWidth="150" Classes="h5"/>
+                <cc:PointLabel Margin="5 0 0 0" HorizontalAlignment="Right" DotBrush="{StaticResource AscentActive}" Label="{Binding PropertyType.Name}"/>
+            </DockPanel>
+            <TextBlock IsVisible="{Binding Description, Converter={x:Static ObjectConverters.IsNotNull}}" 
+                       Text="{Binding Description}" HorizontalAlignment="Left"
+                       MaxWidth="200" TextWrapping="Wrap"
+                       Foreground="{StaticResource Glow}" FontWeight="SemiLight"/>
+            <ContentPresenter Content="{ReflectionBinding Content}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

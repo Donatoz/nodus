@@ -20,6 +20,7 @@
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
         <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.2"/>
         <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.2"/>
+        <PackageReference Include="Projektanker.Icons.Avalonia.FontAwesome" Version="9.0.1" />
     </ItemGroup>
 
 
@@ -43,5 +44,10 @@
         <DependentUpon>FlowPortTooltip.axaml</DependentUpon>
         <SubType>Code</SubType>
       </Compile>
+    </ItemGroup>
+
+
+    <ItemGroup>
+      <Folder Include="Assets\Icons\" />
     </ItemGroup>
 </Project>

@@ -32,11 +32,12 @@ public class SingleThreadProducer : IFlowProducer
 
         public IFlowUnit GetUnit()
         {
-            return new FlowDelegate(async () =>
+            return new FlowDelegate(async ct =>
             {
                 foreach (var unit in buffer)
                 {
-                    await unit.GetContext();
+                    ct.ThrowIfCancellationRequested();
+                    await unit.Execute(ct);
                 }
             });
         }

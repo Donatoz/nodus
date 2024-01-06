@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Nodus.FlowEngine;
 using Nodus.NodeEditor.Meta;
@@ -7,7 +8,7 @@ namespace FlowEditor.Models.Contexts;
 
 public sealed class GenericFlowContext : FlowNodeContextBase
 {
-    public delegate Task GenericFlowHandler(IFlowNodeModel node, GraphContext graph);
+    public delegate Task GenericFlowHandler(IFlowNodeModel node, GraphContext graph, CancellationToken ct);
     
     private readonly GenericFlowHandler resolveContext;
     
@@ -16,15 +17,15 @@ public sealed class GenericFlowContext : FlowNodeContextBase
         this.resolveContext = resolveContext;
     }
 
-    protected override void Resolve(IFlow flow, GraphContext context)
+    protected override void Resolve(IFlow flow, GraphContext context, IFlowToken current)
     {
-        base.Resolve(flow, context);
+        base.Resolve(flow, context, current);
         
         if (Node == null)
         {
             throw new Exception("Failed to resolve node context: node is not bound.");
         }
         
-        flow.Append(new FlowDelegate(() => resolveContext.Invoke(Node, context)));
+        flow.Append(new FlowDelegate(ct => resolveContext.Invoke(Node, context, ct)));
     }
 }

@@ -10,6 +10,7 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Nodus.NodeEditor.Views.NodeCanvas"
              x:DataType="vm:NodeCanvasViewModel">
+    
     <Grid Name="Root" Background="{StaticResource BackgroundDefault}">
         <Grid.ContextMenu>
             <ContextMenu>
@@ -52,10 +53,8 @@
             </Canvas>
         </Grid>
         
-        <Grid IsVisible="{ReflectionBinding NodesSelector.CurrentlySelected.Value, Converter={x:Static ObjectConverters.IsNotNull}}"
-              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0 75 15 0">
-            <v:NodeContextContainer DataContext="{Binding NodeContextContainer}" />
-        </Grid>
+        <v:NodeContextContainer Name="NodeContextContainer" DataContext="{Binding NodeContextContainer}" 
+                                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0 75 15 0"/>
         <v:NodeCanvasToolbar Name="Toolbar" DataContext="{Binding Toolbar}" VerticalAlignment="Top" 
                              HorizontalAlignment="Stretch" MaxHeight="75" />
         <cc:ModalContainer DataContext="{Binding ModalCanvas}" />

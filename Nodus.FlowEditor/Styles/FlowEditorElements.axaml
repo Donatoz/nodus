@@ -9,9 +9,25 @@
         </Style>
     </Style>
     
-    <Style Selector="Border.node.resolved">
-        <Setter Property="BorderBrush" Value="Green"/>
-        <Setter Property="BorderThickness" Value="4"/>
+    <Style Selector="Border.flow-node-resolve-effect">
+        <Setter Property="Margin" Value="-5"/>
+        <Setter Property="CornerRadius" Value="5"/>
+        <Setter Property="IsHitTestVisible" Value="False"/>
+        <Setter Property="Background" Value="{StaticResource AscentActiveSaturated}"/>
+        <Setter Property="Effect" Value="blur(20)"/>
+
+        <Setter Property="Transitions">
+            <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.1" Easing="CubicEaseInOut"/>
+            </Transitions>
+        </Setter>
+        
+        <Style Selector="^.visible">
+            <Setter Property="Opacity" Value="0.4"/>
+        </Style>
+        <Style Selector="^.invisible">
+            <Setter Property="Opacity" Value="0"/>
+        </Style>
     </Style>
     
 </Styles>

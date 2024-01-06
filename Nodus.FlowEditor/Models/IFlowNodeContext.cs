@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using Nodus.Core.Reactive;
 using Nodus.FlowEngine;
@@ -59,17 +60,15 @@ public abstract class FlowNodeContextBase : IFlowNodeContext
 
     public IFlowToken GetFlowToken(GraphContext context)
     {
-        return new FlowTokenContainer(f => Resolve(f, context));
+        return new FlowTokenContainer((f, t) => Resolve(f, context, t));
     }
 
-    protected virtual void Resolve(IFlow flow, GraphContext context)
+    protected virtual void Resolve(IFlow flow, GraphContext context, IFlowToken currentToken)
     {
-        flow.Append(new FlowDelegate(() =>
+        flow.Append(new FlowDelegate(async ct =>
         {
             isBeingResolved.SetValue(true);
-            Task.Delay(1000).ContinueWith(_ => isBeingResolved.SetValue(false));
-            
-            return Task.CompletedTask;
+            await Task.Delay(1000, ct).ContinueWith(_ => isBeingResolved.SetValue(false), CancellationToken.None);
         }));
     }
     
@@ -88,19 +87,18 @@ public abstract class FlowNodeContextBase : IFlowNodeContext
 
     private class FlowTokenContainer : IFlowToken
     {
-        public IFlowToken? Predecessor { get; set; }
         public IFlowToken? Successor { get; set; }
 
-        private readonly Action<IFlow> resolveContext;
+        private readonly Action<IFlow, IFlowToken> resolveContext;
 
-        public FlowTokenContainer(Action<IFlow> resolveContext)
+        public FlowTokenContainer(Action<IFlow, IFlowToken> resolveContext)
         {
             this.resolveContext = resolveContext;
         }
         
         public void Resolve(IFlow flow)
         {
-            resolveContext.Invoke(flow);
+            resolveContext.Invoke(flow, this);
         }
     }
 }

@@ -13,16 +13,18 @@ namespace Nodus.NodeEditor.ViewModels;
 
 public class NodeContextContainerViewModel : IDisposable
 {
-    private readonly MutableReactiveProperty<IEnumerable<NodeContextContainerItemViewModel>> items;
+    private readonly MutableReactiveProperty<IEnumerable<PropertyEditorViewModel>> items;
     private readonly Func<GraphContext> contextProvider;
     private readonly IDisposable changeContract;
 
-    public IReactiveProperty<IEnumerable<NodeContextContainerItemViewModel>> Items => items;
+    public IReactiveProperty<IEnumerable<PropertyEditorViewModel>> Items => items;
+    public BoundProperty<bool> HasValidContext { get; }
 
     public NodeContextContainerViewModel(Func<GraphContext> contextProvider, IObservable<NodeViewModel?> nodeChangeStream)
     {
-        items = new MutableReactiveProperty<IEnumerable<NodeContextContainerItemViewModel>>();
+        items = new MutableReactiveProperty<IEnumerable<PropertyEditorViewModel>>(Enumerable.Empty<PropertyEditorViewModel>());
         this.contextProvider = contextProvider;
+        HasValidContext = new BoundProperty<bool>(() => Items.Value.Any(), Items);
 
         changeContract = nodeChangeStream.Subscribe(OnNodeChanged);
     }
@@ -31,7 +33,7 @@ public class NodeContextContainerViewModel : IDisposable
     {
         if (node == null)
         {
-            items.SetValue(Enumerable.Empty<NodeContextContainerItemViewModel>());
+            items.SetValue(Enumerable.Empty<PropertyEditorViewModel>());
             return;
         }
         
@@ -52,8 +54,13 @@ public class NodeContextContainerViewModel : IDisposable
         items.SetValue(props.Select(x =>
         {
             var attr = x.GetCustomAttribute<ExposedPropertyAttribute>();
-            return new NodeContextContainerItemViewModel(x.Name, x.PropertyType, attr?.Description);
+            return new PropertyEditorViewModel(x.Name, x.PropertyType, attr?.Description, CreateEditorBinding(x, context));
         }));
+    }
+    
+    protected virtual IPropertyBinding CreateEditorBinding(PropertyInfo propertyInfo, INodeContext context)
+    {
+        return new ReflectionPropertyBinding(propertyInfo, context);
     }
 
     protected virtual void Dispose(bool disposing)
@@ -62,25 +69,12 @@ public class NodeContextContainerViewModel : IDisposable
         
         items.Dispose();
         changeContract.Dispose();
+        HasValidContext.Dispose();
     }
 
     public void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);
-    }
-}
-
-public class NodeContextContainerItemViewModel
-{
-    public string PropertyName { get; }
-    public string? Description { get; }
-    public Type PropertyType { get; }
-
-    public NodeContextContainerItemViewModel(string propertyName, Type propertyType, string? description = null)
-    {
-        PropertyName = propertyName;
-        PropertyType = propertyType;
-        Description = description;
     }
 }

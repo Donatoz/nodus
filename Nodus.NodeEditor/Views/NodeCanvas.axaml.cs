@@ -13,6 +13,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
+using Avalonia.Rendering.Composition;
 using DynamicData.Binding;
 using Ninject;
 using Nodus.Core.Common;
@@ -63,6 +64,7 @@ public partial class NodeCanvas : UserControl
     private VisualBrush BackgroundBrush => BackgroundVisual.Background as VisualBrush;
     
     protected IComponentFactoryProvider<NodeCanvas> FactoryProvider { get; }
+    protected Panel CanvasContainer => Root;
 
     public NodeCanvas(IComponentFactoryProvider<NodeCanvas> factoryProvider)
     {

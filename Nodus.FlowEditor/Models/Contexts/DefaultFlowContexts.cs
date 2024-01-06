@@ -16,8 +16,10 @@ public static class DefaultFlowContexts
         provider.RegisterFactory(DefaultNodes.ConstantNodeContextId, () => new ConstantContext(_ => () => "Hello World"));
     }
     
-    private static GenericFlowContext.GenericFlowHandler DebugNodeContext { get; } = (n, g) =>
+    private static GenericFlowContext.GenericFlowHandler DebugNodeContext { get; } = (n, g, ct) =>
     {
+        ct.ThrowIfCancellationRequested();
+        
         var port = n.GetFlowPorts().First(x => x.ValueType.Value == typeof(object));
         var msg = n.GetPortValue(port.Id, g);
         Trace.WriteLine($"DEBUG: {msg}");

@@ -21,8 +21,28 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
     
-    <Panel Name="Container">
-        <c:LoadingOverlay IsVisible="False"/>
-    </Panel>
+    <Grid>
+        <Panel Name="Container" Background="{StaticResource BackgroundDefault}">
+            <!--
+            <Panel.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="My item">
+                        <MenuItem.Icon>
+                            <fx:ShaderPresenter Width="100" Height="100" Canvas.Left="155" Canvas.Top="155"
+                                                ShaderSource="avares://Nodus.Core/Assets/Shaders/Tint.glsl" 
+                                                UniformsOverride="tintColor=[1,1,1]">
+                                <fx:ShaderPresenter.Surface>
+                                    <Image Width="100" Height="100" Source="{StaticResource TestBitmap}"/>
+                                </fx:ShaderPresenter.Surface>
+                            </fx:ShaderPresenter>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                </ContextMenu>
+            </Panel.ContextMenu>-->
+            
+            <c:LoadingOverlay IsVisible="False"/>
+        </Panel>
+    </Grid>
+
     
 </Window>

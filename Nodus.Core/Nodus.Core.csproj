@@ -39,5 +39,15 @@
       <AvaloniaResource Include="Assets\Shaders\Particles.glsl" />
       <None Remove="Assets\Shaders\ParticlesUnfiforms.uniforms" />
       <AvaloniaResource Include="Assets\Shaders\ParticlesUnfiforms.uniforms" />
+      <None Remove="Assets\Shaders\Tint.glsl" />
+      <AvaloniaResource Include="Assets\Shaders\Tint.glsl" />
+    </ItemGroup>
+
+
+    <ItemGroup>
+      <Compile Update="ObjectDescription\PropertyEditor.axaml.cs">
+        <DependentUpon>PropertyEditor.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
     </ItemGroup>
 </Project>

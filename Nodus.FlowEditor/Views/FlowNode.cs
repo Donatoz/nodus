@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using FlowEditor.ViewModels;
+using Nodus.Core.Extensions;
 using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.ViewModels;
 using Nodus.NodeEditor.Views;
@@ -18,14 +19,23 @@ public class FlowNode : Node
         RoutedEvent.Register<FlowNode, FlowNodeResolveEventArgs>(nameof(FlowNodeResolveEvent), RoutingStrategies.Bubble);
     
     private IDisposable? resolveContract;
+    private Control resolveEffect;
     
     protected override void OnInitialized()
     {
         base.OnInitialized();
 
+        resolveEffect = new Border
+        {
+            ClipToBounds = false
+        };
+        resolveEffect.Classes.Add("flow-node-resolve-effect");
+        resolveEffect.Classes.Add("invisible");
+        NodeContainer.Children.Insert(0, resolveEffect);
+
         Menu.Items.Add(new MenuItem
         {
-            Header = "Run Flow",
+            Header = "Run Flow From This",
             Command = ReactiveCommand.Create(OnRunFlow)
         });
     }
@@ -47,14 +57,7 @@ public class FlowNode : Node
         // Flow context resolve happens most probably on different thread rather than UI thread.
         Dispatcher.UIThread.Invoke(() =>
         {
-            if (isResolved)
-            {
-                NodeBody.Classes.Add("resolved");
-            }
-            else
-            {
-                NodeBody.Classes.Remove("resolved");
-            }
+            resolveEffect.SwitchBetweenClasses("visible", "invisible", isResolved);
             
             RaiseEvent(new FlowNodeResolveEventArgs(this, isResolved) {RoutedEvent = FlowNodeResolveEvent});
         });

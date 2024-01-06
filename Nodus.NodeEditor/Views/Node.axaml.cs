@@ -37,6 +37,7 @@ public partial class Node : UserControl
 
     protected ContextMenu Menu => NodeContextMenu;
     protected Control NodeBody => Body;
+    protected Grid NodeContainer => Container;
 
     private LinearGradientBrush borderAscent;
     private GradientStop borderAscentStop;

@@ -7,6 +7,9 @@ namespace FlowEditor.Models.Contexts;
 
 public class ConstantContext : FlowNodeContextBase
 {
+    [ExposedProperty("This is multiplier for this property editor. Use wisely.")]
+    public string Multiplier { get; set; }
+    
     private readonly Func<IFlowPortModel, Func<object>> outputPortBindingFactory;
     
     public ConstantContext(Func<IFlowPortModel, Func<object>> outputPortBindingFactory)

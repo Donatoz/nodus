@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reactive;
 using Avalonia;
+using Avalonia.Animation;
 using Avalonia.Controls;
+using Avalonia.Rendering.Composition;
+using Avalonia.Styling;
 using Avalonia.VisualTree;
 using DynamicData;
 using Nodus.Core.Common;
@@ -32,15 +35,22 @@ public static class ControlExtensions
         return c == ancestor || c.GetVisualAncestors().Any(x => x == ancestor);
     }
 
-    public static void SwitchClass(this StyledElement control, string className, bool isPresent)
+    public static void SwitchClass(this StyledElement element, string className, bool isPresent)
     {
         if (isPresent)
         {
-            control.Classes.Add(className);
+            element.Classes.Add(className);
         }
         else
         {
-            control.Classes.Remove(className);
+            element.Classes.Remove(className);
         }
+    }
+
+    public static void SwitchBetweenClasses(this StyledElement element, string activeClass, string inactiveClass,
+        bool isActive)
+    {
+        element.Classes.Remove(isActive ? inactiveClass : activeClass);
+        element.Classes.Add(isActive ? activeClass : inactiveClass);
     }
 }

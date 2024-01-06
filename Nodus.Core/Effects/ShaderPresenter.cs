@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using Avalonia;
@@ -9,6 +10,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Nodus.Core.Utility;
+using Vector = Avalonia.Vector;
 
 namespace Nodus.Core.Effects;
 
@@ -21,7 +23,7 @@ public class ShaderPresenter : Control
     public static readonly StyledProperty<float> UpdateSpeedProperty;
     public static readonly StyledProperty<Uri?> UniformsSchemeProperty;
     public static readonly StyledProperty<object?> UniformsOverrideProperty;
-    public static readonly StyledProperty<Visual?> SurfaceProperty;
+    public static readonly StyledProperty<Control?> SurfaceProperty;
 
     public Uri? ShaderSource
     {
@@ -65,7 +67,7 @@ public class ShaderPresenter : Control
         set => SetValue(UniformsOverrideProperty, value);
     }
 
-    public Visual? Surface
+    public Control? Surface
     {
         get => GetValue(SurfaceProperty);
         set => SetValue(SurfaceProperty, value);
@@ -76,6 +78,7 @@ public class ShaderPresenter : Control
     private float time;
 
     private readonly IShaderUniformFactory uniformFactory;
+    private RenderTargetBitmap? surfaceBitmap;
     
     protected static DispatcherTimer EffectRenderTimer { get; }
     
@@ -88,7 +91,7 @@ public class ShaderPresenter : Control
         UpdateSpeedProperty = AvaloniaProperty.Register<ShaderPresenter, float>(nameof(UpdateSpeed), 300);
         UniformsSchemeProperty = AvaloniaProperty.Register<ShaderPresenter, Uri?>(nameof(UniformsScheme));
         UniformsOverrideProperty = AvaloniaProperty.Register<ShaderPresenter, object?>(nameof(UniformsOverride));
-        SurfaceProperty = AvaloniaProperty.Register<ShaderPresenter, Visual?>(nameof(Surface));
+        SurfaceProperty = AvaloniaProperty.Register<ShaderPresenter, Control?>(nameof(Surface));
         
         EffectRenderTimer = new DispatcherTimer(DispatcherPriority.Render)
         {
@@ -116,6 +119,20 @@ public class ShaderPresenter : Control
         if (IsUpdatable)
         {
             EffectRenderTimer.Tick += OnEffectRenderTimerTick;
+        }
+
+        if (Surface != null)
+        {
+            var ps = new PixelSize((int) Surface.Width + 1, (int) Surface.Height + 1);
+            var s = new Size(Surface.Width, Surface.Height);
+            
+            surfaceBitmap = new RenderTargetBitmap(ps, new Vector(96, 96));
+            
+            Surface.Measure(s);
+            Surface.Arrange(new Rect(s));
+            
+            surfaceBitmap.Render(Surface);
+            Bitmap = surfaceBitmap;
         }
     }
 
@@ -202,15 +219,18 @@ public class ShaderPresenter : Control
         return new ShaderDrawOperation(this, shaderSource);
     }
 
-    protected override void OnUnloaded(RoutedEventArgs e)
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        base.OnUnloaded(e);
+        base.OnDetachedFromVisualTree(e);
         
         drawOperation?.Dispose();
+        surfaceBitmap?.Dispose();
 
         if (IsUpdatable)
         {
             EffectRenderTimer.Tick -= OnEffectRenderTimerTick;
         }
+        
+        Trace.WriteLine($"Dispose all res");
     }
 }

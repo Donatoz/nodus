@@ -18,7 +18,6 @@ public class BoundProperty<T> : IReactiveObject, IDisposable
     
     private CompositeDisposable alterationContracts;
     private readonly Func<T> getter;
-    private readonly Action<T> setter;
     
     public BoundProperty(Func<T> getter, params IReactiveObject[] sources)
     {
@@ -27,13 +26,17 @@ public class BoundProperty<T> : IReactiveObject, IDisposable
 
         sources.ForEach(AddSource);
         
+        UpdateValue();
+    }
+
+    private void UpdateValue()
+    {
         SetValue(getter.Invoke());
     }
 
     protected virtual void OnAlteration(object? sender, PropertyChangedEventArgs args)
     {
-        var value = getter.Invoke();
-        SetValue(value);
+        UpdateValue();
     }
 
     public void AddSource(IReactiveObject source)
@@ -100,5 +103,10 @@ public static class BoundPropertyEx
     public static BoundProperty<TGet> ToBound<T, TGet>(this IReactiveProperty<T> property, Func<TGet> getter, [CallerMemberName]string? propName = null)
     {
         return new BoundProperty<TGet>(getter, property);
+    }
+    
+    public static NotifyingBoundProperty<T> ToNotifying<T>(this IReactiveProperty<T> property, [CallerMemberName]string? propName = null)
+    {
+        return new NotifyingBoundProperty<T>(() => property.Value, property);
     }
 }
