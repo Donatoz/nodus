@@ -19,6 +19,9 @@ public interface INodeCanvasModel : IDisposable
     IReactiveProperty<IEnumerable<Connection>> Connections { get; }
     INodeSearchModalModel SearchModal { get; }
     ICanvasOperatorModel Operator { get; }
+    /// <summary>
+    /// Graph representation of the node canvas.
+    /// </summary>
     GraphContext Context { get; }
 
     void LoadGraph(NodeGraph graph);
@@ -45,6 +48,10 @@ public class NodeCanvasModel : INodeCanvasModel
     public IObservable<IEvent> EventStream => eventSubject;
     public IReactiveProperty<IEnumerable<INodeModel>> Nodes => nodes;
     public IReactiveProperty<IEnumerable<Connection>> Connections => connections;
+    /// <summary>
+    /// Returns a NEW context of this graph, meaning that with EACH getter call
+    /// it will allocate new memory for context cache.
+    /// </summary>
     public GraphContext Context => new(Nodes.Value, Connections.Value);
 
     public INodeSearchModalModel SearchModal => searchModal;

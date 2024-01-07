@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using FlowEditor.ViewModels;
@@ -19,18 +20,16 @@ public class FlowNode : Node
         RoutedEvent.Register<FlowNode, FlowNodeResolveEventArgs>(nameof(FlowNodeResolveEvent), RoutingStrategies.Bubble);
     
     private IDisposable? resolveContract;
-    private Control resolveEffect;
+    private FlowNodeResolveEffect resolveEffect;
     
     protected override void OnInitialized()
     {
         base.OnInitialized();
 
-        resolveEffect = new Border
+        resolveEffect = new FlowNodeResolveEffect
         {
             ClipToBounds = false
         };
-        resolveEffect.Classes.Add("flow-node-resolve-effect");
-        resolveEffect.Classes.Add("invisible");
         NodeContainer.Children.Insert(0, resolveEffect);
 
         Menu.Items.Add(new MenuItem
@@ -57,7 +56,7 @@ public class FlowNode : Node
         // Flow context resolve happens most probably on different thread rather than UI thread.
         Dispatcher.UIThread.Invoke(() =>
         {
-            resolveEffect.SwitchBetweenClasses("visible", "invisible", isResolved);
+            resolveEffect.SwitchState(isResolved);
             
             RaiseEvent(new FlowNodeResolveEventArgs(this, isResolved) {RoutedEvent = FlowNodeResolveEvent});
         });

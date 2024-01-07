@@ -7,7 +7,7 @@ public interface IFlowToken
     void Resolve(IFlow flow);
 }
 
-public class EmptyToken : IFlowToken
+public sealed class EmptyToken : IFlowToken
 {
     public IFlowToken? Successor { get; set; }
     

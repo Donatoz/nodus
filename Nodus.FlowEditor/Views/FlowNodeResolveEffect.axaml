@@ -1,0 +1,44 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="FlowEditor.Views.FlowNodeResolveEffect">
+    
+    <UserControl.Styles>
+        <Style Selector="Border">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseInOut"/>
+                </Transitions>
+            </Setter>
+            
+            <Style Selector="^.invisible">
+                <Setter Property="Opacity" Value="0"/>
+            </Style>
+        </Style>
+        <Style Selector="Border.flow-node-resolve-effect">
+            <Setter Property="Margin" Value="-5"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+            <Setter Property="Background" Value="{StaticResource AscentActiveSaturated}"/>
+            <Setter Property="Effect" Value="blur(20)"/>
+            
+            <Style Selector="^.visible">
+                <Setter Property="Opacity" Value="0.4"/>
+            </Style>
+        </Style>
+        <Style Selector="Border.flow-node-resolve-effect-border">
+            <Style Selector="^.visible">
+                <Setter Property="Opacity" Value="1"/>
+            </Style>
+        </Style>
+    </UserControl.Styles>
+    
+    <Grid>
+        <Border Name="Effect" Classes="flow-node-resolve-effect invisible"/>
+        <Border Name="EffectBorder" Margin="-3" BorderThickness="2" Classes="flow-node-resolve-effect-border invisible"
+                BorderBrush="{StaticResource AscentActiveSaturated}" CornerRadius="8"/>
+    </Grid>
+    
+</UserControl>

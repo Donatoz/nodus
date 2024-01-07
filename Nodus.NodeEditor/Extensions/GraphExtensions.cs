@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using Nodus.Core.Extensions;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
 
@@ -21,7 +24,7 @@ public static class GraphExtensions
                 $"Connection ({connection.SourceNodeId})[{connection.SourcePortId}]->" +
                 $"[{connection.TargetPortId}]({connection.TargetNodeId}) was already registered.");
         }
-
+        
         if (connection.SourcePortId == connection.TargetPortId || connection.SourceNodeId == connection.TargetNodeId)
         {
             throw new ArgumentException("Source and destination nodes/ports must be different");
@@ -45,6 +48,8 @@ public static class GraphExtensions
                 $"Port {connection.TargetPortId} on node {connection.TargetNodeId} was not found");
         }
         
+        ValidateConnectionLoops(connection, context);
+        
         if (!sourcePort.IsCompatible(targetPort))
         {
             throw new ArgumentException($"Ports ({sourcePort}) and ({targetPort}) are not compatible");
@@ -52,6 +57,25 @@ public static class GraphExtensions
 
         ValidatePortCapacity(context, sourcePort);
         ValidatePortCapacity(context, targetPort);
+    }
+
+    private static void ValidateConnectionLoops(Connection connection, GraphContext context)
+    {
+        ValidateConnectionLoopsCore(connection, context, new HashSet<string> {connection.SourceNodeId});
+    }
+
+    private static void ValidateConnectionLoopsCore(Connection current, GraphContext context, ISet<string> traversed)
+    {
+        if (!current.IsValid) return;
+
+        if (traversed.Any(x => x == current.TargetNodeId))
+        {
+            throw new Exception("Connection results into graph cycle.");
+        }
+
+        context.Connections
+            .Where(x => x.SourceNodeId == current.TargetNodeId)
+            .ForEach(x => ValidateConnectionLoopsCore(x, context, traversed));
     }
 
     private static void ValidatePortCapacity(GraphContext context, IPortModel port)

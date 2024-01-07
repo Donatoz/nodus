@@ -68,7 +68,7 @@ public abstract class FlowNodeContextBase : IFlowNodeContext
         flow.Append(new FlowDelegate(async ct =>
         {
             isBeingResolved.SetValue(true);
-            await Task.Delay(1000, ct).ContinueWith(_ => isBeingResolved.SetValue(false), CancellationToken.None);
+            await Task.Delay(500, ct).ContinueWith(_ => isBeingResolved.SetValue(false), CancellationToken.None);
         }));
     }
     
