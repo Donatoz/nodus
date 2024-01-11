@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reactive.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -9,6 +10,7 @@ using Nodus.Core.Controls;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.ViewModels;
+using ReactiveUI;
 
 namespace Nodus.NodeEditor.Views.Modals;
 
@@ -35,9 +37,62 @@ public partial class NodeSearchModal : Modal
         SearchBox.AddHandler(TextBox.TextChangedEvent, OnSearchTextChanged);
     }
 
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+
+        if (DataContext is NodeSearchModalViewModel { SearchContent: not null } vm)
+        {
+            SearchBox.Text = vm.SearchContent;
+            FilterNodes(vm.SearchContent);
+        }
+    }
+
+    private void OnConfirm()
+    {
+        var firstVisible = NodesContainer.GetRealizedContainers().FirstOrDefault(x => x.IsVisible);
+        
+        if (firstVisible == null) return;
+
+        if (DataContext is NodeSearchModalViewModel vm && firstVisible.DataContext is NodeSearchModalItemViewModel item)
+        {
+            vm.CreateNode(item.Template);
+        }
+        
+        RaiseEvent(new ModalStateEventArgs(false) {RoutedEvent = ModalStateChangedEvent});
+    }
+
     private void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
     {
+        if (SearchBox.Text == null) return;
+
+        if (DataContext is NodeSearchModalViewModel { KeepSearchContent.Value: true } vm)
+        {
+            vm.SearchContent = SearchBox.Text;
+        }
+
+        // Stupid hack to confirm the search
+        if (SearchBox.Text.EndsWith(Environment.NewLine))
+        {
+            OnConfirm();
+            return;
+        }
+
+        var text = SearchBox.Text.Trim().ToLower();
         
+        FilterNodes(text);
+    }
+
+    private void FilterNodes(string filter)
+    {
+        //TODO: Optimize this
+        foreach (var item in NodesContainer.Items.OfType<NodeSearchModalItemViewModel>())
+        {
+            var c = NodesContainer.ContainerFromItem(item);
+            if (c == null) continue;
+
+            c.IsVisible = item.Label.ToLower().Contains(filter);
+        }
     }
 
     private void OnNodeSelected(object? sender, PointerPressedEventArgs e)

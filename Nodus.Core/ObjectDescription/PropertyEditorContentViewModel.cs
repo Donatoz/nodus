@@ -9,11 +9,13 @@ public class PropertyEditorContentViewModel
     public ICommand ChangeValue { get; }
 
     private readonly Action<object?> commitAction;
+    private readonly Func<object?> getter;
 
-    public PropertyEditorContentViewModel(Action<object?> commitAction)
+    public PropertyEditorContentViewModel(Action<object?> commitAction, Func<object?> getter)
     {
         this.commitAction = commitAction;
-        
+        this.getter = getter;
+
         ChangeValue = ReactiveCommand.Create<object>(OnChangeValue);
     }
 
@@ -21,4 +23,6 @@ public class PropertyEditorContentViewModel
     {
         commitAction.Invoke(value);
     }
+
+    public object? GetValue() => getter.Invoke();
 }

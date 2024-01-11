@@ -85,7 +85,8 @@ public class NodeModel : Entity, INodeModel
         {
             NodeId = NodeId,
             Group = Group,
-            ContextId = ContextId
+            ContextId = ContextId,
+            ContextData = Context.Value?.Serialize()
         };
     }
 }

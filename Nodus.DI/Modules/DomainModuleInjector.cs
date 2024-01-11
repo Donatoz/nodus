@@ -6,17 +6,11 @@ using Nodus.Core.Extensions;
 
 namespace Nodus.DI.Modules;
 
-public interface IModuleInjector
-{
-    void InjectModules(IKernel kernel, object context);
-    void Repopulate();
-}
-
-public class ModuleInjector : IModuleInjector
+public class DomainModuleInjector : IModuleInjector
 {
     private readonly IDictionary<object, IEnumerable<NinjectModule>> moduleFactoryBindings;
     
-    public ModuleInjector()
+    public DomainModuleInjector()
     {
         moduleFactoryBindings = new Dictionary<object, IEnumerable<NinjectModule>>();
         
@@ -34,7 +28,7 @@ public class ModuleInjector : IModuleInjector
 
         boundTypeGroups.ForEach(x =>
         {
-            moduleFactoryBindings[x.Key] = x.OrderBy(x => x.Attribute.InjectionPriority)
+            moduleFactoryBindings[x.Key] = x.OrderBy(y => y.Attribute!.InjectionPriority)
                 .Select(y => Activator.CreateInstance(y.Type) as NinjectModule)
                 .Where(y => y != null).Cast<NinjectModule>();
         });

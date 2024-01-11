@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Reactive.Subjects;
 using Nodus.Core.Common;
+using Nodus.Core.Entities;
 using Nodus.Core.Extensions;
 using Nodus.Core.Reactive;
 using Nodus.DI.Factories;
@@ -10,14 +11,13 @@ using Nodus.NodeEditor.Meta;
 
 namespace Nodus.NodeEditor.Models;
 
-public interface INodeCanvasModel : IDisposable
+public interface INodeCanvasModel : IEntity, IDisposable
 {
     IObservable<IEvent> EventStream { get; }
     
     IReactiveProperty<string> GraphName { get; }
     IReactiveProperty<IEnumerable<INodeModel>> Nodes { get; }
     IReactiveProperty<IEnumerable<Connection>> Connections { get; }
-    INodeSearchModalModel SearchModal { get; }
     ICanvasOperatorModel Operator { get; }
     /// <summary>
     /// Graph representation of the node canvas.
@@ -36,26 +36,25 @@ public interface INodeCanvasMutationProvider
     void RemoveConnection(Connection connection);
 }
 
-public class NodeCanvasModel : INodeCanvasModel
+public class NodeCanvasModel : Entity, INodeCanvasModel
 {
-    private readonly MutableReactiveProperty<string> graphName;
-    private readonly Subject<IEvent> eventSubject;
-    private readonly MutableReactiveProperty<IList<INodeModel>> nodes;
-    private readonly MutableReactiveProperty<IList<Connection>> connections;
-    private readonly NodeSearchModalModel searchModal;
-
+    public override string EntityId { get; }
     public IReactiveProperty<string> GraphName => graphName;
     public IObservable<IEvent> EventStream => eventSubject;
     public IReactiveProperty<IEnumerable<INodeModel>> Nodes => nodes;
     public IReactiveProperty<IEnumerable<Connection>> Connections => connections;
     /// <summary>
-    /// Returns a NEW context of this graph, meaning that with EACH getter call
-    /// it will allocate new memory for context cache.
+    /// Returns a NEW graph context instance, meaning that with EACH getter call
+    /// it will allocate new memory for the context cache.
     /// </summary>
     public GraphContext Context => new(Nodes.Value, Connections.Value);
 
-    public INodeSearchModalModel SearchModal => searchModal;
     public ICanvasOperatorModel Operator { get; }
+    
+    private readonly MutableReactiveProperty<string> graphName;
+    private readonly Subject<IEvent> eventSubject;
+    private readonly MutableReactiveProperty<IList<INodeModel>> nodes;
+    private readonly MutableReactiveProperty<IList<Connection>> connections;
 
     protected INodeCanvasMutationProvider MutationProvider { get; }
     protected INodeContextProvider NodeContextProvider { get; }
@@ -63,15 +62,17 @@ public class NodeCanvasModel : INodeCanvasModel
     
     public NodeCanvasModel(IComponentFactoryProvider<INodeCanvasModel> componentFactoryProvider, INodeContextProvider contextProvider)
     {
+        EntityId = Guid.NewGuid().ToString();
         graphName = new MutableReactiveProperty<string>(DefaultGraphName);
         eventSubject = new Subject<IEvent>();
         nodes = new MutableReactiveProperty<IList<INodeModel>>(new List<INodeModel>());
         connections = new MutableReactiveProperty<IList<Connection>>(new List<Connection>());
-        searchModal = new NodeSearchModalModel();
 
         NodeContextProvider = contextProvider;
         MutationProvider = CreateMutationProvider();
         Operator = CreateOperator(componentFactoryProvider, contextProvider);
+
+        this.AddComponent(new ValueContainer<INodeSearchModalModel>(new NodeSearchModalModel()));
     }
 
     protected virtual INodeCanvasMutationProvider CreateMutationProvider()
@@ -111,7 +112,7 @@ public class NodeCanvasModel : INodeCanvasModel
             nodes,
             Connections.Value);
     }
-
+    
     protected virtual void Dispose(bool disposing)
     {
         if (!disposing) return;

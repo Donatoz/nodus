@@ -1,4 +1,6 @@
-﻿namespace Nodus.FlowEngine;
+﻿using System.Diagnostics;
+
+namespace Nodus.FlowEngine;
 
 public class SingleThreadProducer : IFlowProducer
 {
@@ -37,7 +39,15 @@ public class SingleThreadProducer : IFlowProducer
                 foreach (var unit in buffer)
                 {
                     ct.ThrowIfCancellationRequested();
-                    await unit.Execute(ct);
+                    try
+                    {
+                        await unit.Execute(ct);
+                    }
+                    catch (Exception e)
+                    {
+                        Trace.WriteLine(e.Message);
+                        Trace.WriteLine(e.StackTrace);
+                    }
                 }
             });
         }

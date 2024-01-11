@@ -14,6 +14,6 @@ public class PropertyEditorViewModel
         PropertyName = propertyName;
         Description = description;
         PropertyType = propertyType;
-        Content = new StringEditorContentViewModel(propertyBinding.SetValue);
+        Content = new StringEditorContentViewModel(propertyBinding.SetValue, propertyBinding.GetValue);
     }
 }

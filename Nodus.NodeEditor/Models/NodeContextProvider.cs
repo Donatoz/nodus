@@ -1,31 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using Nodus.Core.Extensions;
 
 namespace Nodus.NodeEditor.Models;
 
 public interface INodeContextProvider
 {
-    Func<INodeContext>? TryGetContextFactory(string contextId);
-    void RegisterFactory(string contextId, Func<INodeContext> factory);
+    NodeContextFactory? TryGetContextFactory(string contextId);
+    void RegisterFactory(string contextId, NodeContextFactory factory);
 }
 
 public class NodeContextProvider : INodeContextProvider
 {
-    private readonly IDictionary<string, Func<INodeContext>> contexts;
+    private readonly IDictionary<string, NodeContextFactory> contexts;
 
     public NodeContextProvider()
     {
-        contexts = new Dictionary<string, Func<INodeContext>>();
+        contexts = new Dictionary<string, NodeContextFactory>();
     }
     
-    public Func<INodeContext>? TryGetContextFactory(string contextId)
+    public NodeContextFactory? TryGetContextFactory(string contextId)
     {
         return contexts.TryGetValue(contextId, out var context) ? context : null;
     }
 
-    public void RegisterFactory(string contextId, Func<INodeContext> factory)
+    public void RegisterFactory(string contextId, NodeContextFactory factory)
     {
         if (!contexts.TryAdd(contextId, factory))
         {

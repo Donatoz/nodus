@@ -1,10 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reactive;
 using System.Windows.Input;
 using Nodus.Core.Common;
+using Nodus.Core.Entities;
 using Nodus.Core.Extensions;
 using Nodus.Core.Reactive;
 using Nodus.Core.Selection;
@@ -18,6 +18,8 @@ using ReactiveUI;
 
 namespace Nodus.NodeEditor.ViewModels;
 
+public interface INodeCanvasViewModel : IEntity { }
+
 public interface INodeCanvasOperatorViewModel
 {
     void CreateNode(NodeTemplate template);
@@ -28,18 +30,14 @@ public interface INodeCanvasOperatorViewModel
 /// <summary>
 /// Represents the view model for a node-based canvas.
 /// </summary>
-public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewModel
+public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewModel, INodeCanvasViewModel
 {
     /// <summary>
     /// Represents a selector for nodes.
     /// </summary>
-    /// <remarks>
-    /// This property allows you to select nodes based on certain criteria.
-    /// </remarks>
     public ISelector<NodeViewModel> NodesSelector { get; }
     public BoundCollection<INodeModel, NodeViewModel> Nodes { get; }
     public BoundCollection<Connection, ConnectionViewModel> Connections { get; }
-    public ModalCanvasViewModel ModalCanvas { get; }
     public NodeCanvasToolbarViewModel Toolbar { get; }
     public NodeContextContainerViewModel NodeContextContainer { get; }
     public BoundProperty<string> GraphName { get; }
@@ -48,8 +46,9 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     public ICommand AddNodeCommand { get; }
     public ICommand RemoveSelectedCommand { get; }
 
-    private readonly NodeSearchModalViewModel nodeSearchModal;
+    private readonly NodeSearchModalViewModel? nodeSearchModal;
     private readonly IDisposable nodeAlterationContract;
+    private readonly IDisposable nodeMutationContract;
 
     protected INodeCanvasModel Model { get; }
     protected IServiceProvider ServiceProvider { get; }
@@ -78,11 +77,9 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         Connections = new BoundCollection<Connection, ConnectionViewModel>(model.Connections, 
             c => componentFactory.CreateConnection(c, Nodes.Items, this));
         
-        Toolbar = componentFactory.CreateToolbar(serviceProvider, model);
-        ModalCanvas = componentFactory.CreateModalCanvas();
-        nodeSearchModal = componentFactory.CreateSearchModal(this, model.SearchModal);
+        Toolbar = componentFactory.CreateToolbar(serviceProvider, model, this);
         NodeContextContainer =
-            componentFactory.CreateNodeContextContainer(() => model.Context,
+            componentFactory.CreateNodeContextContainer(() => model.Nodes.Value,
                 NodesSelector.CurrentlySelected.AlterationStream);
 
         RequestNodeSelectionCommand = ReactiveCommand.Create<NodeViewModel?>(OnNodeSelectionRequested);
@@ -91,7 +88,15 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
 
         GraphName = model.GraphName.ToBound();
         
-        model.EventStream.OnEvent<MutationEvent<NodeData>>(OnNodeDataMutation);
+        nodeMutationContract = model.EventStream.OnEvent<MutationEvent<NodeData>>(OnNodeDataMutation);
+
+        if (model.TryGetGeneric<IContainer<INodeSearchModalModel>>(out var c))
+        {
+            nodeSearchModal = componentFactory.CreateSearchModal(this, c.Value);
+        }
+
+        this.AddComponent(new DisposableContainer<ModalCanvasViewModel>(componentFactory.CreateModalCanvas()));
+        this.AddComponent(new DisposableContainer<PopupContainerViewModel>(componentFactory.CreatePopupContainer()));
     }
 
     private void OnNodeSelectionRequested(NodeViewModel? node)
@@ -143,8 +148,6 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         var nodeVm = Nodes.Items.FirstOrDefault(x => x.NodeId == evt.MutatedValue.NodeId)
             .NotNull($"Failed to find mutated node view model: {evt.MutatedValue.NodeId}");
         
-        Trace.WriteLine($"Node data mutation");
-        
         RaiseEvent(new NodeVisualMutationEvent(nodeVm, evt.MutatedValue.VisualData));
     }
     
@@ -160,7 +163,9 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     
     private void CreateNewNode()
     {
-        ModalCanvas.OpenModal(nodeSearchModal);
+        if (nodeSearchModal == null) return;
+        
+        this.TryGetGeneric<IContainer<ModalCanvasViewModel>>()?.Value.OpenModal(nodeSearchModal);
     }
 
     public void CreateNode(NodeTemplate template)
@@ -177,7 +182,6 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     {
         Model.Operator.Disconnect(connection.Data);
     }
-
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
@@ -186,10 +190,10 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         
         Nodes.Dispose();
         Connections.Dispose();
-        ModalCanvas.Dispose();
         nodeAlterationContract.Dispose();
         nodeSearchModal.Dispose();
         NodeContextContainer.Dispose();
         NodesSelector.Dispose();
+        nodeMutationContract.Dispose();
     }
 }

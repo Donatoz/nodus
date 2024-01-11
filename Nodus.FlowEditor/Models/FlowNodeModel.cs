@@ -36,7 +36,7 @@ public class FlowNodeModel : NodeModel, IFlowNodeModel
 
     private void OnContextChanged(INodeContext? context)
     {
-        if (context is IFlowNodeContext ctx)
+        if (context is IFlowContext ctx)
         {
             ctx.Bind(this);
         }
@@ -47,9 +47,9 @@ public class FlowNodeModel : NodeModel, IFlowNodeModel
         if (!disposing) return;
 
         this.GetFlowPorts().DisposeAll();
+        this.TryGetFlowContext()?.Dispose();
         base.Dispose(disposing);
         
         contextValueContract.Dispose();
-        this.TryGetFlowContext()?.Dispose();
     }
 }

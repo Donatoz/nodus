@@ -2,11 +2,11 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 
-namespace Nodus.NodeEditor.Views;
+namespace Nodus.Core.Controls;
 
-public partial class PreviewWindow : Window
+public partial class Log : UserControl
 {
-    public PreviewWindow()
+    public Log()
     {
         InitializeComponent();
     }

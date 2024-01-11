@@ -11,7 +11,12 @@ namespace Nodus.Core.Reactive;
 
 public class BoundProperty<T> : IReactiveObject, IDisposable
 {
-    public T Value { get; private set; }
+    private T value;
+    public T Value
+    {
+        get => value;
+        set => SetValue(value);
+    }
     
     public event PropertyChangedEventHandler? PropertyChanged;
     public event PropertyChangingEventHandler? PropertyChanging;
@@ -51,10 +56,10 @@ public class BoundProperty<T> : IReactiveObject, IDisposable
         alterationContracts = new CompositeDisposable();
     }
 
-    public void SetValue(T value)
+    private void SetValue(T value)
     {
         RaisePropertyChanging(new PropertyChangingEventArgs(nameof(Value)));
-        Value = value;
+        this.value = value;
         RaisePropertyChanged(new PropertyChangedEventArgs(nameof(Value)));
     }
     

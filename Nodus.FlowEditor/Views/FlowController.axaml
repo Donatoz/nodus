@@ -10,60 +10,56 @@
 
     <UserControl.Styles>
         <Style Selector="Button">
-            <Setter Property="FontSize" Value="32" />
+            <Setter Property="FontSize" Value="30" />
             <Setter Property="Margin" Value="5 0" />
             <Setter Property="CornerRadius" Value="5" />
             <Setter Property="BorderThickness" Value="2" />
             <Setter Property="Foreground" Value="{StaticResource AscentActiveHighlight}" />
-        </Style>
-
-        <Style Selector="Border.container.visible">
-            <Style.Animations>
-                <Animation Duration="0:0:0.1" FillMode="Forward">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="IsHitTestVisible" Value="False"/>
-                        <Setter Property="Opacity" Value="0"/>
-                        <Setter Property="TranslateTransform.Y" Value="30"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="Opacity" Value="1"/>
-                        <Setter Property="TranslateTransform.Y" Value="0"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
+            <Setter Property="Padding" Value="8"/>
         </Style>
         
-        <Style Selector="Border.container.invisible">
-            <Style.Animations>
-                <Animation Duration="0:0:0.1" FillMode="Forward">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="Opacity" Value="1"/>
-                        <Setter Property="TranslateTransform.Y" Value="0"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="Opacity" Value="0"/>
-                        <Setter Property="IsHitTestVisible" Value="True"/>
-                        <Setter Property="TranslateTransform.Y" Value="30"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
+        <Style Selector="Border.container">
+            <Setter Property="Effect">
+                <DropShadowEffect BlurRadius="20" Opacity="0.3" OffsetX="0" OffsetY="10"/>
+            </Setter>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.2" Easing="CubicEaseInOut"/>
+                    <EffectTransition Property="Effect" Duration="0:0:0.2" Easing="CubicEaseInOut"/>
+                </Transitions>
+            </Setter>
+            
+            <Style Selector="^.resolved">
+                <Setter Property="Effect">
+                    <DropShadowEffect BlurRadius="20" Opacity="0.15" OffsetX="0" OffsetY="10" 
+                                      Color="{StaticResource AscentActiveSaturated}"/>
+                </Setter>
+                <Setter Property="BorderBrush">
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                        <GradientStop Color="{StaticResource BackgroundLight}"/>
+                        <GradientStop Offset="0.5" Color="{StaticResource Ascent}"/>
+                        <GradientStop Offset="1" Color="{StaticResource BackgroundLight}"/>
+                    </LinearGradientBrush>
+                </Setter>
+            </Style>
         </Style>
     </UserControl.Styles>
 
-    <Border Name="Container" Classes="panel container invisible" VerticalAlignment="Bottom" HorizontalAlignment="Center"
-            Margin="0 0 0 20" Padding="15 10">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="20" Opacity="0.3" OffsetX="0" OffsetY="10"/>
-        </Border.Effect>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-            <Button IsEnabled="{Binding FlowExecutable.Value.IsExecuting.Value}"
-                    Command="{Binding StopFlowCommand}" i:Attached.Icon="fa-solid fa-stop" />
+    <Panel Name="Root" Classes="anim-slide-fade invisible">
+        <Panel.RenderTransform><TranslateTransform/></Panel.RenderTransform>
+        <Border Name="Container" Classes="panel container" VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                Classes.resolved="{Binding FlowExecutable.Value.IsExecuting.Value}"
+                Margin="0 0 0 20" Padding="15 10">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button IsEnabled="{Binding FlowExecutable.Value.IsExecuting.Value}"
+                        Command="{Binding StopFlowCommand}" i:Attached.Icon="fa-solid fa-stop" />
 
-            <Button IsEnabled="{Binding !FlowExecutable.Value.IsExecuting.Value}"
-                    Command="{Binding RestartFlowCommand}" i:Attached.Icon="fa-solid fa-arrow-rotate-left" />
+                <Button IsEnabled="{Binding !FlowExecutable.Value.IsExecuting.Value}"
+                        Command="{Binding RestartFlowCommand}" i:Attached.Icon="fa-solid fa-arrow-rotate-left" />
 
-            <Button Command="{Binding DestroyFlowCommand}" i:Attached.Icon="fa-solid fa-trash" />
-        </StackPanel>
-    </Border>
+                <Button Command="{Binding DestroyFlowCommand}" i:Attached.Icon="fa-solid fa-trash" />
+            </StackPanel>
+        </Border>
+    </Panel>
 
 </UserControl>

@@ -9,11 +9,14 @@ namespace Nodus.NodeEditor.ViewModels;
 
 public class NodeSearchModalViewModel : NodeEditorModalViewModel, IDisposable
 {
+    public MutableReactiveProperty<bool> KeepSearchContent { get; }
+    internal string? SearchContent { get; set; }
     public BoundProperty<IEnumerable<NodeSearchModalItemViewModel>> AvailableNodes { get; }
 
     public NodeSearchModalViewModel(INodeCanvasOperatorViewModel canvasOperator, INodeSearchModalModel model) : base(canvasOperator)
     {
         AvailableNodes = model.AvailableNodes.ToBound(() => model.AvailableNodes.Value.Select(CreateItem));
+        KeepSearchContent = new MutableReactiveProperty<bool>();
     }
 
     public void CreateNode(NodeTemplate template)
@@ -29,6 +32,7 @@ public class NodeSearchModalViewModel : NodeEditorModalViewModel, IDisposable
     public void Dispose()
     {
         AvailableNodes.Dispose();
+        KeepSearchContent.Dispose();
     }
 }
 

@@ -4,6 +4,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:Nodus.NodeEditor.ViewModels"
              xmlns:cc="clr-namespace:Nodus.Core.Controls;assembly=Nodus.Core"
+             xmlns:i="clr-namespace:Avalonia.Xaml.Interactivity;assembly=Avalonia.Xaml.Interactivity"
+             xmlns:b="clr-namespace:Nodus.Core.Behaviors;assembly=Nodus.Core"
              mc:Ignorable="d"
              x:Class="Nodus.NodeEditor.Views.Modals.NodeSearchModal"
              x:DataType="vm:NodeSearchModalViewModel" ClipToBounds="False">
@@ -17,10 +19,18 @@
                 <TextBlock Text="Create a new node" cc:Draggable.ProvideDrag="True" Classes="h3" FontWeight="Normal" TextAlignment="Center"/>
                 
                 <TextBlock Text="Node search" Margin="0 15 0 0" Foreground="{StaticResource Shine}" FontWeight="SemiLight"/>
-                <TextBox Name="SearchBox" Margin="0 0 0 15"/>
+                <TextBox AcceptsReturn="True" Name="SearchBox" Margin="0 0 0 5">
+                    <i:Interaction.Behaviors>
+                        <b:AutoFocusBehavior/>
+                    </i:Interaction.Behaviors>
+                </TextBox>
+                <CheckBox IsChecked="{Binding KeepSearchContent.MutableValue, Mode=TwoWay}"
+                          Margin="0 0 0 15" HorizontalAlignment="Center">
+                    <TextBlock Text="Keep search results"/>
+                </CheckBox>
                 <Separator Margin="0 0 0 5" cc:Draggable.ProvideDrag="True"/>
                 
-                <ItemsControl ItemsSource="{Binding AvailableNodes.Value}" cc:Draggable.ProvideDrag="True">
+                <ItemsControl Name="NodesContainer" ItemsSource="{Binding AvailableNodes.Value}" cc:Draggable.ProvideDrag="True">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <WrapPanel MaxWidth="500" cc:Draggable.ProvideDrag="True"/>

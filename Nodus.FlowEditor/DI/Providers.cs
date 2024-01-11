@@ -14,9 +14,9 @@ namespace FlowEditor.DI;
 
 internal class FlowCanvasModelFactoryProvider : TypedComponentFactoryProvider<INodeCanvasModel>
 {
-    public FlowCanvasModelFactoryProvider()
+    public FlowCanvasModelFactoryProvider(IRuntimeInjector injector)
     {
-        RegisterFactory(typeof(INodeModelFactory), new FlowNodeModelFactory());
+        RegisterFactory(typeof(INodeModelFactory), new FlowNodeModelFactory(injector));
         RegisterFactory(typeof(IPortModelFactory), new FlowPortModelFactory());
     }
 }

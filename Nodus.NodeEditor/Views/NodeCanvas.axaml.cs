@@ -1,35 +1,32 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
-using System.Reactive;
 using System.Reactive.Disposables;
-using System.Threading;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
-using Avalonia.Rendering.Composition;
-using DynamicData.Binding;
-using Ninject;
-using Nodus.Core.Common;
 using Nodus.Core.Controls;
+using Nodus.Core.Entities;
 using Nodus.Core.Extensions;
 using Nodus.Core.Factories;
 using Nodus.Core.Reactive;
 using Nodus.Core.Utility;
+using Nodus.Core.ViewModels;
 using Nodus.DI.Factories;
-using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.ViewModels;
 using Nodus.NodeEditor.ViewModels.Events;
+using Nodus.NodeEditor.Views.Templates;
 using ReactiveUI;
 
 namespace Nodus.NodeEditor.Views;
 
+//TODO: Split this hell into different partial classes (one for nodes logic, one for connections, etc...)
 public partial class NodeCanvas : UserControl
 {
     private bool isPanning;
@@ -93,7 +90,7 @@ public partial class NodeCanvas : UserControl
                 ConnectionsCanvas, RemoveConnectionControl);
 
         ResetPositionCommand = ReactiveCommand.Create(OnResetPosition);
-
+        
         AddHandler(Port.PortPressedEvent, OnPortPressed);
         AddHandler(Port.PortReleasedEvent, OnPortReleased);
         AddHandler(Port.PortDragEvent, OnPortDrag);
@@ -104,8 +101,13 @@ public partial class NodeCanvas : UserControl
     protected override void OnInitialized()
     {
         base.OnInitialized();
+        
+        DataTemplates.Add(CreateComponentSelector());
 
         initialBackgroundRect = BackgroundBrush.DestinationRect;
+        
+        Root.Children.Add(this.CreateExtensionControl<ModalContainer, ModalCanvasViewModel>());
+        Root.Children.Add(this.CreateExtensionControl<PopupContainer, PopupContainerViewModel>());
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -125,6 +127,11 @@ public partial class NodeCanvas : UserControl
             disposables.Add(vm.EventStream.OnEvent<NodeVisualMutationEvent>(OnNodeVisualDataMutation));
         }
         
+    }
+
+    protected virtual IDataTemplate CreateComponentSelector()
+    {
+        return new NodeCanvasComponentsSelector();
     }
 
     #region Nodes Interactions

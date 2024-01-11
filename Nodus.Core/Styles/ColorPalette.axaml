@@ -20,6 +20,7 @@
     <Color x:Key="AscentActiveGlow">#7BEEA7</Color>
     <Color x:Key="AscentActiveHighlight">#7AC89E</Color>
     <Color x:Key="AscentActive">#599B80</Color>
+    <Color x:Key="Ascent">#41634F</Color>
     <Color x:Key="AscentBackgroundActive">#26382F</Color>
     
     <Color x:Key="TextHighlight">#82D89F</Color>

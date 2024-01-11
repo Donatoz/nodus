@@ -2,8 +2,10 @@
 using System.Linq;
 using System.Windows.Input;
 using FlowEditor.Models;
+using Nodus.Core.Entities;
 using Nodus.Core.Extensions;
 using Nodus.Core.Reactive;
+using Nodus.Core.ViewModels;
 using Nodus.DI.Factories;
 using Nodus.FlowEngine;
 using Nodus.NodeEditor.Factories;
@@ -22,7 +24,9 @@ public class FlowCanvasViewModel : NodeCanvasViewModel
     public ICommand RestartFlowCommand { get; }
     public ICommand DestroyFlowCommand { get; }
     
-    public FlowCanvasViewModel(IFlowCanvasModel model, IServiceProvider serviceProvider, IComponentFactoryProvider<NodeCanvasViewModel> elementsFactoryProvider, INodeCanvasViewModelComponentFactory componentFactory) : base(model, serviceProvider, elementsFactoryProvider, componentFactory)
+    public FlowCanvasViewModel(IFlowCanvasModel model, IServiceProvider serviceProvider, 
+        IComponentFactoryProvider<NodeCanvasViewModel> elementsFactoryProvider, 
+        INodeCanvasViewModelComponentFactory componentFactory, IFlowLogger logger) : base(model, serviceProvider, elementsFactoryProvider, componentFactory)
     {
         this.model = model;
 
@@ -31,6 +35,8 @@ public class FlowCanvasViewModel : NodeCanvasViewModel
         StopFlowCommand = ReactiveCommand.Create(OnStopFlow);
         RestartFlowCommand = ReactiveCommand.Create(OnRestartFlow);
         DestroyFlowCommand = ReactiveCommand.Create(OnDestroyFlow);
+
+        this.AddComponent(new DisposableContainer<LogViewModel>(new LogViewModel(logger)));
     }
 
     protected override NodeViewModel CreateNode(INodeModel model)

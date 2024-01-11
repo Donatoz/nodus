@@ -19,7 +19,7 @@ public class FlowNodeViewModel : NodeViewModel
 {
     public NotifyingBoundProperty<bool> IsBeingResolved { get; }
     
-    private readonly IFlowNodeModel model;
+    private new readonly IFlowNodeModel model;
     private readonly IDisposable contextContract;
     
     public FlowNodeViewModel(IFlowNodeModel model, 
@@ -36,7 +36,7 @@ public class FlowNodeViewModel : NodeViewModel
     {
         IsBeingResolved.ClearSources();
         
-        if (context is IFlowNodeContext flowCtx)
+        if (context is IFlowContext flowCtx)
         {
             IsBeingResolved.AddSource(flowCtx.IsBeingResolved);
         }

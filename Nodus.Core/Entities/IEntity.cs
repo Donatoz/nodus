@@ -1,7 +1,8 @@
 ﻿namespace Nodus.Core.Entities;
 
 /// <summary>
-/// Represents an entity with an unique identifier.
+/// Represents an object with a unique identifier.
+/// The identifier is used to bind the entity to a specific virtual state which contains extension components.
 /// </summary>
 public interface IEntity
 {

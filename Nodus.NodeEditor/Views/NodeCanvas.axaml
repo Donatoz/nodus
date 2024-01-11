@@ -53,10 +53,9 @@
             </Canvas>
         </Grid>
         
-        <v:NodeContextContainer Name="NodeContextContainer" DataContext="{Binding NodeContextContainer}" 
-                                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0 75 15 0"/>
-        <v:NodeCanvasToolbar Name="Toolbar" DataContext="{Binding Toolbar}" VerticalAlignment="Top" 
-                             HorizontalAlignment="Stretch" MaxHeight="75" />
-        <cc:ModalContainer DataContext="{Binding ModalCanvas}" />
+        <ContentControl Content="{Binding NodeContextContainer}" HorizontalAlignment="Right" 
+                        VerticalAlignment="Top" Margin="0 75 15 0"/>
+        <ContentControl Content="{Binding Toolbar}" VerticalAlignment="Top"
+                        HorizontalAlignment="Stretch" MaxHeight="75"/>
     </Grid>
 </UserControl>

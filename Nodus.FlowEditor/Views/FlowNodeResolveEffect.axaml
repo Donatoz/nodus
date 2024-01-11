@@ -25,7 +25,7 @@
             <Setter Property="Effect" Value="blur(20)"/>
             
             <Style Selector="^.visible">
-                <Setter Property="Opacity" Value="0.4"/>
+                <Setter Property="Opacity" Value="0.3"/>
             </Style>
         </Style>
         <Style Selector="Border.flow-node-resolve-effect-border">

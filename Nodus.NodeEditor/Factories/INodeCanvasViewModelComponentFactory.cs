@@ -17,7 +17,7 @@ public interface INodeCanvasViewModelComponentFactory
     /// </summary>
     /// <param name="serviceProvider">The service provider used to resolve dependencies.</param>
     /// <param name="canvasModel">The NodeCanvasViewModel associated with the toolbar.</param>
-    NodeCanvasToolbarViewModel CreateToolbar(IServiceProvider serviceProvider, INodeCanvasModel canvasModel);
+    NodeCanvasToolbarViewModel CreateToolbar(IServiceProvider serviceProvider, INodeCanvasModel canvasModel, INodeCanvasViewModel viewModel);
 
     /// <summary>
     /// Create a ModalCanvasViewModel instance.
@@ -39,34 +39,41 @@ public interface INodeCanvasViewModelComponentFactory
     /// <param name="canvasOperator">The node canvas operator.</param>
     ConnectionViewModel CreateConnection(Connection model, IEnumerable<NodeViewModel> nodes, INodeCanvasOperatorViewModel canvasOperator);
 
-    NodeContextContainerViewModel CreateNodeContextContainer(Func<GraphContext> graphGetter,
+    NodeContextContainerViewModel CreateNodeContextContainer(Func<IEnumerable<INodeModel>> nodesGetter,
         IObservable<NodeViewModel?> nodeChangeStream);
+
+    PopupContainerViewModel CreatePopupContainer();
 }
 
-internal class NodeCanvasViewModelComponentFactory : INodeCanvasViewModelComponentFactory
+public class NodeCanvasViewModelComponentFactory : INodeCanvasViewModelComponentFactory
 {
-    public NodeCanvasToolbarViewModel CreateToolbar(IServiceProvider serviceProvider, INodeCanvasModel canvasModel)
+    public virtual NodeCanvasToolbarViewModel CreateToolbar(IServiceProvider serviceProvider, INodeCanvasModel canvasModel, INodeCanvasViewModel viewModel)
     {
-        return new NodeCanvasToolbarViewModel(serviceProvider, canvasModel);
+        return new NodeCanvasToolbarViewModel(serviceProvider, canvasModel, viewModel);
     }
 
-    public ModalCanvasViewModel CreateModalCanvas()
+    public virtual ModalCanvasViewModel CreateModalCanvas()
     {
         return new ModalCanvasViewModel();
     }
 
-    public NodeSearchModalViewModel CreateSearchModal(INodeCanvasOperatorViewModel canvasOperator, INodeSearchModalModel model)
+    public virtual NodeSearchModalViewModel CreateSearchModal(INodeCanvasOperatorViewModel canvasOperator, INodeSearchModalModel model)
     {
         return new NodeSearchModalViewModel(canvasOperator, model);
     }
 
-    public ConnectionViewModel CreateConnection(Connection model, IEnumerable<NodeViewModel> nodes, INodeCanvasOperatorViewModel canvasOperator)
+    public virtual ConnectionViewModel CreateConnection(Connection model, IEnumerable<NodeViewModel> nodes, INodeCanvasOperatorViewModel canvasOperator)
     {
         return new ConnectionViewModel(model, nodes, canvasOperator);
     }
 
-    public NodeContextContainerViewModel CreateNodeContextContainer(Func<GraphContext> graphGetter, IObservable<NodeViewModel?> nodeChangeStream)
+    public virtual NodeContextContainerViewModel CreateNodeContextContainer(Func<IEnumerable<INodeModel>> nodesGetter, IObservable<NodeViewModel?> nodeChangeStream)
     {
-        return new NodeContextContainerViewModel(graphGetter, nodeChangeStream);
+        return new NodeContextContainerViewModel(nodesGetter, nodeChangeStream);
+    }
+
+    public virtual PopupContainerViewModel CreatePopupContainer()
+    {
+        return new PopupContainerViewModel();
     }
 }

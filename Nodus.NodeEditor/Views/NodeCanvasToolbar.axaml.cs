@@ -2,13 +2,14 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Markup.Xaml;
-using DynamicData;
+using Nodus.Core.Extensions;
 
 namespace Nodus.NodeEditor.Views;
 
 public partial class NodeCanvasToolbar : UserControl
 {
+    protected Panel ExtensionsPanel => RightPanel;
+    
     public NodeCanvasToolbar()
     {
         InitializeComponent();
@@ -17,32 +18,13 @@ public partial class NodeCanvasToolbar : UserControl
         Root.AddHandler(PointerExitedEvent, OnPointerExit);
     }
 
-    protected override void OnInitialized()
-    {
-        base.OnInitialized();
-        
-        Hide();
-    }
-
     private void OnPointerExit(object? sender, PointerEventArgs e)
     {
-        Hide();
+        Container.SwitchBetweenClasses("active", "inactive", false);
     }
 
     private void OnPointerEnter(object? sender, PointerEventArgs e)
     {
-        Show();
-    }
-
-    public void Show()
-    {
-        Container.Classes.Remove("inactive");
-        Container.Classes.Add("active");
-    }
-
-    public void Hide()
-    {
-        Container.Classes.Remove("active");
-        Container.Classes.Add("inactive");
+        Container.SwitchBetweenClasses("active", "inactive", true);
     }
 }

@@ -26,6 +26,10 @@ public class FlowNodeViewModelFactory : RuntimeElementConsumer, INodeViewModelFa
 
 public class FlowNodeModelFactory : NodeModelFactory
 {
+    public FlowNodeModelFactory(IRuntimeInjector injector) : base(injector)
+    {
+    }
+    
     protected override INodeModel CreateBase(NodeData data)
     {
         return new FlowNodeModel(data.Title, data.Tooltip, data.NodeId, data.Group, data.ContextId);

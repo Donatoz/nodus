@@ -9,12 +9,14 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Nodus.Core.Extensions;
 using Nodus.Core.ViewModels;
+using ReactiveUI;
 
 namespace Nodus.Core.Controls;
 
 public partial class ModalContainer : UserControl
 {
     private IDisposable? modalStateContract;
+    private IDisposable? modalContract;
     private PointerPoint currentPointerPoint;
     
     public ModalContainer()
@@ -26,6 +28,8 @@ public partial class ModalContainer : UserControl
 
     private void OnModalStateChanged(object? sender, ModalStateEventArgs e)
     {
+        Container.SwitchBetweenClasses("visible", "invisible", e.IsOpened);
+        
         if (!e.IsOpened && DataContext is ModalCanvasViewModel vm)
         {
             vm.CloseModal();
@@ -48,10 +52,20 @@ public partial class ModalContainer : UserControl
         base.OnDataContextChanged(e);
         
         modalStateContract?.Dispose();
+        modalContract?.Dispose();
 
         if (DataContext is ModalCanvasViewModel vm)
         {
             modalStateContract = vm.EventStream.OnEvent<ModalStateEvent>(OnModalStateChanged);
+            modalContract = vm.CurrentModal.AlterationStream.Subscribe(OnModalChanged);
+        }
+    }
+
+    private void OnModalChanged(ReactiveObject? modal)
+    {
+        if (modal != null)
+        {
+            Container.SwitchBetweenClasses("visible", "invisible", true);
         }
     }
 
@@ -74,14 +88,17 @@ public partial class ModalContainer : UserControl
         if (DataContext is ModalCanvasViewModel { IsModalOpened: true } vm)
         {
             if (e.Pointer.Captured is Control c && c.HasVisualAncestorOrSelf(ModalDraggable)) return;
-
+            
+            Container.SwitchBetweenClasses("visible", "invisible", false);
             vm.CloseModal();
         }
     }
 
-    protected override void OnUnloaded(RoutedEventArgs e)
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        base.OnUnloaded(e);
+        base.OnDetachedFromVisualTree(e);
+        
         modalStateContract?.Dispose();
+        modalContract?.Dispose();
     }
 }

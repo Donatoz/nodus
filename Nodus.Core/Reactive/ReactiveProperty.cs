@@ -52,6 +52,12 @@ public class ReactiveProperty<T> : IReactiveProperty<T>, IDisposable
 
 public class MutableReactiveProperty<T> : ReactiveProperty<T>
 {
+    public T MutableValue
+    {
+        get => Value;
+        set => SetValue(value);
+    }
+    
     public MutableReactiveProperty(T value = default) : base(value)
     {
     }

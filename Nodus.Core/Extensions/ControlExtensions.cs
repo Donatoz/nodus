@@ -10,6 +10,7 @@ using Avalonia.Styling;
 using Avalonia.VisualTree;
 using DynamicData;
 using Nodus.Core.Common;
+using Nodus.Core.Entities;
 using Nodus.Core.ViewModels;
 
 namespace Nodus.Core.Extensions;
@@ -52,5 +53,24 @@ public static class ControlExtensions
     {
         element.Classes.Remove(isActive ? inactiveClass : activeClass);
         element.Classes.Add(isActive ? activeClass : inactiveClass);
+    }
+    
+    public static TControl CreateExtensionControl<TControl, TCtx>(this StyledElement container)
+        where TCtx : class
+        where TControl : StyledElement, new()
+    {
+        var control = new TControl();
+
+        if (container.DataContext is IEntity e)
+        {
+            control.DataContext = e.TryGetGeneric<IContainer<TCtx>>()?.Value;
+        }
+
+        return control;
+    }
+
+    public static T? TryGetContext<T>(this StyledElement element) where T : class
+    {
+        return element.DataContext as T;
     }
 }

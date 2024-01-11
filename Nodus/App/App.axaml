@@ -27,6 +27,7 @@
         <FluentTheme />
         <StyleInclude Source="avares://Nodus.Core/Styles/Typography.axaml"/>
         <StyleInclude Source="avares://Nodus.Core/Styles/DefaultControls.axaml"/>
+        <StyleInclude Source="avares://Nodus.Core/Styles/CommonAnimations.axaml"/>
         <StyleInclude Source="avares://Nodus.NodeEditor/Styles/EditorElements.axaml"/>
         <StyleInclude Source="avares://Nodus.NodeEditor/Styles/NodeGroups.axaml"/>
         <StyleInclude Source="avares://Nodus.FlowEditor/Styles/FlowEditorElements.axaml"/>

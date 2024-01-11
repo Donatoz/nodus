@@ -11,9 +11,9 @@ namespace Nodus.NodeEditor.DI;
 
 internal class NodeCanvasComponentFactoryProvider : TypedComponentFactoryProvider<INodeCanvasModel>
 {
-    public NodeCanvasComponentFactoryProvider()
+    public NodeCanvasComponentFactoryProvider(IRuntimeInjector injector)
     {
-        RegisterFactory(typeof(INodeModelFactory), new NodeModelFactory());
+        RegisterFactory(typeof(INodeModelFactory), new NodeModelFactory(injector));
         RegisterFactory(typeof(IPortModelFactory), new PortModelFactory());
     }
 }

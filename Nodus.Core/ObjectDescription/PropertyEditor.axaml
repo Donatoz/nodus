@@ -18,9 +18,9 @@
             </DockPanel>
             <TextBlock IsVisible="{Binding Description, Converter={x:Static ObjectConverters.IsNotNull}}" 
                        Text="{Binding Description}" HorizontalAlignment="Left"
-                       MaxWidth="200" TextWrapping="Wrap"
+                       MaxWidth="250" TextWrapping="Wrap"
                        Foreground="{StaticResource Glow}" FontWeight="SemiLight"/>
-            <ContentPresenter Content="{ReflectionBinding Content}"/>
+            <ContentControl Content="{Binding Content}"/>
         </StackPanel>
     </Grid>
 </UserControl>

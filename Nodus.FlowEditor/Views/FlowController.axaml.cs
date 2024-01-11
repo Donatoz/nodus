@@ -33,7 +33,7 @@ public partial class FlowController : UserControl
 
     private void OnExecutableChanged(IFlowCanvasExecutable? e)
     {
-        Container.SwitchBetweenClasses("visible", "invisible", e != null);
+        Root.SwitchBetweenClasses("visible", "invisible", e != null);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)

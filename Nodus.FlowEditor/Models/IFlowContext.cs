@@ -10,27 +10,30 @@ using Nodus.NodeEditor.Models;
 
 namespace FlowEditor.Models;
 
-public interface IFlowNodeContext : INodeContext, IDisposable
+public interface IFlowContext : INodeContext, IDisposable
 {
-    public IReactiveProperty<bool> IsBeingResolved { get; }
+    IReactiveProperty<bool> IsBeingResolved { get; }
+    IFlowContextMutator? Mutator { get; }
     
     void Bind(IFlowNodeModel node);
     object? ResolvePortValue(IFlowPortModel port, GraphContext context);
     IFlowToken GetFlowToken(GraphContext context);
 }
 
-public abstract class FlowNodeContextBase : IFlowNodeContext
+public abstract class FlowContextBase : IFlowContext
 {
-    private readonly IDictionary<IFlowPortModel, Func<object>> portValueBindings;
+    private readonly IDictionary<IFlowPortModel, Func<object?>> portValueBindings;
     private readonly MutableReactiveProperty<bool> isBeingResolved;
     protected IFlowNodeModel? Node { get; private set; }
 
     public IReactiveProperty<bool> IsBeingResolved => isBeingResolved;
+    public IFlowContextMutator? Mutator { get; }
 
-    public FlowNodeContextBase()
+    protected FlowContextBase()
     {
-        portValueBindings = new Dictionary<IFlowPortModel, Func<object>>();
+        portValueBindings = new Dictionary<IFlowPortModel, Func<object?>>();
         isBeingResolved = new MutableReactiveProperty<bool>();
+        Mutator = CreateMutator();
     }
 
     public virtual void Bind(IFlowNodeModel node)
@@ -43,16 +46,16 @@ public abstract class FlowNodeContextBase : IFlowNodeContext
         return port.Type == PortType.Input ? context.GetInputPortValue(port) : GetOutputValue(port);
     }
 
-    protected void BindPortValue(IFlowPortModel port, Func<object> valueGetter)
+    protected void BindPortValue(IFlowPortModel port, Func<object?> valueGetter)
     {
         portValueBindings[port] = valueGetter;
     }
 
-    protected object GetOutputValue(IFlowPortModel port)
+    protected object? GetOutputValue(IFlowPortModel port)
     {
         if (!portValueBindings.ContainsKey(port))
         {
-            throw new Exception($"Port ({port}) value is not bound to anything.");
+            throw new Exception($"Port ({port.Header}) value is not bound to anything.");
         }
 
         return portValueBindings[port].Invoke();
@@ -65,12 +68,18 @@ public abstract class FlowNodeContextBase : IFlowNodeContext
 
     protected virtual void Resolve(IFlow flow, GraphContext context, IFlowToken currentToken)
     {
-        flow.Append(new FlowDelegate(async ct =>
+        flow.Append(new FlowDelegate(ct =>
         {
             isBeingResolved.SetValue(true);
-            await Task.Delay(500, ct).ContinueWith(_ => isBeingResolved.SetValue(false), CancellationToken.None);
+            return Task.Delay(500, ct).ContinueWith(_ => isBeingResolved.SetValue(false), CancellationToken.None);
         }));
     }
+
+    protected virtual IFlowContextMutator? CreateMutator() => Mutator;
+    
+    public virtual void Deserialize(NodeContextData data) { }
+
+    public virtual NodeContextData? Serialize() => null;
     
     protected virtual void Dispose(bool disposing)
     {

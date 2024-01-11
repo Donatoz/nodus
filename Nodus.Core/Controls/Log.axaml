@@ -1,0 +1,33 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:Nodus.Core.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nodus.Core.Controls.Log"
+             x:DataType="vm:LogViewModel">
+    
+    <Border Classes="panel" Padding="10" MaxWidth="600" MaxHeight="800">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="20" OffsetX="0" OffsetY="10" Opacity="0.3"/>
+        </Border.Effect>
+        <Grid RowDefinitions="40,8*">
+            <TextBlock TextAlignment="Center" Classes="h2" Text="Log"/>
+            <Border Grid.Row="1" Background="{StaticResource BackgroundDark}" Padding="10"/>
+            
+            <ItemsControl Grid.Row="1" ItemsSource="{Binding Messages.Value}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Margin="0 5" Text="Message" Classes="h4" MaxWidth="570" TextWrapping="Wrap"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
+    </Border>
+    
+</UserControl>

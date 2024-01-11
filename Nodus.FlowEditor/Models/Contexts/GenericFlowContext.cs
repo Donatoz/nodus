@@ -6,7 +6,7 @@ using Nodus.NodeEditor.Meta;
 
 namespace FlowEditor.Models.Contexts;
 
-public sealed class GenericFlowContext : FlowNodeContextBase
+public sealed class GenericFlowContext : FlowContextBase
 {
     public delegate Task GenericFlowHandler(IFlowNodeModel node, GraphContext graph, CancellationToken ct);
     

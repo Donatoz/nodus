@@ -15,6 +15,7 @@ public class NodeData
     public NodeTooltip Tooltip { get; init; }
     public PortData[] Ports { get; init; }
     public string? ContextId { get; init; }
+    public NodeContextData? ContextData { get; init; }
     
     public NodeData(string title, NodeTooltip tooltip, IEnumerable<PortData> ports)
     {

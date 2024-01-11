@@ -11,9 +11,9 @@ namespace FlowEditor;
 
 public static class GraphExtensions
 {
-    public static IFlowNodeContext? TryGetFlowContext(this IFlowNodeModel node)
+    public static IFlowContext? TryGetFlowContext(this IFlowNodeModel node)
     {
-        return node.Context.Value as IFlowNodeContext;
+        return node.Context.Value as IFlowContext;
     }
     
     public static IFlowPortModel? TryGetFlowPort(this IFlowNodeModel node, PortType type)

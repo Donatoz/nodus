@@ -21,7 +21,7 @@ public record GraphContext
     public IEnumerable<INodeModel> Nodes { get; }
     public IEnumerable<Connection> Connections { get; }
 
-    // Maybe these caches should be dynamic and be populated by
+    // TODO: Maybe these caches should be dynamic and be populated by
     // the canvas instead of being an init-only snapshot value.
     private readonly IDictionary<string, INodeModel> nodeCache;
     private readonly IDictionary<string, Connection[]> portConnectionsCache;
@@ -41,7 +41,7 @@ public record GraphContext
             foreach (var port in node.Ports.Value)
             {
                 portConnectionsCache[port.Id] =
-                    Connections.Where(x => x.SourcePortId == port.Id || x.TargetNodeId == port.Id).ToArray();
+                    Connections.Where(x => x.SourcePortId == port.Id || x.TargetPortId == port.Id).ToArray();
             }
         }
     }

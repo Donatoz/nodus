@@ -14,7 +14,7 @@ public static class EntityMaster
     /// <summary>
     /// The collection of registered entities.
     /// </summary>
-    public static ICollection<IEntity> RegisteredEntities => states.Keys;
+    public static IEnumerable<IEntity> RegisteredEntities => states.Keys;
 
     /// <summary>
     /// Register the specified entity.
@@ -106,7 +106,7 @@ public static class EntityMaster
     }
 
     /// <summary>
-    /// Try to get the generic value associated with the given entity.
+    /// Try to get the generic component associated with the given entity.
     /// </summary>
     /// <typeparam name="T">The type of the generic value.</typeparam>
     /// <param name="entity">The entity to get the generic value for.</param>

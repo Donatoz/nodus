@@ -9,7 +9,7 @@
 /// The <see cref="ValueContainer{T}"/> struct provides a readonly container for storing a single value of any type.
 /// </para>
 /// </remarks>
-public readonly struct ValueContainer<T> : IEntityComponent 
+public readonly struct ValueContainer<T> : IEntityComponent, IContainer<T> 
 {
     /// <summary>
     /// The value of the property.

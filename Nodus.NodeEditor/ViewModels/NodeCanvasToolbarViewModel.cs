@@ -12,13 +12,16 @@ public class NodeCanvasToolbarViewModel
     public ICommand SaveGraphCommand { get; }
     public ICommand LoadGraphCommand { get; }
     
-    protected INodeCanvasModel Model { get; }
+    protected INodeCanvasModel CanvasModel { get; }
     protected IServiceProvider ServiceProvider { get; }
+    protected INodeCanvasViewModel CanvasViewModel { get; }
 
-    public NodeCanvasToolbarViewModel(IServiceProvider serviceProvider, INodeCanvasModel model)
+    // TODO: Try to remove associations with canvas models
+    public NodeCanvasToolbarViewModel(IServiceProvider serviceProvider, INodeCanvasModel canvasModel, INodeCanvasViewModel vm)
     {
         ServiceProvider = serviceProvider;
-        Model = model;
+        CanvasModel = canvasModel;
+        CanvasViewModel = vm;
 
         SaveGraphCommand = ReactiveCommand.Create(SaveGraph);
         LoadGraphCommand = ReactiveCommand.Create(LoadGraph);
@@ -26,11 +29,11 @@ public class NodeCanvasToolbarViewModel
 
     private void SaveGraph()
     {
-        ServiceProvider.GetRequiredService<INodeCanvasSerializationService>().SaveGraph(Model);
+        ServiceProvider.GetRequiredService<INodeCanvasSerializationService>().SaveGraph(CanvasModel);
     }
 
     private void LoadGraph()
     {
-        ServiceProvider.GetRequiredService<INodeCanvasSerializationService>().PopulateCanvas(Model);
+        ServiceProvider.GetRequiredService<INodeCanvasSerializationService>().PopulateCanvas(CanvasModel);
     }
 }

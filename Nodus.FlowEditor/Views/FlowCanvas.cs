@@ -1,7 +1,11 @@
 ﻿using System.Linq;
 using Avalonia;
+using Avalonia.Controls.Templates;
 using FlowEditor.Meta;
+using FlowEditor.Views.Templates;
 using Nodus.Core.Controls;
+using Nodus.Core.Extensions;
+using Nodus.Core.ViewModels;
 using Nodus.DI.Factories;
 using Nodus.NodeEditor.Views;
 
@@ -40,6 +44,11 @@ public class FlowCanvas : NodeCanvas
     protected virtual FlowController CreateFlowControllerControl()
     {
         return new FlowController();
+    }
+
+    protected override IDataTemplate CreateComponentSelector()
+    {
+        return new FlowCanvasComponentSelector();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)

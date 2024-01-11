@@ -1,4 +1,5 @@
 ﻿using Nodus.Core.Extensions;
+using Nodus.DI.Runtime;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
 
@@ -11,12 +12,29 @@ public interface INodeModelFactory
 
 public class NodeModelFactory : INodeModelFactory
 {
+    private readonly IRuntimeInjector injector;
+    
+    public NodeModelFactory(IRuntimeInjector injector)
+    {
+        this.injector = injector;
+    }
+    
     public INodeModel CreateNode(NodeTemplate template, IPortModelFactory portFactory)
     {
         var node = CreateBase(template.Data);
         
         template.Data.Ports.ForEach(x => node.AddPort(portFactory.CreatePort(x)));
         node.ChangeContext(template.ContextFactory.Invoke());
+
+        if (node.Context.Value != null)
+        {
+            injector.Inject(node.Context.Value);
+        }
+
+        if (template.Data.ContextData != null)
+        {
+            node.Context.Value?.Deserialize(template.Data.ContextData);
+        }
 
         return node;
     }

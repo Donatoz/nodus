@@ -16,7 +16,7 @@ using ReactiveUI;
 
 namespace Nodus.App;
 
-internal readonly struct AppElementProvider : IRuntimeElementProvider
+internal readonly struct AppElementProvider : IRuntimeElementProvider, IRuntimeInjector
 {
     private readonly IKernel diKernel;
     
@@ -33,6 +33,11 @@ internal readonly struct AppElementProvider : IRuntimeElementProvider
     public T GetRuntimeElement<T>(params IParameter[] parameters)
     {
         return diKernel.Get<T>(parameters);
+    }
+
+    public void Inject(object target, params IParameter[] parameters)
+    {
+        diKernel.Inject(target, parameters);
     }
 }
 
@@ -81,8 +86,10 @@ public partial class App : Application
         // Expose the service scope as a service provider
         kernel.Bind<IServiceProvider>().ToMethod(x => x.Kernel.Get<IServiceScope>().ServiceProvider);
         // Bind runtime modules resolvers
-        kernel.Bind<IRuntimeElementProvider>().ToConstant(new AppElementProvider(kernel)).InSingletonScope();
-        kernel.Bind<IRuntimeModuleLoader>().ToConstant(new AppModuleLoader(kernel, new ModuleInjector())).InSingletonScope();
+        var provider = new AppElementProvider(kernel);
+        kernel.Bind<IRuntimeElementProvider>().ToConstant(provider).InSingletonScope();
+        kernel.Bind<IRuntimeModuleLoader>().ToConstant(new AppModuleLoader(kernel, new DomainModuleInjector())).InSingletonScope();
+        kernel.Bind<IRuntimeInjector>().ToConstant(provider).InSingletonScope();
 
         return kernel;
     }

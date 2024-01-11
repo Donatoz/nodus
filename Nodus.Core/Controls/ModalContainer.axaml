@@ -11,7 +11,10 @@
     <Grid>
         <Canvas Name="ModalCanvas">
             <cc:Draggable Name="ModalDraggable">
-                <ContentControl ClipToBounds="False" Content="{Binding CurrentModal.Value}"/>
+                <Panel Classes="anim-slide-fade invisible" Name="Container">
+                    <ContentControl ClipToBounds="False"
+                                    Content="{Binding CurrentModal.Value}"/>
+                </Panel>
             </cc:Draggable>
         </Canvas>
     </Grid>
