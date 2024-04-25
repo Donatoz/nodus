@@ -24,7 +24,11 @@
     <Color x:Key="AscentBackgroundActive">#26382F</Color>
     
     <Color x:Key="TextHighlight">#82D89F</Color>
+    <Color x:Key="TextError">#CCFF7776</Color>
 
     <Color x:Key="GroupDefault">#5e5e5e</Color>
+    
+    <Color x:Key="FontDefault">#fff</Color>
+    <Color x:Key="FontDark">#cecece</Color>
     
 </ResourceDictionary>

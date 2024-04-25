@@ -1,6 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using Nodus.Core.ObjectDescription;
+using FlowEditor.Models.Primitives;
 using Nodus.Core.Reactive;
 using Nodus.NodeEditor.ViewModels;
 
@@ -8,5 +7,5 @@ namespace FlowEditor.ViewModels.Contexts;
 
 public interface IFlowContextViewModel : INodeContextViewModel, IDisposable
 {
-    IReactiveProperty<IEnumerable<PropertyEditorViewModel>> Editors { get; }
+    IReactiveProperty<DescriptionProvider?> DescribedContext { get; }
 }

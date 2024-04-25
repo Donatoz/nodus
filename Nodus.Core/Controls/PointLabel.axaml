@@ -5,7 +5,7 @@
              xmlns:c="clr-namespace:Nodus.Core.Controls"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Nodus.Core.Controls.PointLabel">
-    <Border Background="{StaticResource BackgroundLight}" Padding="5 0" CornerRadius="5">
+    <Border Background="{StaticResource BackgroundLight}" Padding="5 0" CornerRadius="5" MaxHeight="32">
         <StackPanel Orientation="Horizontal">
             <Border Background="{Binding $parent[c:PointLabel].DotBrush}" Height="7" Width="7" CornerRadius="100" VerticalAlignment="Center" Margin="0 0 4 0"/>
             <TextBlock VerticalAlignment="Bottom" Text="{Binding $parent[c:PointLabel].Label}"/>

@@ -1,14 +1,9 @@
-﻿using System;
-using System.Diagnostics;
-using FlowEditor.Models;
-using FlowEditor.Models.Contexts;
+﻿using FlowEditor.Models;
 using FlowEditor.ViewModels;
 using Ninject.Parameters;
-using Nodus.Core.Reactive;
 using Nodus.DI;
-using Nodus.DI.Factories;
 using Nodus.DI.Runtime;
-using Nodus.NodeEditor.Factories;
+using Nodus.FlowLibraries.Common;
 using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.ViewModels;
 using ReactiveUI;
@@ -26,10 +21,10 @@ public class MainWindowViewModel : ReactiveObject
         moduleLoader.LoadModulesForType<NodeCanvasModel>();
         moduleLoader.LoadModulesForType<FlowCanvasModel>();
         
-        DefaultFlowContexts.Register(elementProvider.GetRuntimeElement<INodeContextProvider>());
+        CommonFlowLibrary.Register(elementProvider.GetRuntimeElement<INodeContextProvider>(), elementProvider);
         
         CanvasViewModel = elementProvider.GetRuntimeElement<FlowCanvasViewModel>(
-            new ConstructorArgument("model", PrepareCanvas(elementProvider)));
+            new TypeMatchingConstructorArgument(typeof(IFlowCanvasModel), (_, _) => PrepareCanvas(elementProvider)));
     }
 
     private INodeCanvasModel PrepareCanvas(IRuntimeElementProvider elementProvider)
@@ -41,7 +36,7 @@ public class MainWindowViewModel : ReactiveObject
         var node2 = new FlowNodeModel("My Node2", new NodeTooltip("My Node", "This is example node"));
         var port2 = new FlowPortModel("Some Port2", PortType.Input, PortCapacity.Single);
         node2.AddPort(port2);
-
+        
         var canvas = elementProvider.GetRuntimeElement<FlowCanvasModel>();
         canvas.Operator.AddNode(node);
         canvas.Operator.AddNode(node2);

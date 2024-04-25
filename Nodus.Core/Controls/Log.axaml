@@ -3,30 +3,64 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:Nodus.Core.ViewModels"
+             xmlns:c="clr-namespace:Nodus.Core.Controls"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             xmlns:conv="clr-namespace:Nodus.Core.Converters"
+             xmlns:log="clr-namespace:Serilog.Events;assembly=Serilog"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Nodus.Core.Controls.Log"
              x:DataType="vm:LogViewModel">
+    <UserControl.Styles>
+        <Style Selector="TextBlock.error">
+            <Setter Property="Foreground" Value="{StaticResource TextError}"/>
+        </Style>
+    </UserControl.Styles>
     
-    <Border Classes="panel" Padding="10" MaxWidth="600" MaxHeight="800">
+    <Border Classes="panel" Padding="10" MaxWidth="1000" MaxHeight="800">
         <Border.Effect>
             <DropShadowEffect BlurRadius="20" OffsetX="0" OffsetY="10" Opacity="0.3"/>
         </Border.Effect>
-        <Grid RowDefinitions="40,8*">
-            <TextBlock TextAlignment="Center" Classes="h2" Text="Log"/>
-            <Border Grid.Row="1" Background="{StaticResource BackgroundDark}" Padding="10"/>
+        <Grid>
+            <StackPanel Orientation="Horizontal" FlowDirection="RightToLeft" HorizontalAlignment="Right" VerticalAlignment="Top">
+                <Button FontSize="20" BorderThickness="2" Command="{Binding ClosePopupCommand}" 
+                        i:Attached.Icon="fa-solid fa-xmark" />
+                <Button Margin="5 0 0 0" FontSize="20" BorderThickness="2" Command="{Binding ClearCommand}" 
+                        i:Attached.Icon="fa-solid fa-trash" />
+            </StackPanel>
             
-            <ItemsControl Grid.Row="1" ItemsSource="{Binding Messages.Value}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Margin="0 5" Text="Message" Classes="h4" MaxWidth="570" TextWrapping="Wrap"/>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <Grid RowDefinitions="40,*,8*">
+                <TextBlock TextAlignment="Center" Classes="h2" Text="Log"/>
+                
+                <StackPanel Grid.Row="1" HorizontalAlignment="Center">
+                    <TextBlock Text="Category Filter"/>
+                    <TextBox Width="400"/>
+                </StackPanel>
+                
+                <Border Grid.Row="2" Background="{StaticResource BackgroundDark}"/>
+            
+                <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Visible">
+                    <ItemsControl ItemsSource="{Binding Messages}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="0 5">
+                                    <TextBlock Foreground="{StaticResource AscentActive}" VerticalAlignment="Top" Margin="0 0 3 0" Classes="h4" TextWrapping="Wrap">
+                                        <Run Text="["/><Run Text="{Binding Timestamp, Mode=OneWay}"/><Run Text="]"/>
+                                    </TextBlock>
+                                    <c:PointLabel VerticalAlignment="Top" Margin="0 3" Label="{Binding Level}" DotBrush="{StaticResource AscentActive}"/>
+                                    <TextBlock Margin="3 0 0 0" Text="{Binding Message}" Classes="h4" TextWrapping="Wrap"
+                                               Classes.error="{Binding Level, Converter={conv:ValueEqualityConverter}, ConverterParameter={x:Static log:LogEventLevel.Error}}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl> 
+                </ScrollViewer>
+                
+            </Grid>
         </Grid>
     </Border>
     

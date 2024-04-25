@@ -33,8 +33,18 @@ public static class ValidationExtensions
 
         return o;
     }
+    
+    public static T NotDefault<T>(this T? o, string? onFailure = null)
+    {
+        if (o?.Equals(default) ?? true)
+        {
+            throw new Exception(onFailure);
+        }
 
-    public static TType MustBeOfType<TType>(this object o, string? onFailure = null)
+        return o;
+    }
+
+    public static TType MustBeOfType<TType>(this object? o, string? onFailure = null)
     {
         if (o?.GetType() != typeof(TType))
         {
@@ -44,7 +54,7 @@ public static class ValidationExtensions
         return (TType) o;
     }
 
-    public static TType MustBe<TType>(this object o, string? onFailure = null)
+    public static TType MustBe<TType>(this object? o, string? onFailure = null)
     {
         if (o is not TType t)
         {
@@ -54,7 +64,19 @@ public static class ValidationExtensions
         return t;
     }
 
-    public static T Default<T>(this object o, Func<T> defaultValueFactory) where T : class
+    public static float MustBeNumber(this object? o, string? onFailure = null)
+    {
+        if (o is float f) return f;
+        
+        if (!o.IsNumber())
+        {
+            throw new Exception(onFailure ?? $"The object must be a number. Provided: {o?.GetType()}");
+        }
+
+        return Convert.ToSingle(o);
+    }
+    
+    public static T Default<T>(this object? o, Func<T> defaultValueFactory) where T : class
     {
         return o == null ? defaultValueFactory.Invoke() : o as T;
     }

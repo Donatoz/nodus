@@ -54,13 +54,14 @@
 
 
     <ItemGroup>
-        <PackageReference Include="Avalonia" Version="11.0.2"/>
-        <PackageReference Include="Avalonia.Desktop" Version="11.0.2"/>
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.2"/>
-        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.2"/>
+        <PackageReference Include="Avalonia" Version="11.0.6"/>
+        <PackageReference Include="Avalonia.Desktop" Version="11.0.6"/>
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.6"/>
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.6"/>
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.2"/>
-        <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.2"/>
+        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.6"/>
+        <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.6"/>
+        <PackageReference Include="Material.Icons.Avalonia" Version="2.1.9" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
         <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
         <PackageReference Include="Ninject" Version="4.0.0-beta.1" />
@@ -92,6 +93,7 @@
     <ItemGroup>
       <ProjectReference Include="..\Nodus.FlowEditor\Nodus.FlowEditor.csproj" />
       <ProjectReference Include="..\Nodus.Core\Nodus.Core.csproj" />
+      <ProjectReference Include="..\Nodus.FlowLibraries.Common\Nodus.FlowLibraries.Common.csproj" />
       <ProjectReference Include="..\Nodus.NodeEditor\Nodus.NodeEditor.csproj" />
     </ItemGroup>
 </Project>

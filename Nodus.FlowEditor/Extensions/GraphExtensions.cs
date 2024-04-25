@@ -47,17 +47,35 @@ public static class GraphExtensions
         return null;
     }
 
-    public static Connection GetFlowConnection(this GraphContext context, IFlowNodeModel target, PortType targetFlowPortType)
+    public static IFlowPortModel? GetFlowSuccessionPort(this IFlowNodeModel node, GraphContext ctx)
     {
-        var port = target.TryGetFlowPort(targetFlowPortType);
-
-        return port == null ? default : context.FindPortFirstConnection(port.Id);
+        if (node.Context.Value is IFlowContext fc && fc.GetEffectiveSuccessionPort(ctx) is { } p)
+        {
+            return p;
+        }
+        
+        return node.Ports.Value.FirstOrDefault(x => x is IFlowPortModel { Type: PortType.Output } p
+                                                    && p.ValueType.Value == typeof(FlowType)) as IFlowPortModel;
     }
     
-    public static IFlowNodeModel? GetFlowSuccessor(this GraphContext context, IFlowNodeModel target)
+    public static (IFlowNodeModel?, Connection?) GetFlowSuccessor(this GraphContext context, IFlowNodeModel target)
     {
-        var connection = context.GetFlowConnection(target, PortType.Output);
+        var port = target.GetFlowSuccessionPort(context);
         
-        return !connection.IsValid ? null : context.FindNode(connection.TargetNodeId) as IFlowNodeModel;
+        if (port == null) return default;
+        
+        var connection = context.FindPortFirstConnection(port.Id);
+        
+        return !connection.IsValid ? default : (context.FindNode(connection.TargetNodeId) as IFlowNodeModel, connection);
+    }
+
+    public static (IFlowNodeModel, Connection)[] GetSuccessionCandidates(this IFlowNodeModel node, GraphContext context)
+    {
+        var ports = node.GetFlowPorts().Where(x => x.Type == PortType.Output && x.ValueType.Value == typeof(FlowType));
+        return ports
+            .Select(x => context.FindPortFirstConnection(x.Id))
+            .Where(x => x.IsValid)
+            .Select(x => (context.FindNode(x.TargetNodeId).MustBe<IFlowNodeModel>(), x))
+            .ToArray();
     }
 }

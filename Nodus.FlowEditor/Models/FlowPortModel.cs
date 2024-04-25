@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using FlowEditor.Meta;
 using Nodus.Core.Reactive;
 using Nodus.NodeEditor.Meta;
@@ -10,6 +9,8 @@ namespace FlowEditor.Models;
 public interface IFlowPortModel : IPortModel, IDisposable
 {
     IReactiveProperty<Type> ValueType { get; }
+    
+    void ChangeValueType(Type type);
 }
 
 public class FlowPortModel : PortModel, IFlowPortModel

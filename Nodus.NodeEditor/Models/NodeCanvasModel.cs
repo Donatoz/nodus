@@ -60,7 +60,7 @@ public class NodeCanvasModel : Entity, INodeCanvasModel
     protected INodeContextProvider NodeContextProvider { get; }
     protected virtual string DefaultGraphName => "New Graph";
     
-    public NodeCanvasModel(IComponentFactoryProvider<INodeCanvasModel> componentFactoryProvider, INodeContextProvider contextProvider)
+    public NodeCanvasModel(IFactoryProvider<INodeCanvasModel> componentFactoryProvider, INodeContextProvider contextProvider)
     {
         EntityId = Guid.NewGuid().ToString();
         graphName = new MutableReactiveProperty<string>(DefaultGraphName);
@@ -80,13 +80,15 @@ public class NodeCanvasModel : Entity, INodeCanvasModel
         return new NodeCanvasMutationProvider(nodes, connections);
     }
 
-    protected virtual NodeCanvasOperatorModel CreateOperator(IComponentFactoryProvider<INodeCanvasModel> componentFactoryProvider, INodeContextProvider contextProvider)
+    protected virtual NodeCanvasOperatorModel CreateOperator(IFactoryProvider<INodeCanvasModel> componentFactoryProvider, INodeContextProvider contextProvider)
     {
         return new NodeCanvasOperatorModel(this, MutationProvider, componentFactoryProvider, contextProvider);
     }
     
     public virtual void LoadGraph(NodeGraph graph)
     {
+        nodes.Value.DisposeAll();
+        
         nodes.ClearAndInvalidate();
         connections.ClearAndInvalidate();
         
@@ -113,8 +115,10 @@ public class NodeCanvasModel : Entity, INodeCanvasModel
             Connections.Value);
     }
     
-    protected virtual void Dispose(bool disposing)
+    protected override void Dispose(bool disposing)
     {
+        base.Dispose(disposing);
+        
         if (!disposing) return;
         
         nodes.Value.DisposeAll();
@@ -123,12 +127,6 @@ public class NodeCanvasModel : Entity, INodeCanvasModel
         eventSubject.Dispose();
         nodes.Dispose();
         connections.Dispose();
-    }
-
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
     }
 
     private class NodeCanvasMutationProvider : INodeCanvasMutationProvider

@@ -1,7 +1,7 @@
 ﻿<Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     
-    <Style Selector="Border.port-value-type-Int32">
+    <Style Selector="Border.port-value-type-Int32,Border.port-value-type-Single">
         <Setter Property="BorderBrush" Value="#6FB07C"/>
         
         <Style Selector="^:pointerover">
@@ -14,6 +14,14 @@
         
         <Style Selector="^:pointerover">
             <Setter Property="Background" Value="#5689AB"/>
+        </Style>
+    </Style>
+    
+    <Style Selector="Border.port-value-type-Boolean">
+        <Setter Property="BorderBrush" Value="#A464AB"/>
+        
+        <Style Selector="^:pointerover">
+            <Setter Property="Background" Value="#A464AB"/>
         </Style>
     </Style>
     

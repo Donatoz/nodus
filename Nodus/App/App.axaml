@@ -2,12 +2,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Nodus.App.App"
              xmlns:local="using:Nodus"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              xmlns:dt="clr-namespace:Nodus.Core.Controls.Templates;assembly=Nodus.Core"
              RequestedThemeVariant="Dark">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.DataTemplates>
-        <dt:CumulativeTemplateSelector/>
+        <dt:ContextBoundTemplateSelector/>
     </Application.DataTemplates>
   
     <Application.Resources>
@@ -16,6 +17,7 @@
                 <ResourceInclude Source="avares://Nodus.Core/Styles/ColorPalette.axaml"/>
                 <ResourceInclude Source="avares://Nodus.Core/Resources/Icons.axaml"/>
                 <ResourceInclude Source="avares://Nodus.NodeEditor/Resources/Icons.axaml"/>
+                <ResourceInclude Source="avares://Nodus.Core/Resources/FluentThemeOverrides.axaml"/>
                 <ResourceInclude Source="Resources/Icons.axaml"/>
             </ResourceDictionary.MergedDictionaries>
             
@@ -25,6 +27,7 @@
              
     <Application.Styles>
         <FluentTheme />
+        <icons:MaterialIconStyles/>
         <StyleInclude Source="avares://Nodus.Core/Styles/Typography.axaml"/>
         <StyleInclude Source="avares://Nodus.Core/Styles/DefaultControls.axaml"/>
         <StyleInclude Source="avares://Nodus.Core/Styles/CommonAnimations.axaml"/>

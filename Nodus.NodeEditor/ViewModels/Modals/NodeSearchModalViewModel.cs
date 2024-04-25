@@ -15,7 +15,8 @@ public class NodeSearchModalViewModel : NodeEditorModalViewModel, IDisposable
 
     public NodeSearchModalViewModel(INodeCanvasOperatorViewModel canvasOperator, INodeSearchModalModel model) : base(canvasOperator)
     {
-        AvailableNodes = model.AvailableNodes.ToBound(() => model.AvailableNodes.Value.Select(CreateItem));
+        AvailableNodes = model.AvailableNodes.ToBound(() => model.AvailableNodes.Value.Select(CreateItem)
+            .GroupBy(x => x.Template.Data.Group).SelectMany(x => x));
         KeepSearchContent = new MutableReactiveProperty<bool>();
     }
 

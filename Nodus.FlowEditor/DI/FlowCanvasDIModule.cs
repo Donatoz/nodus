@@ -16,7 +16,7 @@ namespace FlowEditor.DI;
 /// A Ninject module that contains default bindings with FlowCanvas minimal functionality.
 /// </summary>
 /// <remarks>
-/// This module overrides <see cref="IComponentFactoryProvider"/>'s for <see cref="INodeCanvasModel"/>,
+/// This module overrides <see cref="IFactoryProvider{T}"/>'s for <see cref="INodeCanvasModel"/>,
 /// <see cref="NodeCanvasViewModel"/> and <see cref="NodeCanvas"/>.
 /// </remarks>
 [ModuleInjectionEntry(typeof(FlowCanvasModel))]
@@ -24,15 +24,15 @@ public class FlowCanvasDIModule : NinjectModule
 {
     public override void Load()
     {
-        Rebind<IComponentFactoryProvider<INodeCanvasModel>>()
+        Rebind<IFactoryProvider<INodeCanvasModel>>()
             .To<FlowCanvasModelFactoryProvider>()
             .InTransientScope();
         
-        Rebind<IComponentFactoryProvider<NodeCanvasViewModel>>()
+        Rebind<IFactoryProvider<NodeCanvasViewModel>>()
             .To<FlowCanvasViewModelFactoryProvider>()
             .InTransientScope();
 
-        Rebind<IComponentFactoryProvider<NodeCanvas>>()
+        Rebind<IFactoryProvider<NodeCanvas>>()
             .To<FlowCanvasControlFactoryProvider>()
             .InTransientScope();
 
@@ -40,12 +40,15 @@ public class FlowCanvasDIModule : NinjectModule
             .To<FlowCanvasViewModelComponentFactory>()
             .InSingletonScope();
 
+        var flowLogger =
+            new FlowLoggerWrapper(new LoggerConfiguration().WriteTo.Trace().MinimumLevel.Debug().CreateLogger());
+
         Bind<IFlowLogger>()
-            .ToConstant(new FlowLoggerWrapper(new LoggerConfiguration().WriteTo.Trace().MinimumLevel.Debug().CreateLogger()))
+            .ToConstant(flowLogger)
             .InSingletonScope();
 
         Bind<IFlowProducer>()
-            .To<SingleThreadProducer>()
+            .ToConstant(new ImmediateProducer(flowLogger))
             .InSingletonScope();
 
         Bind<IGraphFlowBuilder>()

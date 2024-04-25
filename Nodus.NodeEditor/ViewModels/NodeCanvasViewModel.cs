@@ -53,7 +53,7 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     protected INodeCanvasModel Model { get; }
     protected IServiceProvider ServiceProvider { get; }
     protected INodeCanvasViewModelComponentFactory ComponentFactory { get; }
-    protected IComponentFactoryProvider<NodeCanvasViewModel> ElementsFactoryProvider { get; }
+    protected IFactoryProvider<NodeCanvasViewModel> ElementsFactoryProvider { get; }
 
     /// <summary>
     /// Initialize a new instance of the NodeCanvasViewModel class.
@@ -63,7 +63,7 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     /// <param name="elementsFactoryProvider">Elements factory</param>
     /// <param name="componentFactory">VM components factory</param>
     public NodeCanvasViewModel(INodeCanvasModel model, IServiceProvider serviceProvider, 
-        IComponentFactoryProvider<NodeCanvasViewModel> elementsFactoryProvider, INodeCanvasViewModelComponentFactory componentFactory)
+        IFactoryProvider<NodeCanvasViewModel> elementsFactoryProvider, INodeCanvasViewModelComponentFactory componentFactory)
     {
         Model = model;
         ServiceProvider = serviceProvider;
@@ -191,7 +191,7 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         Nodes.Dispose();
         Connections.Dispose();
         nodeAlterationContract.Dispose();
-        nodeSearchModal.Dispose();
+        nodeSearchModal?.Dispose();
         NodeContextContainer.Dispose();
         NodesSelector.Dispose();
         nodeMutationContract.Dispose();

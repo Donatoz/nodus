@@ -9,7 +9,9 @@
     
     <Grid IsVisible="{Binding CurrentPopup.Value, Converter={x:Static ObjectConverters.IsNotNull}}">
         <Rectangle Fill="Black" Opacity="0.3"/>
-        <ContentControl Content="{Binding CurrentPopup.Value}"/>
+        <Grid>
+            <ContentControl Content="{Binding CurrentPopup.Value}"/>
+        </Grid>
     </Grid>
     
 </UserControl>

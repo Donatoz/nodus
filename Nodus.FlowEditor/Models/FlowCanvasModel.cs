@@ -33,7 +33,7 @@ public class FlowCanvasModel : NodeCanvasModel, IFlowCanvasModel
     protected IGraphFlowBuilder FlowBuilder { get; }
     public IReactiveProperty<IFlowCanvasExecutable?> CurrentlyResolvedFlow => currentFlow;
 
-    public FlowCanvasModel(IComponentFactoryProvider<INodeCanvasModel> componentFactoryProvider, 
+    public FlowCanvasModel(IFactoryProvider<INodeCanvasModel> componentFactoryProvider, 
         INodeContextProvider contextProvider, IGraphFlowBuilder flowBuilder) 
         : base(componentFactoryProvider, contextProvider)
     {
@@ -55,6 +55,7 @@ public class FlowCanvasModel : NodeCanvasModel, IFlowCanvasModel
 
     public void TryRestartFlow()
     {
+        CurrentlyResolvedFlow.Value?.Stop();
         CurrentlyResolvedFlow.Value?.Execute();
     }
 

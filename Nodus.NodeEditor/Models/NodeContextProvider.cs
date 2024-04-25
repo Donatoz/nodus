@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Nodus.DI.Runtime;
 
 namespace Nodus.NodeEditor.Models;
 
@@ -29,5 +30,13 @@ public class NodeContextProvider : INodeContextProvider
         {
             throw new ArgumentException($"Context factory with id ({contextId}) was already registered.");
         }
+    }
+}
+
+public static partial class NodeContextProviderExtensions
+{
+    public static void RegisterFactory<T>(this INodeContextProvider provider, string contextId, IRuntimeElementProvider elementProvider) where T : INodeContext
+    {
+        provider.RegisterFactory(contextId, () => elementProvider.GetRuntimeElement<T>());
     }
 }

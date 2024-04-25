@@ -12,20 +12,6 @@
              x:DataType="vm:NodeCanvasViewModel">
     
     <Grid Name="Root" Background="{StaticResource BackgroundDefault}">
-        <Grid.ContextMenu>
-            <ContextMenu>
-                <MenuItem Header="Add Node" cc:Hotkey.MenuItemHotkey="Space" Command="{Binding AddNodeCommand}">
-                    <MenuItem.Icon>
-                        <Image Source="{StaticResource PlusIcon}" />
-                    </MenuItem.Icon>
-                </MenuItem>
-                <MenuItem Header="Reset Position" cc:Hotkey.MenuItemHotkey="Escape" Command="{Binding $parent[v:NodeCanvas].ResetPositionCommand}"/>
-
-                <!-- Target-less commands -->
-                <MenuItem IsVisible="False" HotKey="Delete" Command="{Binding RemoveSelectedCommand}" />
-            </ContextMenu>
-        </Grid.ContextMenu>
-
         <TextBlock Text="{Binding GraphName.Value}" FontSize="72" FontWeight="SemiBold" Opacity="0.1" HorizontalAlignment="Left"
                    VerticalAlignment="Bottom" Margin="20" />
 
@@ -38,6 +24,19 @@
                     </VisualBrush.Visual>
                 </VisualBrush>
             </Grid.Background>
+            <Grid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Add Node" cc:Hotkey.MenuItemHotkey="Tab" Command="{Binding $parent[v:NodeCanvas].AddNodeCommand}">
+                        <MenuItem.Icon>
+                            <Image Source="{StaticResource PlusIcon}" />
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="Reset Position" cc:Hotkey.MenuItemHotkey="Escape" Command="{Binding $parent[v:NodeCanvas].ResetPositionCommand}"/>
+
+                    <!-- Target-less commands -->
+                    <MenuItem IsVisible="False" HotKey="Delete" Command="{Binding RemoveSelectedCommand}" />
+                </ContextMenu>
+            </Grid.ContextMenu>
         </Grid>
 
         <Grid Name="CanvasesGroup">

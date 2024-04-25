@@ -13,7 +13,7 @@ public class NodeCanvasDIModule : NinjectModule
 {
     public override void Load()
     {
-        Rebind<IComponentFactoryProvider<INodeCanvasModel>>()
+        Rebind<IFactoryProvider<INodeCanvasModel>>()
             .To<NodeCanvasComponentFactoryProvider>()
             .WhenInjectedInto<INodeCanvasModel>()
             .InTransientScope();
@@ -23,11 +23,11 @@ public class NodeCanvasDIModule : NinjectModule
             .WhenInjectedInto<NodeCanvasViewModel>()
             .InTransientScope();
 
-        Rebind<IComponentFactoryProvider<NodeCanvasViewModel>>()
+        Rebind<IFactoryProvider<NodeCanvasViewModel>>()
             .To<NodeCanvasViewModelFactoryProvider>()
             .InTransientScope();
 
-        Rebind<IComponentFactoryProvider<NodeCanvas>>()
+        Rebind<IFactoryProvider<NodeCanvas>>()
             .To<NodeCanvasControlFactoryProvider>()
             .InTransientScope();
 

@@ -38,6 +38,7 @@ public partial class Node : UserControl
     protected ContextMenu Menu => NodeContextMenu;
     protected Control NodeBody => Body;
     protected Grid NodeContainer => Container;
+    protected StackPanel BottomExtensions => BottomExtensionsContainer;
 
     private LinearGradientBrush borderAscent;
     private GradientStop borderAscentStop;
@@ -65,7 +66,7 @@ public partial class Node : UserControl
             EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative),
             GradientStops = new GradientStops
             {
-                new(Color.Parse("#404040"), 0),
+                new(Color.Parse("#4d4d4d"), 0),
                 borderAscentStop
             }
         };
@@ -148,12 +149,7 @@ public partial class Node : UserControl
 
     private void CreatePort(PortViewModel vm)
     {
-        var port = CreatePortControl(vm);
-
-        if (port == null)
-        {
-            throw new ArgumentException($"Failed to create control for: {vm}");
-        }
+        var port = CreatePortControl(vm).NotNull($"Failed to create control for: {vm}");
         
         ports.Add(port);
         GetContainerForPort(vm.Type).Children.Add(port);

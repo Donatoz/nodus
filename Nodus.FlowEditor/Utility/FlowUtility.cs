@@ -14,8 +14,8 @@ public static class FlowUtility
 
     public static FlowPortData Port<T>(string title, PortType type) => Port(title, type, typeof(T));
     
-    public static FlowPortData FlowPort(PortType type)
+    public static FlowPortData FlowPort(PortType type, string header = "Flow")
     {
-        return new FlowPortData("Flow", type, PortCapacity.Single, typeof(FlowType));
+        return new FlowPortData(header, type, type == PortType.Output ? PortCapacity.Single : PortCapacity.Multiple, typeof(FlowType));
     }
 }

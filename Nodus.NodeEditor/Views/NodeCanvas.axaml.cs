@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Reactive.Disposables;
@@ -19,6 +20,7 @@ using Nodus.Core.Reactive;
 using Nodus.Core.Utility;
 using Nodus.Core.ViewModels;
 using Nodus.DI.Factories;
+using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.ViewModels;
 using Nodus.NodeEditor.ViewModels.Events;
 using Nodus.NodeEditor.Views.Templates;
@@ -53,6 +55,7 @@ public partial class NodeCanvas : UserControl
     private readonly BoundCollectionPresenter<ConnectionViewModel, ConnectionPath> connectionsCollectionView;
     
     public ICommand ResetPositionCommand { get; }
+    public ICommand AddNodeCommand { get; }
 
     private ScaleTransform CanvasScale =>
         (CanvasesGroup.RenderTransform as TransformGroup).Children[0] as ScaleTransform;
@@ -60,10 +63,10 @@ public partial class NodeCanvas : UserControl
         (CanvasesGroup.RenderTransform as TransformGroup).Children[1] as TranslateTransform;
     private VisualBrush BackgroundBrush => BackgroundVisual.Background as VisualBrush;
     
-    protected IComponentFactoryProvider<NodeCanvas> FactoryProvider { get; }
+    protected IFactoryProvider<NodeCanvas> FactoryProvider { get; }
     protected Panel CanvasContainer => Root;
 
-    public NodeCanvas(IComponentFactoryProvider<NodeCanvas> factoryProvider)
+    public NodeCanvas(IFactoryProvider<NodeCanvas> factoryProvider)
     {
         FactoryProvider = factoryProvider;
         
@@ -90,6 +93,7 @@ public partial class NodeCanvas : UserControl
                 ConnectionsCanvas, RemoveConnectionControl);
 
         ResetPositionCommand = ReactiveCommand.Create(OnResetPosition);
+        AddNodeCommand = ReactiveCommand.Create(OnAddNode);
         
         AddHandler(Port.PortPressedEvent, OnPortPressed);
         AddHandler(Port.PortReleasedEvent, OnPortReleased);
@@ -175,6 +179,15 @@ public partial class NodeCanvas : UserControl
         }
     }
     
+    private void OnAddNode()
+    {
+        var c = this.InputHitTest(lastPointerPosition);
+        
+        if (c != BackgroundVisual || DataContext is not NodeCanvasViewModel vm) return;
+        
+        vm.AddNodeCommand.Execute(null);
+    }
+    
     #endregion
 
     #region Connections Interactions
@@ -193,7 +206,7 @@ public partial class NodeCanvas : UserControl
             .FindPort(connection.TargetPort.PortId);
         if (destPort == null) return null;
 
-        var container = new ConnectionContainer(path, lines, connection, sourcePort, destPort);
+        var container = new ConnectionContainer(path, lines, connection, sourcePort, destPort, connection.Data);
         currentConnections.Add(container);
 
         UpdateConnection(container);
@@ -484,21 +497,23 @@ public partial class NodeCanvas : UserControl
         }
     }
     
-    protected readonly struct ConnectionContainer
+    protected record ConnectionContainer
     {
+        public Connection Data { get; }
         public ConnectionPath Path { get; }
         public IList<LineSegment> Lines { get; }
         public ConnectionViewModel ViewModel { get; }
         public Port From { get; }
         public Port To { get; }
 
-        public ConnectionContainer(ConnectionPath path, IList<PathSegment> lines, ConnectionViewModel vm, Port from, Port to)
+        public ConnectionContainer(ConnectionPath path, IList<PathSegment> lines, ConnectionViewModel vm, Port from, Port to, Connection data)
         {
             Path = path;
             Lines = lines.Cast<LineSegment>().ToList();
             ViewModel = vm;
             From = from;
             To = to;
+            Data = data;
         }
 
         public override string ToString()

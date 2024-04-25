@@ -88,7 +88,7 @@ public sealed class NotifyingBoundProperty<T> : BoundProperty<T>
     
     public NotifyingBoundProperty(Func<T> getter, params IReactiveObject[] sources) : base(getter, sources)
     {
-        alterationSubject = new Subject<T>();
+        alterationSubject = new BehaviorSubject<T>(getter.Invoke());
     }
 
     protected override void OnAlteration(object? sender, PropertyChangedEventArgs args)

@@ -6,6 +6,7 @@ using System.Reactive.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Rendering.Composition;
 using Nodus.Core.Controls;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
@@ -35,6 +36,33 @@ public partial class NodeSearchModal : Modal
         InitializeComponent();
         
         SearchBox.AddHandler(TextBox.TextChangedEvent, OnSearchTextChanged);
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+
+        Container.AttachedToVisualTree += OnContainerAttached;
+    }
+
+    private void OnContainerAttached(object _, VisualTreeAttachmentEventArgs __)
+    {
+        var v = ElementComposition.GetElementVisual(Container);
+        
+        if (v == null) return;
+
+        var c = v.Compositor;
+
+        var anim = c.CreateVector2KeyFrameAnimation();
+        anim.Target = "Size";
+        anim.InsertExpressionKeyFrame(1.0f, "this.FinalValue");
+        anim.Duration = TimeSpan.FromMilliseconds(100);
+        var col = c.CreateImplicitAnimationCollection();
+        col["Size"] = anim;
+
+        v.ImplicitAnimations = col;
+        
+        Trace.WriteLine($"Added anims");
     }
 
     protected override void OnDataContextChanged(EventArgs e)

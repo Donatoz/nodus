@@ -1,20 +1,22 @@
-﻿using System;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using FlowEditor;
 using FlowEditor.Meta;
-using Ninject;
+using FlowEditor.Models;
 using Nodus.FlowEngine;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
-using Serilog;
 
-namespace FlowEditor.Models.Contexts;
+namespace Nodus.FlowLibraries.Common;
 
 public sealed class DebugContext : FlowContextBase
 {
     private IFlowPortModel? inPort;
-    private ILogger? logger;
+    
+    private readonly IFlowLogger logger;
+
+    public DebugContext(IFlowLogger logger)
+    {
+        this.logger = logger;
+    }
     
     public override void Bind(IFlowNodeModel node)
     {
@@ -23,24 +25,16 @@ public sealed class DebugContext : FlowContextBase
         inPort = node.GetFlowPorts().FirstOrDefault(x => x.Type == PortType.Input && x.ValueType.Value != typeof(FlowType));
     }
 
-    [Inject]
-    public void Inject(IFlowLogger logger)
+    protected override void AlterFlow(IFlow flow, GraphContext context, IFlowToken currentToken)
     {
-        this.logger = logger;
-    }
-
-    protected override void Resolve(IFlow flow, GraphContext context, IFlowToken currentToken)
-    {
-        if (Node == null || inPort == null || logger == null) return;
-
-        base.Resolve(flow, context, currentToken);
+        if (Node == null || inPort == null) return;
         
-        flow.Append(new FlowDelegate(ct =>
+        flow.Append(new FlowDelegate("Debug Context", ct =>
         {
             ct.ThrowIfCancellationRequested();
 
             var msg = Node.GetPortValue(inPort.Id, context);
-            logger.Debug(msg?.ToString() ?? "NULL");
+            logger.Debug(msg?.ToString() ?? "Null");
             
             return Task.CompletedTask;
         }));

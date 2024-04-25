@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>CommonFlowNodeLibrary</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Nodus.Core\Nodus.Core.csproj" />
+      <ProjectReference Include="..\Nodus.FlowEditor\Nodus.FlowEditor.csproj" />
+      <ProjectReference Include="..\Nodus.FlowEngine\Nodus.FlowEngine.csproj" />
+    </ItemGroup>
+
+</Project>

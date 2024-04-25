@@ -8,11 +8,11 @@ namespace FlowEditor.ViewModels;
 
 public class FlowPortViewModel : PortViewModel, IDisposable
 {
-    public BoundProperty<Type> PortValueType { get; }
+    public NotifyingBoundProperty<Type> PortValueType { get; }
     
     public FlowPortViewModel(IFlowPortModel model) : base(model)
     {
-        PortValueType = model.ValueType.ToBound();
+        PortValueType = model.ValueType.ToNotifying();
     }
 
     protected virtual void Dispose(bool disposing)

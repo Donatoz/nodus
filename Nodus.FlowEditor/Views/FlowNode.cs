@@ -3,9 +3,14 @@ using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
+using Avalonia.Controls.Templates;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Markup.Xaml.Templates;
 using Avalonia.Threading;
+using FlowEditor.Models;
 using FlowEditor.ViewModels;
+using FlowEditor.Views.Extensions;
 using Nodus.Core.Extensions;
 using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.ViewModels;
@@ -20,7 +25,7 @@ public class FlowNode : Node
         RoutedEvent.Register<FlowNode, FlowNodeResolveEventArgs>(nameof(FlowNodeResolveEvent), RoutingStrategies.Bubble);
     
     private IDisposable? resolveContract;
-    private FlowNodeResolveEffect resolveEffect;
+    private FlowNodeResolveEffect? resolveEffect;
     
     protected override void OnInitialized()
     {
@@ -37,6 +42,19 @@ public class FlowNode : Node
             Header = "Run Flow From This",
             Command = ReactiveCommand.Create(OnRunFlow)
         });
+        Menu.Items.Add(new MenuItem
+        {
+            Header = "Extend",
+            Command = ReactiveCommand.Create(OnExtend)
+        });
+
+        var extContainer = new ContextExtensionsContainer
+        {
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 5, 0, 0)
+        };
+
+        BottomExtensions.Children.Add(extContainer);
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -47,18 +65,21 @@ public class FlowNode : Node
 
         if (DataContext is FlowNodeViewModel vm)
         {
-            resolveContract = vm.IsBeingResolved.AlterationStream.Subscribe(OnResolved);
+            resolveContract = vm.CurrentResolveContext.AlterationStream.Subscribe(OnResolved);
         }
     }
 
-    private void OnResolved(bool isResolved)
+    private void OnResolved(IFlowResolveContext? ctx)
     {
         // Flow context resolve happens most probably on different thread rather than UI thread.
         Dispatcher.UIThread.Invoke(() =>
         {
-            resolveEffect.SwitchState(isResolved);
+            resolveEffect?.SwitchState(ctx?.IsResolved ?? false);
             
-            RaiseEvent(new FlowNodeResolveEventArgs(this, isResolved) {RoutedEvent = FlowNodeResolveEvent});
+            if (ctx == null) return;
+            
+            RaiseEvent(new FlowNodeResolveEventArgs(this, ctx.IsResolved, ctx.SourceConnection) 
+                {RoutedEvent = FlowNodeResolveEvent});
         });
     }
 
@@ -67,6 +88,14 @@ public class FlowNode : Node
         if (DataContext is FlowNodeViewModel vm)
         {
             vm.RunFlow();
+        }
+    }
+
+    private void OnExtend()
+    {
+        if (DataContext is FlowNodeViewModel vm)
+        {
+            vm.AddExtension();
         }
     }
 
@@ -93,9 +122,11 @@ public class FlowNode : Node
 public class FlowNodeResolveEventArgs : NodeEventArgs
 {
     public bool IsResolved { get; }
+    public Connection? SourceConnection { get; }
 
-    public FlowNodeResolveEventArgs(FlowNode node, bool isResolved) : base(node)
+    public FlowNodeResolveEventArgs(FlowNode node, bool isResolved, Connection? connection) : base(node)
     {
         IsResolved = isResolved;
+        SourceConnection = connection;
     }
 }

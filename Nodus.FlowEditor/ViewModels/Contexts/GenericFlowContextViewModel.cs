@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using FlowEditor.Models;
+using FlowEditor.Models.Primitives;
 using FlowEditor.Views.Editors;
 using Nodus.Core.ObjectDescription;
 using Nodus.Core.Reactive;
@@ -10,14 +11,14 @@ namespace FlowEditor.ViewModels.Contexts;
 [FlowContextTemplate(typeof(GenericFlowContextEditor))]
 public sealed class GenericFlowContextViewModel : IFlowContextViewModel
 {
-    private readonly MutableReactiveProperty<IEnumerable<PropertyEditorViewModel>> editors;
+    private readonly MutableReactiveProperty<DescriptionProvider?> context;
 
-    public IReactiveProperty<IEnumerable<PropertyEditorViewModel>> Editors => editors;
-    public bool IsValid => Editors.Value.Any();
+    public IReactiveProperty<DescriptionProvider?> DescribedContext => context;
+    public bool IsValid => DescribedContext.Value != null;
 
     public GenericFlowContextViewModel(IFlowContext? initialContext = null)
     {
-        editors = new MutableReactiveProperty<IEnumerable<PropertyEditorViewModel>>(Enumerable.Empty<PropertyEditorViewModel>());
+        context = new MutableReactiveProperty<DescriptionProvider?>();
 
         if (initialContext != null)
         {
@@ -27,21 +28,11 @@ public sealed class GenericFlowContextViewModel : IFlowContextViewModel
 
     public void ChangeModel(IFlowContext context)
     {
-        var props = context.Mutator?
-                        .GetProperties()
-                        .Select(x =>
-                            new PropertyEditorViewModel(x.PropertyName, 
-                                x.PropertyType,
-                                x.Description ?? string.Empty, 
-                                new DirectPropertyBinding(x.PropertyBinding.Setter, x.PropertyBinding.Getter))) 
-                    ?? Enumerable.Empty<PropertyEditorViewModel>();
-        
-        editors.SetValue(props);
+        this.context.SetValue(context.GetDescriptionProvider());
     }
-
 
     public void Dispose()
     {
-        editors.Dispose();
+        context.Dispose();
     }
 }

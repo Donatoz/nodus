@@ -6,7 +6,7 @@ namespace FlowEditor;
 
 public interface IFlowLogger : INotifiableLogger { }
 
-internal sealed class FlowLoggerWrapper : LoggerWrapper, IFlowLogger
+internal sealed class FlowLoggerWrapper : LoggerNotifiableWrapper, IFlowLogger
 {
     public FlowLoggerWrapper(ILogger wrappedLogger) : base(wrappedLogger)
     {

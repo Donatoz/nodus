@@ -12,6 +12,7 @@
                 <KeyFrame Cue="100%">
                     <Setter Property="Opacity" Value="1"/>
                     <Setter Property="TranslateTransform.Y" Value="0"/>
+                    <Setter Property="IsHitTestVisible" Value="True"/>
                 </KeyFrame>
             </Animation>
         </Style.Animations>
@@ -44,6 +45,7 @@
                 <KeyFrame Cue="100%">
                     <Setter Property="Opacity" Value="1"/>
                     <Setter Property="TranslateTransform.X" Value="0"/>
+                    <Setter Property="IsHitTestVisible" Value="True"/>
                 </KeyFrame>
             </Animation>
         </Style.Animations>

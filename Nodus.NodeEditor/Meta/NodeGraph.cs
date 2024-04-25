@@ -16,4 +16,9 @@ public record NodeGraph
         Nodes = nodes.ToArray();
         Connections = connections.ToArray();
     }
+
+    public static NodeGraph CreateEmpty()
+    {
+        return new NodeGraph("New Graph", Enumerable.Empty<NodeData>(), Enumerable.Empty<Connection>());
+    }
 }

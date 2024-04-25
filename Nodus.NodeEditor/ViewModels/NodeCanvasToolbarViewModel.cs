@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Linq;
 using System.Windows.Input;
 using Nodus.Core.Extensions;
+using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.Services;
 using ReactiveUI;
@@ -11,6 +13,7 @@ public class NodeCanvasToolbarViewModel
 {
     public ICommand SaveGraphCommand { get; }
     public ICommand LoadGraphCommand { get; }
+    public ICommand NewGraphCommand { get; }
     
     protected INodeCanvasModel CanvasModel { get; }
     protected IServiceProvider ServiceProvider { get; }
@@ -25,6 +28,7 @@ public class NodeCanvasToolbarViewModel
 
         SaveGraphCommand = ReactiveCommand.Create(SaveGraph);
         LoadGraphCommand = ReactiveCommand.Create(LoadGraph);
+        NewGraphCommand = ReactiveCommand.Create(CreateNewGraph);
     }
 
     private void SaveGraph()
@@ -35,5 +39,10 @@ public class NodeCanvasToolbarViewModel
     private void LoadGraph()
     {
         ServiceProvider.GetRequiredService<INodeCanvasSerializationService>().PopulateCanvas(CanvasModel);
+    }
+
+    private void CreateNewGraph()
+    {
+        CanvasModel.LoadGraph(NodeGraph.CreateEmpty());
     }
 }

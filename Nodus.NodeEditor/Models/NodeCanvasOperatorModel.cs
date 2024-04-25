@@ -23,11 +23,11 @@ public class NodeCanvasOperatorModel : ICanvasOperatorModel
 {
     protected INodeCanvasModel Canvas { get; }
     protected INodeCanvasMutationProvider MutationProvider { get; }
-    protected IComponentFactoryProvider<INodeCanvasModel> FactoryProvider { get; }
+    protected IFactoryProvider<INodeCanvasModel> FactoryProvider { get; }
     protected INodeContextProvider NodeContextProvider { get; }
     
     public NodeCanvasOperatorModel(INodeCanvasModel canvas, INodeCanvasMutationProvider mutationProvider, 
-        IComponentFactoryProvider<INodeCanvasModel> factoryProvider, INodeContextProvider nodeContextProvider)
+        IFactoryProvider<INodeCanvasModel> factoryProvider, INodeContextProvider nodeContextProvider)
     {
         Canvas = canvas;
         MutationProvider = mutationProvider;

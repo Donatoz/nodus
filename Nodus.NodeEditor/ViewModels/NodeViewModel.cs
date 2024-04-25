@@ -31,11 +31,11 @@ public class NodeViewModel : ReactiveViewModel, ISelectable
     public ICommand DeleteSelf { get; }
 
     protected readonly INodeModel model;
-    protected IComponentFactoryProvider<INodeCanvasModel> ModelFactoryProvider { get; }
+    protected IFactoryProvider<INodeCanvasModel> ModelFactoryProvider { get; }
 
     public NodeViewModel(INodeModel model, 
-        IComponentFactoryProvider<NodeCanvasViewModel> componentFactoryProvider,
-        IComponentFactoryProvider<INodeCanvasModel> modelFactoryProvider)
+        IFactoryProvider<NodeCanvasViewModel> componentFactoryProvider,
+        IFactoryProvider<INodeCanvasModel> modelFactoryProvider)
     {
         this.model = model;
         Title = model.Title;
@@ -49,7 +49,7 @@ public class NodeViewModel : ReactiveViewModel, ISelectable
             componentFactoryProvider.GetFactory<IPortViewModelFactory>().Create);
         debug = new MutableReactiveProperty<bool>();
 
-        if (model.TryGetComponent(out ValueContainer<NodeData> data))
+        if (model.TryGetGeneric(out IContainer<NodeData> data))
         {
             ApplyData(data.Value);
         }

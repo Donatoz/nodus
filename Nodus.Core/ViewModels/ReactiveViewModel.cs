@@ -15,14 +15,14 @@ public abstract class ReactiveViewModel : ReactiveObject, IReactiveViewModel, ID
 {
     public string EntityId { get; }
 
-    private readonly BehaviorSubject<IEvent> eventSubject;
+    private readonly ISubject<IEvent> eventSubject;
 
     public IObservable<IEvent> EventStream => eventSubject;
 
     protected ReactiveViewModel()
     {
         EntityId = Guid.NewGuid().ToString();
-        eventSubject = new BehaviorSubject<IEvent>(IEvent.Empty);
+        eventSubject = CreateSubject();
         
         this.Register();
     }
@@ -38,7 +38,15 @@ public abstract class ReactiveViewModel : ReactiveObject, IReactiveViewModel, ID
         
         this.Forget();
 
-        eventSubject.Dispose();
+        if (eventSubject is IDisposable d)
+        {
+            d.Dispose();
+        }
+    }
+
+    protected virtual ISubject<IEvent> CreateSubject()
+    {
+        return new BehaviorSubject<IEvent>(IEvent.Empty);
     }
 
     public void Dispose()

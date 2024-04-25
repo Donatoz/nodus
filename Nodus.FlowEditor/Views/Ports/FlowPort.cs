@@ -51,8 +51,7 @@ public abstract class FlowPort : Port
         
         if (DataContext is FlowPortViewModel vm)
         {
-            valueTypeContract = vm.PortValueType.WhenAnyValue(x => x.Value)
-                .Subscribe(Observer.Create<Type>(OnValueTypeChanged));
+            valueTypeContract = vm.PortValueType.AlterationStream.Subscribe(OnValueTypeChanged);
         }
     }
 

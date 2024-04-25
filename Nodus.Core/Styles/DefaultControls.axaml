@@ -21,6 +21,21 @@
             <Setter Property="BorderBrush" Value="{StaticResource ForegroundLight}"/>
         </Style>
     </Style>
+    
+    <Style Selector="ComboBox">
+        <Setter Property="Background" Value="{StaticResource BackgroundDark}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BackgroundLighter}"/>
+        
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+            </Transitions>
+        </Setter>
+        
+        <Style Selector="^:pointerover">
+            <Setter Property="BorderBrush" Value="{StaticResource ForegroundLight}"/>
+        </Style>
+    </Style>
 
     <Style Selector="Border.panel">
         <Setter Property="CornerRadius" Value="10"/>
@@ -96,5 +111,11 @@
         </Style>
     </Style>
     
+    <Style Selector="Expander">
+        <Setter Property="ClipToBounds" Value="False"/>
+        <Setter Property="Effect">
+            <DropShadowEffect BlurRadius="20" OffsetX="0" OffsetY="5" Opacity="0.3"/>
+        </Setter>
+    </Style>
     
 </Styles>

@@ -1,0 +1,35 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:FlowEditor.ViewModels"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             xmlns:ico="using:Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="FlowEditor.Views.Extensions.ContextExtensionsContainer"
+             x:DataType="vm:FlowNodeViewModel">
+    <UserControl.Styles>
+        <StyleInclude Source="../../Styles/FlowExtensions.axaml"/>
+    </UserControl.Styles>
+    
+    <ItemsControl ItemsSource="{Binding Extensions}">
+        <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <StackPanel/>
+            </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="vm:ContextExtensionViewModel">
+                <Border Classes="panel" CornerRadius="5" BorderThickness="1" Margin="0 2" Padding="4">
+                    <DockPanel Classes="flow-extension-container">
+                        <ico:MaterialIcon Kind="TimerSand" Margin="0 0 5 0" Height="25" Width="25" Foreground="{StaticResource FontDark}"/>
+                        <TextBlock Text="Wait" Classes="h4" LetterSpacing="1" VerticalAlignment="Center" DockPanel.Dock="Left"/>
+                        <Button Command="{Binding RemoveCommand}" BorderThickness="0"
+                                HorizontalAlignment="Right" DockPanel.Dock="Right" i:Attached.Icon="fa-solid fa-xmark" FontSize="20" Padding="1"/>
+                    </DockPanel>
+                </Border>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    
+</UserControl>

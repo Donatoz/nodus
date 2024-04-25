@@ -25,7 +25,7 @@ public class FlowCanvasViewModel : NodeCanvasViewModel
     public ICommand DestroyFlowCommand { get; }
     
     public FlowCanvasViewModel(IFlowCanvasModel model, IServiceProvider serviceProvider, 
-        IComponentFactoryProvider<NodeCanvasViewModel> elementsFactoryProvider, 
+        IFactoryProvider<NodeCanvasViewModel> elementsFactoryProvider, 
         INodeCanvasViewModelComponentFactory componentFactory, IFlowLogger logger) : base(model, serviceProvider, elementsFactoryProvider, componentFactory)
     {
         this.model = model;

@@ -6,6 +6,6 @@
     </Style>
     
     <Style Selector="Border.nodegroup-const">
-        <Setter Property="Background" Value="#BF868A"/>
+        <Setter Property="Background" Value="#5F8ABF"/>
     </Style>
 </Styles>

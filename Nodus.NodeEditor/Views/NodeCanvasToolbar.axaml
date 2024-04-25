@@ -64,6 +64,7 @@
             <DockPanel>
                 <Menu>
                     <MenuItem Header="Graph">
+                        <MenuItem Header="New Graph" Command="{Binding NewGraphCommand}"/>
                         <MenuItem Header="Load Graph" Command="{Binding LoadGraphCommand}"/>
                         <MenuItem Header="Save Graph" Command="{Binding SaveGraphCommand}"/>
                     </MenuItem>

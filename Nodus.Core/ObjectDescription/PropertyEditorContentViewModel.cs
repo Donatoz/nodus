@@ -11,8 +11,11 @@ public class PropertyEditorContentViewModel
     private readonly Action<object?> commitAction;
     private readonly Func<object?> getter;
 
-    public PropertyEditorContentViewModel(Action<object?> commitAction, Func<object?> getter)
+    protected Type PropertyType { get; }
+
+    public PropertyEditorContentViewModel(Type propertyType, Action<object?> commitAction, Func<object?> getter)
     {
+        PropertyType = propertyType;
         this.commitAction = commitAction;
         this.getter = getter;
 

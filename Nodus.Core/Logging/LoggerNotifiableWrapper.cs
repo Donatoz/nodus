@@ -11,14 +11,14 @@ public interface INotifiableLogger : ILogger
     IObservable<LogEvent> EventStream { get; }
 }
 
-public class LoggerWrapper : INotifiableLogger
+public class LoggerNotifiableWrapper : INotifiableLogger
 {
     public IObservable<LogEvent> EventStream => eventSubject;
     
     private readonly ISubject<LogEvent> eventSubject;
     private ILogger wrappedLogger;
 
-    public LoggerWrapper(ILogger wrappedLogger)
+    public LoggerNotifiableWrapper(ILogger wrappedLogger)
     {
         this.wrappedLogger = wrappedLogger;
         eventSubject = new Subject<LogEvent>();

@@ -7,6 +7,9 @@
              x:Class="Nodus.Core.ObjectDescription.StringEditor"
              x:DataType="dsc:StringEditorContentViewModel">
     
-    <TextBox Name="Field" MinHeight="28" Height="28" FontSize="13" Margin="0 5 0 0"/>
+    <Grid ColumnDefinitions="8*,1*">
+        <TextBox Name="Field" MinHeight="28" MaxWidth="300" MaxLines="8" TextWrapping="Wrap" FontSize="13" Margin="0 5 0 0"/>
+        <Button Grid.Column="1" Content="Bind" VerticalAlignment="Center" Margin="5 0"/>
+    </Grid>
     
 </dsc:PropertyEditorControl>

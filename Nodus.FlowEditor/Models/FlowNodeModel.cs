@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
-using System.Reactive;
+using DynamicData;
+using FlowEditor.Models.Extensions;
 using Nodus.Core.Extensions;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
@@ -9,17 +10,23 @@ namespace FlowEditor.Models;
 
 public interface IFlowNodeModel : INodeModel
 {
+    ISourceList<IFlowContextExtension> ContextExtensions { get; }
+    
     object? GetPortValue(string portId, GraphContext context);
 }
 
 public class FlowNodeModel : NodeModel, IFlowNodeModel
 {
+    public ISourceList<IFlowContextExtension> ContextExtensions { get; }
+    
     private readonly IDisposable contextValueContract;
     
     public FlowNodeModel(string title, NodeTooltip tooltip = default, string? id = null, string? group = null, string? ctxId = null) 
         : base(title, tooltip, id, group, ctxId)
     {
-        contextValueContract = Context.AlterationStream.Subscribe(Observer.Create<INodeContext?>(OnContextChanged));
+        ContextExtensions = new SourceList<IFlowContextExtension>();
+        
+        contextValueContract = Context.AlterationStream.Subscribe(OnContextChanged);
     }
 
     public object? GetPortValue(string portId, GraphContext context)
@@ -51,5 +58,6 @@ public class FlowNodeModel : NodeModel, IFlowNodeModel
         base.Dispose(disposing);
         
         contextValueContract.Dispose();
+        ContextExtensions.Dispose();
     }
 }

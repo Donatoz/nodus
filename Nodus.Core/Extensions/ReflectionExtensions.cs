@@ -14,9 +14,14 @@ public static class ReflectionExtensions
     
     public static void ForEachAsmTypeWithAttribute<T>(this AppDomain domain, Action<Type> action) where T : Attribute
     {
+        ForEachAsmTypeWithAttribute(domain, typeof(T), action);
+    }
+    
+    public static void ForEachAsmTypeWithAttribute(this AppDomain domain, Type attrType, Action<Type> action)
+    {
         domain.GetAssemblies()
             .ForEach(asm => asm.GetTypes()
-                .Where(x => x.IsDefined(typeof(T), false))
+                .Where(x => x.IsDefined(attrType, false))
                 .ForEach(action));
     }
 }

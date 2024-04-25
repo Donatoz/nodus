@@ -12,7 +12,7 @@ public class FlowCanvasViewModelComponentFactory : NodeCanvasViewModelComponentF
 {
     public override NodeContextContainerViewModel CreateNodeContextContainer(Func<IEnumerable<INodeModel>> nodesGetter, IObservable<NodeViewModel?> nodeChangeStream)
     {
-        return new FlowContextContainerViewModel(nodesGetter, nodeChangeStream);
+        return new FlowContextContainerViewModel(nodesGetter, nodeChangeStream, FlowContextViewModelFactory.Default);
     }
 
     public override NodeCanvasToolbarViewModel CreateToolbar(IServiceProvider serviceProvider, INodeCanvasModel canvasModel,

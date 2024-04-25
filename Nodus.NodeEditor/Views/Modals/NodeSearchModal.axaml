@@ -10,7 +10,7 @@
              x:Class="Nodus.NodeEditor.Views.Modals.NodeSearchModal"
              x:DataType="vm:NodeSearchModalViewModel" ClipToBounds="False">
     
-    <Border Classes="modal" cc:Draggable.ProvideDrag="True">
+    <Border Name="Container" Classes="modal" cc:Draggable.ProvideDrag="True">
         <Border.Effect>
             <DropShadowEffect BlurRadius="25" Color="Black" Opacity="0.4" OffsetX="0" />
         </Border.Effect>
@@ -33,7 +33,7 @@
                 <ItemsControl Name="NodesContainer" ItemsSource="{Binding AvailableNodes.Value}" cc:Draggable.ProvideDrag="True">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <WrapPanel MaxWidth="500" cc:Draggable.ProvideDrag="True"/>
+                            <WrapPanel MaxWidth="600" cc:Draggable.ProvideDrag="True"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
@@ -46,7 +46,9 @@
                                                 CornerRadius="{Binding $parent[Border].CornerRadius}"/>
                                         <StackPanel Margin="5 3">
                                             <TextBlock Text="{Binding Label}" Classes="h4" FontWeight="Light"/>
-                                            <TextBlock Text="{Binding Template.Data.Tooltip.Tip}" Foreground="{StaticResource Shine}" FontWeight="Light"/>
+                                            <TextBlock Text="{Binding Template.Data.Tooltip.Tip}"
+                                                       MaxWidth="200" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{StaticResource Shine}" FontWeight="Light"/>
                                         </StackPanel>
                                     </DockPanel>
                                 </Border>

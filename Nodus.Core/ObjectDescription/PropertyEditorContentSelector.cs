@@ -10,6 +10,7 @@ public class PropertyEditorContentSelector : IDataTemplate
     public Control? Build(object? param) => param switch
     {
         StringEditorContentViewModel => new StringEditor(),
+        EnumEditorContentViewModel => new ComboboxEditor(),
         _ => null
     };
 

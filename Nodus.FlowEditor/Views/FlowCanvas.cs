@@ -1,12 +1,15 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls.Templates;
+using Avalonia.Markup.Xaml.Templates;
 using FlowEditor.Meta;
 using FlowEditor.Views.Templates;
 using Nodus.Core.Controls;
 using Nodus.Core.Extensions;
 using Nodus.Core.ViewModels;
 using Nodus.DI.Factories;
+using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.Views;
 
 namespace FlowEditor.Views;
@@ -15,7 +18,7 @@ public class FlowCanvas : NodeCanvas
 {
     private DataContextControlBinding? dataContextBinding;
     
-    public FlowCanvas(IComponentFactoryProvider<NodeCanvas> factoryProvider) : base(factoryProvider)
+    public FlowCanvas(IFactoryProvider<NodeCanvas> factoryProvider) : base(factoryProvider)
     {
     }
 
@@ -33,8 +36,14 @@ public class FlowCanvas : NodeCanvas
 
     private void OnNodeResolved(object? sender, FlowNodeResolveEventArgs e)
     {
-        var flowConnection = currentConnections.FirstOrDefault(x => x.ViewModel.TargetNode.NodeId == e.Node.NodeId
-                                                                    && x.From is FlowPort p && p.ValueType == typeof(FlowType));
+        if (e.SourceConnection == null) return;
+
+        var flowConnection = currentConnections.FirstOrDefault(x => x.Data.Equals(e.SourceConnection));
+
+        if (flowConnection == null)
+        {
+            throw new Exception($"Failed to find flow connection: {e.SourceConnection.Value.SourceNodeId}->{e.SourceConnection.Value.TargetNodeId}");
+        }
         
         if (flowConnection.ViewModel == null) return;
         

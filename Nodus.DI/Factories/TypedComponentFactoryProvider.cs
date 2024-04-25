@@ -5,7 +5,7 @@ public interface ITypeCachedComponentFactoryProvider
     void RegisterFactory(Type factoryType, object factory);
 }
 
-public class TypedComponentFactoryProvider<T> : IComponentFactoryProvider<T>, ITypeCachedComponentFactoryProvider
+public class TypedComponentFactoryProvider<T> : IFactoryProvider<T>, ITypeCachedComponentFactoryProvider
 {
     private readonly IDictionary<Type, object> factories;
 
