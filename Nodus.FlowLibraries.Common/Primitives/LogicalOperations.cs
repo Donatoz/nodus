@@ -12,9 +12,27 @@ public enum CompareOperation
     NotEqual
 }
 
+public enum LogicalOperation
+{
+    And,
+    Or,
+    Not
+}
+
 public static class LogicalOperationsExtensions
 {
     private const float FloatTolerance = 0.00001f;
+
+    public static bool Evaluate(this LogicalOperation operation, bool a, bool b = true)
+    {
+        return operation switch
+        {
+            LogicalOperation.And => a & b,
+            LogicalOperation.Or => a || b,
+            LogicalOperation.Not => !a,
+            _ => false
+        };
+    }
     
     public static bool Evaluate(this CompareOperation operation, float a, float b)
     {

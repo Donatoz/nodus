@@ -19,6 +19,7 @@ public static class CommonNodes
     public const string RandomRangeNodeContextId = "RandomRange";
     public const string LoopNodeContextId = "Loop";
     public const string ParallelNodeContextId = "Parallel";
+    public const string LogicNodeContextId = "Logic";
     
     [NodeTemplateProvider]
     public static IEnumerable<NodeTemplate> GetDefaultTemplates()
@@ -110,6 +111,14 @@ public static class CommonNodes
                 FlowUtility.FlowPort(PortType.Output, "Parallel"))
             .WithGroup(NodeGroups.FlowGroup)
             .WithContextId(ParallelNodeContextId)
+            .Build();
+        
+        yield return new NodeTemplateBuilder("Logic", "Performs logical operation",
+                FlowUtility.Port<bool>("A", PortType.Input),
+                FlowUtility.Port<bool>("B", PortType.Input),
+                FlowUtility.Port<bool>("Result", PortType.Output))
+            .WithGroup(NodeGroups.ConstGroup)
+            .WithContextId(LogicNodeContextId)
             .Build();
     }
 }

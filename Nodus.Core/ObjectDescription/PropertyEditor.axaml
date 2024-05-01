@@ -13,7 +13,7 @@
         <Border HorizontalAlignment="Stretch" Margin="-5" Background="{StaticResource BackgroundDark}"/>
         <StackPanel>
             <DockPanel>
-                <TextBlock b:TextCompressor.MaxCharacterLength="10" Text="{Binding PropertyName}" MaxWidth="150" Classes="h5"/>
+                <TextBlock Text="{Binding PropertyName}" MaxWidth="150" Classes="h5"/>
                 <cc:PointLabel Margin="5 0 0 0" HorizontalAlignment="Right" DotBrush="{StaticResource AscentActive}" Label="{Binding PropertyType.Name}"/>
             </DockPanel>
             <TextBlock IsVisible="{Binding Description, Converter={x:Static ObjectConverters.IsNotNull}}" 

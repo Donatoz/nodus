@@ -9,29 +9,32 @@ using Nodus.NodeEditor.Views;
 
 namespace Nodus.NodeEditor.DI;
 
-internal class NodeCanvasComponentFactoryProvider : TypedComponentFactoryProvider<INodeCanvasModel>
+public class NodeCanvasComponentFactoryProvider : TypedComponentFactoryProvider<INodeCanvasModel>
 {
-    public NodeCanvasComponentFactoryProvider(IRuntimeInjector injector)
+    public NodeCanvasComponentFactoryProvider()
     {
-        RegisterFactory(typeof(INodeModelFactory), new NodeModelFactory(injector));
+        RegisterFactory(typeof(INodeModelFactory), new NodeModelFactory());
         RegisterFactory(typeof(IPortModelFactory), new PortModelFactory());
+        RegisterFactory(typeof(ICommentModelFactory), new CommentModelFactory());
     }
 }
 
-internal class NodeCanvasViewModelFactoryProvider : TypedComponentFactoryProvider<NodeCanvasViewModel>
+public class NodeCanvasViewModelFactoryProvider : TypedComponentFactoryProvider<NodeCanvasViewModel>
 {
     public NodeCanvasViewModelFactoryProvider(IRuntimeElementProvider elementProvider)
     {
         RegisterFactory(typeof(INodeViewModelFactory), new NodeViewModelFactory(elementProvider));
         RegisterFactory(typeof(IPortViewModelFactory), new PortViewModelFactory(elementProvider));
+        RegisterFactory(typeof(ICommentViewModelFactory), new CommentViewModelFactory(elementProvider));
     }
 }
 
-internal class NodeCanvasControlFactoryProvider : TypedComponentFactoryProvider<NodeCanvas>
+public class NodeCanvasControlFactoryProvider : TypedComponentFactoryProvider<NodeCanvas>
 {
     public NodeCanvasControlFactoryProvider()
     {
         this.RegisterControlFactory<Node, NodeViewModel>();
         this.RegisterControlFactory<ConnectionPath, ConnectionViewModel>();
+        this.RegisterControlFactory<Comment, CommentViewModel>();
     }
 }

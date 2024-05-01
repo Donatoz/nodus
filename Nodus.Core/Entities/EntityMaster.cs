@@ -62,6 +62,12 @@ public static class EntityMaster
         return component;
     }
 
+    public static void Attach<T>(this IEntity entity, T value)
+    {
+        ValidateEntity(entity);
+        states[entity].AddComponent(new ValueContainer<T>(value));
+    }
+
     /// <summary>
     /// Remove a component from the specified entity.
     /// </summary>
@@ -142,7 +148,7 @@ public static class EntityMaster
     {
         if (!entity.IsRegistered())
         {
-            throw new ArgumentException("Entity is not registered");
+            throw new ArgumentException($"Entity {entity.EntityId} is not registered.");
         }
     }
 

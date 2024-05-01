@@ -1,0 +1,38 @@
+﻿<v:GraphElement xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Nodus.NodeEditor.ViewModels"
+             xmlns:v="using:Nodus.NodeEditor.Views"
+             xmlns:ec="clr-namespace:Nodus.Core.Controls;assembly=Nodus.Core"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nodus.NodeEditor.Views.Comment"
+             x:DataType="vm:CommentViewModel" ClipToBounds="False">
+    
+    <v:GraphElement.Styles>
+        <Style Selector="Border#Body.active">
+            <Setter Property="BorderBrush" Value="{StaticResource AscentActiveHighlight}"/>
+        </Style>
+    </v:GraphElement.Styles>
+    
+    <Grid Name="Container">
+        <Border ec:Draggable.ProvideDrag="True" Name="Body" Classes="panel" Padding="10 2" CornerRadius="4" BorderThickness="1"
+                Classes.active="{Binding $parent[v:Comment].SelectionHandler.IsSelected}">
+            <Border.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Delete" ec:Hotkey.MenuItemHotkey="Delete" Command="{Binding DeleteSelf}"/>
+                </ContextMenu>
+            </Border.ContextMenu>
+            <Border.Effect>
+                <DropShadowEffect OffsetX="0" OffsetY="5" BlurRadius="25" Opacity="0.2"/>
+            </Border.Effect>
+            <DockPanel>
+                <TextBlock ec:Draggable.ProvideDrag="True" Classes="h1" Text="//" LetterSpacing="3" Foreground="{StaticResource Ascent}" Margin="0 0 5 0"/>
+                <TextBlock ec:Draggable.ProvideDrag="True" Classes="h2" VerticalAlignment="Center" Text="{Binding Content.Value}" 
+                           FontWeight="Normal" Foreground="{StaticResource AscentActiveHighlight}"
+                           DockPanel.Dock="Right"/>
+            </DockPanel>
+        </Border>
+    </Grid>
+    
+</v:GraphElement>

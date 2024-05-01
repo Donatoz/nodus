@@ -8,7 +8,7 @@ using Nodus.NodeEditor.Meta;
 
 namespace Nodus.NodeEditor.Models;
 
-public interface INodeModel : IEntity, IDisposable
+public interface INodeModel : IEntity, IPersistentElementModel, IDisposable
 {
     string NodeId { get; }
     string Title { get; }
@@ -20,13 +20,13 @@ public interface INodeModel : IEntity, IDisposable
 
     void AddPort(IPortModel port);
     void ChangeContext(INodeContext? context);
-
-    NodeData Serialize();
 }
 
 public class NodeModel : Entity, INodeModel
 {
     public string NodeId { get; }
+    public string ElementId => NodeId;
+
     public override string EntityId => NodeId;
 
     public string Title { get; }
@@ -67,7 +67,7 @@ public class NodeModel : Entity, INodeModel
     {
         this.context.SetValue(context);
     }
-    
+
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
@@ -79,11 +79,11 @@ public class NodeModel : Entity, INodeModel
         context.Dispose();
     }
 
-    public virtual NodeData Serialize()
+    public virtual IGraphElementData Serialize()
     {
         return new NodeData(Title, Tooltip.Value, Ports.Value.Select(x => x.Serialize()))
         {
-            NodeId = NodeId,
+            ElementId = NodeId,
             Group = Group,
             ContextId = ContextId,
             ContextData = Context.Value?.Serialize()

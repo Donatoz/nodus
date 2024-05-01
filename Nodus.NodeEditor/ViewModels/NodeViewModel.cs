@@ -1,4 +1,5 @@
-﻿using System.Windows.Input;
+﻿using System.Diagnostics;
+using System.Windows.Input;
 using Nodus.Core.Common;
 using Nodus.Core.Entities;
 using Nodus.Core.Reactive;
@@ -12,12 +13,11 @@ using ReactiveUI;
 
 namespace Nodus.NodeEditor.ViewModels;
 
-public class NodeViewModel : ReactiveViewModel, ISelectable
+public class NodeViewModel : ElementViewModel
 {
     public string Title { get; }
     public string NodeId { get; }
     public string? Group { get; }
-    public NodeVisualData? VisualData { get; protected set; }
 
     public BoundProperty<NodeTooltip> Tooltip { get; }
     public BoundCollection<IPortModel, PortViewModel> Ports { get; }
@@ -28,14 +28,13 @@ public class NodeViewModel : ReactiveViewModel, ISelectable
     public ICommand AddIntPort { get; }
     public ICommand AddOutPort { get; }
     public ICommand SwitchDebug { get; }
-    public ICommand DeleteSelf { get; }
 
     protected readonly INodeModel model;
     protected IFactoryProvider<INodeCanvasModel> ModelFactoryProvider { get; }
 
     public NodeViewModel(INodeModel model, 
         IFactoryProvider<NodeCanvasViewModel> componentFactoryProvider,
-        IFactoryProvider<INodeCanvasModel> modelFactoryProvider)
+        IFactoryProvider<INodeCanvasModel> modelFactoryProvider) : base(model)
     {
         this.model = model;
         Title = model.Title;
@@ -48,16 +47,10 @@ public class NodeViewModel : ReactiveViewModel, ISelectable
         Ports = new BoundCollection<IPortModel, PortViewModel>(model.Ports, 
             componentFactoryProvider.GetFactory<IPortViewModelFactory>().Create);
         debug = new MutableReactiveProperty<bool>();
-
-        if (model.TryGetGeneric(out IContainer<NodeData> data))
-        {
-            ApplyData(data.Value);
-        }
         
         AddIntPort = ReactiveCommand.Create(OnAddInPort);
         AddOutPort = ReactiveCommand.Create(OnAddOutPort);
         SwitchDebug = ReactiveCommand.Create(OnSwitchDebug);
-        DeleteSelf = ReactiveCommand.Create(OnDeleteSelf);
     }
 
     protected virtual void OnAddInPort()
@@ -72,29 +65,9 @@ public class NodeViewModel : ReactiveViewModel, ISelectable
             .CreatePort(new PortData("Value", PortType.Output, PortCapacity.Multiple)));
     }
 
-    private void OnDeleteSelf()
-    {
-        RaiseEvent(new NodeDeleteRequest(this));
-    }
-
     private void OnSwitchDebug()
     {
         debug.SetValue(!debug.Value);
-    }
-
-    public virtual void Select()
-    {
-        RaiseEvent(new SelectionEvent(this, true));
-    }
-
-    public virtual void Deselect()
-    {
-        RaiseEvent(new SelectionEvent(this, false));
-    }
-
-    protected virtual void ApplyData(NodeData data)
-    {
-        VisualData = data.VisualData;
     }
 
     protected override void Dispose(bool disposing)
@@ -107,15 +80,5 @@ public class NodeViewModel : ReactiveViewModel, ISelectable
             Ports.Dispose();
             debug.Dispose();
         }
-    }
-}
-
-public readonly struct NodeDeleteRequest : IEvent
-{
-    public NodeViewModel Node { get; }
-
-    public NodeDeleteRequest(NodeViewModel node)
-    {
-        Node = node;
     }
 }

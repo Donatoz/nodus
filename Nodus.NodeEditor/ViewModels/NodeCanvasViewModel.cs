@@ -1,11 +1,20 @@
 ﻿using System;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Reactive;
+using System.Reactive.Linq;
+using System.Reactive.Disposables;
 using System.Windows.Input;
+using Avalonia.Input;
+using DynamicData;
+using DynamicData.Alias;
+using DynamicData.Binding;
+using Microsoft.Extensions.DependencyInjection;
 using Nodus.Core.Common;
 using Nodus.Core.Entities;
 using Nodus.Core.Extensions;
+using Nodus.Core.Interaction;
 using Nodus.Core.Reactive;
 using Nodus.Core.Selection;
 using Nodus.Core.ViewModels;
@@ -14,6 +23,7 @@ using Nodus.NodeEditor.Factories;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.ViewModels.Events;
+using Nodus.NodeEditor.Views;
 using ReactiveUI;
 
 namespace Nodus.NodeEditor.ViewModels;
@@ -22,7 +32,7 @@ public interface INodeCanvasViewModel : IEntity { }
 
 public interface INodeCanvasOperatorViewModel
 {
-    void CreateNode(NodeTemplate template);
+    void CreateElement(IGraphElementTemplate template);
     void CreateConnection(string sourceNode, string sourcePort, string targetNode, string targetPort);
     void RemoveConnection(ConnectionViewModel connection);
 }
@@ -35,25 +45,27 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     /// <summary>
     /// Represents a selector for nodes.
     /// </summary>
-    public ISelector<NodeViewModel> NodesSelector { get; }
-    public BoundCollection<INodeModel, NodeViewModel> Nodes { get; }
-    public BoundCollection<Connection, ConnectionViewModel> Connections { get; }
+    public ISelector<ElementViewModel> ElementSelector { get; }
     public NodeCanvasToolbarViewModel Toolbar { get; }
     public NodeContextContainerViewModel NodeContextContainer { get; }
     public BoundProperty<string> GraphName { get; }
-    
-    public ICommand RequestNodeSelectionCommand { get; }
+    public ReadOnlyObservableCollection<ElementViewModel> Elements => elements;
+    public ReadOnlyObservableCollection<ConnectionViewModel> Connections => connections;
+
+    public ICommand RequestElementSelectionCommand { get; }
     public ICommand AddNodeCommand { get; }
+    public ICommand AddCommentCommand { get; }
     public ICommand RemoveSelectedCommand { get; }
 
     private readonly NodeSearchModalViewModel? nodeSearchModal;
-    private readonly IDisposable nodeAlterationContract;
-    private readonly IDisposable nodeMutationContract;
+    private readonly CompositeDisposable disposables;
+    private readonly IFactory<IGraphElementModel, ElementViewModel> elementsFactory;
 
+    private readonly ReadOnlyObservableCollection<ElementViewModel> elements;
+    private readonly ReadOnlyObservableCollection<ConnectionViewModel> connections;
+    
     protected INodeCanvasModel Model { get; }
-    protected IServiceProvider ServiceProvider { get; }
     protected INodeCanvasViewModelComponentFactory ComponentFactory { get; }
-    protected IFactoryProvider<NodeCanvasViewModel> ElementsFactoryProvider { get; }
 
     /// <summary>
     /// Initialize a new instance of the NodeCanvasViewModel class.
@@ -62,34 +74,63 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     /// <param name="serviceProvider">Service provider</param>
     /// <param name="elementsFactoryProvider">Elements factory</param>
     /// <param name="componentFactory">VM components factory</param>
-    public NodeCanvasViewModel(INodeCanvasModel model, IServiceProvider serviceProvider, 
-        IFactoryProvider<NodeCanvasViewModel> elementsFactoryProvider, INodeCanvasViewModelComponentFactory componentFactory)
+    public NodeCanvasViewModel(INodeCanvasModel model, IServiceProvider serviceProvider, INodeCanvasViewModelComponentFactory componentFactory,
+        IFactory<IGraphElementModel, ElementViewModel> elementsFactory)
     {
         Model = model;
-        ServiceProvider = serviceProvider;
-        ElementsFactoryProvider = elementsFactoryProvider;
         ComponentFactory = componentFactory;
+        this.elementsFactory = elementsFactory;
+        disposables = new CompositeDisposable();
         
-        NodesSelector = new Selector<NodeViewModel>();
+        ElementSelector = new Selector<ElementViewModel>();
+
+        model.ElementStream
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Transform(CreateElement)
+            .Bind(out elements)
+            .Subscribe()
+            .DisposeWith(disposables);
+
+        model.ConnectionStream
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Transform(x => componentFactory.CreateConnection(x, elements.OfType<NodeViewModel>(), this))
+            .Bind(out connections)
+            .Subscribe()
+            .DisposeWith(disposables);
         
-        Nodes = new BoundCollection<INodeModel, NodeViewModel>(model.Nodes, CreateNode);
-        nodeAlterationContract = Nodes.AlterationStream.Subscribe(Observer.Create<CollectionChangedEvent<NodeViewModel>>(OnNodesAlteration));
-        Connections = new BoundCollection<Connection, ConnectionViewModel>(model.Connections, 
-            c => componentFactory.CreateConnection(c, Nodes.Items, this));
+        model.EventStream
+            .OnEvent<MutationEvent<IGraphElementData>>(OnElementDataMutation)
+            .DisposeWith(disposables);
+
+        Elements
+            .ToObservableChangeSet()
+            .Subscribe(OnElementsChange)
+            .DisposeWith(disposables);
         
         Toolbar = componentFactory.CreateToolbar(serviceProvider, model, this);
-        NodeContextContainer =
-            componentFactory.CreateNodeContextContainer(() => model.Nodes.Value,
-                NodesSelector.CurrentlySelected.AlterationStream);
 
-        RequestNodeSelectionCommand = ReactiveCommand.Create<NodeViewModel?>(OnNodeSelectionRequested);
+        var nodeSelectionStream = ElementSelector.SelectedStream
+            .SelectMany(x => x)
+            .Select(_ =>
+            {
+                var selectedNodes = ElementSelector.CurrentlySelected.OfType<NodeViewModel>();
+                return selectedNodes.Count() == 1 ? selectedNodes.First() : null;
+            });
+        
+        NodeContextContainer =
+            componentFactory.CreateNodeContextContainer(() => model.Elements.OfType<INodeModel>(), nodeSelectionStream);
+
+        RequestElementSelectionCommand = ReactiveCommand.Create<ElementViewModel?>(OnElementSelectionRequested);
         AddNodeCommand = ReactiveCommand.Create(CreateNewNode);
         RemoveSelectedCommand = ReactiveCommand.Create(RemoveCurrent);
+        AddCommentCommand = ReactiveCommand.Create(CreateComment);
 
         GraphName = model.GraphName.ToBound();
-        
-        nodeMutationContract = model.EventStream.OnEvent<MutationEvent<NodeData>>(OnNodeDataMutation);
 
+        serviceProvider.GetRequiredService<IHotkeyBinder>()
+            .BindHotkey(KeyGesture.Parse("Delete"), RemoveSelectedCommand)
+            .DisposeWith(disposables);
+        
         if (model.TryGetGeneric<IContainer<INodeSearchModalModel>>(out var c))
         {
             nodeSearchModal = componentFactory.CreateSearchModal(this, c.Value);
@@ -99,66 +140,73 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         this.AddComponent(new DisposableContainer<PopupContainerViewModel>(componentFactory.CreatePopupContainer()));
     }
 
-    private void OnNodeSelectionRequested(NodeViewModel? node)
+    private void OnElementSelectionRequested(ElementViewModel? element)
     {
-        if (node == null || NodesSelector.CurrentlySelected.Value == node)
+        if (element == null)
         {
-            NodesSelector.DeselectAll();
+            ElementSelector.DeselectAll();
         }
         else
         {
-            NodesSelector.Select(node);
+            ElementSelector.Select(element);
         }
     }
 
     private void RemoveCurrent()
     {
-        if (NodesSelector.CurrentlySelected.Value != null)
+        ElementSelector.CurrentlySelected.ForEach(RemoveElement);
+    }
+
+    private void OnElementsChange(IChangeSet<ElementViewModel> changes)
+    {
+        if (changes.Removes > 0)
         {
-            RemoveNode(NodesSelector.CurrentlySelected.Value);
+            changes
+                .Where(x => x is { Reason: ListChangeReason.Remove or ListChangeReason.Clear, Item.Current: ISelectable })
+                .ForEach(x =>
+                {
+                    if (ElementSelector.CurrentlySelected.Contains(x.Item.Current))
+                    {
+                        ElementSelector.Deselect(x.Item.Current);
+                    }
+
+                    if (x.Item.Current is IDisposable d)
+                    {
+                        d.Dispose();
+                    }
+                });
         }
     }
 
-    protected virtual NodeViewModel CreateNode(INodeModel model)
+    private ElementViewModel CreateElement(IGraphElementModel model)
     {
-        var vm = ElementsFactoryProvider.GetFactory<INodeViewModelFactory>().Create(model);
+        var element = elementsFactory.Create(model);
 
-        vm.EventStream.OnEvent<NodeDeleteRequest>(OnNodeRemoval);
-        
-        return vm;
-    }
+        element.EventStream
+            .OfType<ElementDeleteRequest>()
+            .Subscribe(x => RemoveElement(x.Element))
+            .DisposeWith(disposables);
 
-    private void OnNodesAlteration(CollectionChangedEvent<NodeViewModel> evt)
-    {
-        if (!evt.Added)
-        {
-            if (NodesSelector.CurrentlySelected.Value == evt.Item)
-            {
-                NodesSelector.DeselectAll();
-            }
-            
-            evt.Item.Dispose();
-        }
+        return element;
     }
     
-    private void OnNodeDataMutation(MutationEvent<NodeData> evt)
+    private void OnElementDataMutation(MutationEvent<IGraphElementData> evt)
     {
-        evt.MutatedValue.VisualData ??= new NodeVisualData();
+        evt.MutatedValue.VisualData ??= new VisualGraphElementData();
 
-        var nodeVm = Nodes.Items.FirstOrDefault(x => x.NodeId == evt.MutatedValue.NodeId)
-            .NotNull($"Failed to find mutated node view model: {evt.MutatedValue.NodeId}");
+        Trace.WriteLine($"---------- Mutated: {evt.MutatedValue}");
+        Trace.WriteLine($"---------- Id: {evt.MutatedValue.ElementId}");
+        elements.ForEach(x => Trace.WriteLine($"---------------- {x.ElementId}"));
         
-        RaiseEvent(new NodeVisualMutationEvent(nodeVm, evt.MutatedValue.VisualData));
-    }
-    
-    private void OnNodeRemoval(NodeDeleteRequest evt)
-    {
-        RemoveNode(evt.Node);
+        var elementVm = elements.FirstOrDefault(x => x.ElementId == evt.MutatedValue.ElementId)
+            .NotNull($"Failed to find mutated element view model: {evt.MutatedValue.ElementId}");
+        
+        RaiseEvent(new ElementVisualMutationEvent(elementVm, evt.MutatedValue.VisualData));
     }
 
-    protected void RemoveNode(NodeViewModel node)
+    protected void RemoveElement(ElementViewModel element)
     {
-        Model.Operator.RemoveNode(node.NodeId);
+        Model.Operator.RemoveElement(element.ElementId);
     }
     
     private void CreateNewNode()
@@ -168,9 +216,14 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         this.TryGetGeneric<IContainer<ModalCanvasViewModel>>()?.Value.OpenModal(nodeSearchModal);
     }
 
-    public void CreateNode(NodeTemplate template)
+    private void CreateComment()
     {
-        Model.Operator.CreateNode(template);
+        Model.Operator.CreateElement(new ElementTemplate<CommentData>(new CommentData("New Comment")));
+    }
+
+    public void CreateElement(IGraphElementTemplate template)
+    {
+        Model.Operator.CreateElement(template);
     }
 
     public void CreateConnection(string sourceNode, string sourcePort, string targetNode, string targetPort)
@@ -188,12 +241,9 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         
         if (!disposing) return;
         
-        Nodes.Dispose();
-        Connections.Dispose();
-        nodeAlterationContract.Dispose();
         nodeSearchModal?.Dispose();
         NodeContextContainer.Dispose();
-        NodesSelector.Dispose();
-        nodeMutationContract.Dispose();
+        ElementSelector.Dispose();
+        disposables.Dispose();
     }
 }

@@ -22,7 +22,7 @@ public class NodeSearchModalViewModel : NodeEditorModalViewModel, IDisposable
 
     public void CreateNode(NodeTemplate template)
     {
-        CanvasOperator.CreateNode(template);
+        CanvasOperator.CreateElement(template);
     }
 
     protected virtual NodeSearchModalItemViewModel CreateItem(NodeTemplate template)

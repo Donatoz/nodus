@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Reactive.Subjects;
+using DynamicData;
 using Nodus.Core.Common;
 using Nodus.Core.Entities;
 using Nodus.Core.Extensions;
@@ -16,22 +19,25 @@ public interface INodeCanvasModel : IEntity, IDisposable
     IObservable<IEvent> EventStream { get; }
     
     IReactiveProperty<string> GraphName { get; }
-    IReactiveProperty<IEnumerable<INodeModel>> Nodes { get; }
-    IReactiveProperty<IEnumerable<Connection>> Connections { get; }
     ICanvasOperatorModel Operator { get; }
     /// <summary>
     /// Graph representation of the node canvas.
     /// </summary>
     GraphContext Context { get; }
-
+    
+    IEnumerable<IGraphElementModel> Elements { get; }
+    IEnumerable<Connection> Connections { get; }
+    IObservable<IChangeSet<IGraphElementModel, string>> ElementStream { get; }
+    IObservable<IChangeSet<Connection>> ConnectionStream { get; }
+    
     void LoadGraph(NodeGraph graph);
     NodeGraph SerializeToGraph();
 }
 
 public interface INodeCanvasMutationProvider
 {
-    void AddNode(INodeModel node);
-    void RemoveNode(INodeModel node);
+    void AddElement(IGraphElementModel element);
+    void RemoveElement(IGraphElementModel element);
     void AddConnection(Connection connection);
     void RemoveConnection(Connection connection);
 }
@@ -41,78 +47,81 @@ public class NodeCanvasModel : Entity, INodeCanvasModel
     public override string EntityId { get; }
     public IReactiveProperty<string> GraphName => graphName;
     public IObservable<IEvent> EventStream => eventSubject;
-    public IReactiveProperty<IEnumerable<INodeModel>> Nodes => nodes;
-    public IReactiveProperty<IEnumerable<Connection>> Connections => connections;
+    public IEnumerable<IGraphElementModel> Elements => elements.Items;
+    public IEnumerable<Connection> Connections => connections.Items;
+    public IObservable<IChangeSet<IGraphElementModel, string>> ElementStream => elements.Connect();
+    public IObservable<IChangeSet<Connection>> ConnectionStream => connections.Connect();
+    
     /// <summary>
     /// Returns a NEW graph context instance, meaning that with EACH getter call
     /// it will allocate new memory for the context cache.
     /// </summary>
-    public GraphContext Context => new(Nodes.Value, Connections.Value);
+    public GraphContext Context => new(Elements.OfType<NodeModel>(), Connections);
 
     public ICanvasOperatorModel Operator { get; }
     
     private readonly MutableReactiveProperty<string> graphName;
     private readonly Subject<IEvent> eventSubject;
-    private readonly MutableReactiveProperty<IList<INodeModel>> nodes;
-    private readonly MutableReactiveProperty<IList<Connection>> connections;
+    private readonly ISourceCache<IGraphElementModel, string> elements;
+    private readonly ISourceList<Connection> connections;
+    private readonly IFactory<IGraphElementData, IGraphElementTemplate> templateFactory;
 
     protected INodeCanvasMutationProvider MutationProvider { get; }
-    protected INodeContextProvider NodeContextProvider { get; }
     protected virtual string DefaultGraphName => "New Graph";
     
-    public NodeCanvasModel(IFactoryProvider<INodeCanvasModel> componentFactoryProvider, INodeContextProvider contextProvider)
+    public NodeCanvasModel(INodeContextProvider contextProvider, 
+        IFactory<IGraphElementTemplate, IGraphElementModel> elementFactory,
+        IFactory<IGraphElementData, IGraphElementTemplate> templateFactory)
     {
         EntityId = Guid.NewGuid().ToString();
         graphName = new MutableReactiveProperty<string>(DefaultGraphName);
         eventSubject = new Subject<IEvent>();
-        nodes = new MutableReactiveProperty<IList<INodeModel>>(new List<INodeModel>());
-        connections = new MutableReactiveProperty<IList<Connection>>(new List<Connection>());
+        elements = new SourceCache<IGraphElementModel, string>(x => x.ElementId);
+        connections = new SourceList<Connection>();
+        this.templateFactory = templateFactory;
 
-        NodeContextProvider = contextProvider;
         MutationProvider = CreateMutationProvider();
-        Operator = CreateOperator(componentFactoryProvider, contextProvider);
+        Operator = CreateOperator(contextProvider, elementFactory);
 
         this.AddComponent(new ValueContainer<INodeSearchModalModel>(new NodeSearchModalModel()));
     }
 
     protected virtual INodeCanvasMutationProvider CreateMutationProvider()
     {
-        return new NodeCanvasMutationProvider(nodes, connections);
+        return new NodeCanvasMutationProvider(elements, connections);
     }
 
-    protected virtual NodeCanvasOperatorModel CreateOperator(IFactoryProvider<INodeCanvasModel> componentFactoryProvider, INodeContextProvider contextProvider)
+    protected virtual NodeCanvasOperatorModel CreateOperator(INodeContextProvider contextProvider, IFactory<IGraphElementTemplate, IGraphElementModel> elementFactory)
     {
-        return new NodeCanvasOperatorModel(this, MutationProvider, componentFactoryProvider, contextProvider);
+        return new NodeCanvasOperatorModel(this, MutationProvider, elementFactory, contextProvider);
     }
     
     public virtual void LoadGraph(NodeGraph graph)
     {
-        nodes.Value.DisposeAll();
+        Elements.OfType<IDisposable>().DisposeAll();
         
-        nodes.ClearAndInvalidate();
-        connections.ClearAndInvalidate();
+        elements.Clear();
+        connections.Clear();
         
         graphName.SetValue(graph.GraphName);
         
-        graph.Nodes.ForEach(x => Operator.CreateNode(new NodeTemplate(x)));
+        graph.Elements.ForEach(x => Operator.CreateElement(templateFactory.Create(x)));
         graph.Connections.ForEach(x => Operator.Connect(x));
     }
 
     public virtual NodeGraph SerializeToGraph()
     {
-        var nodes = new List<NodeData>();
+        var elements = new List<IGraphElementData>();
 
-        foreach (var node in Nodes.Value)
+        foreach (var element in Elements.OfType<IPersistentElementModel>())
         {
-            var s = node.Serialize();
+            var s = element.Serialize();
             eventSubject.RequestMutation(s);
             
-            nodes.Add(s);
+            elements.Add(s);
         }
         
-        return new NodeGraph(GraphName.Value,
-            nodes,
-            Connections.Value);
+        return new NodeGraph(GraphName.Value, elements, Connections);
     }
     
     protected override void Dispose(bool disposing)
@@ -121,44 +130,48 @@ public class NodeCanvasModel : Entity, INodeCanvasModel
         
         if (!disposing) return;
         
-        nodes.Value.DisposeAll();
-            
+        Elements.OfType<IDisposable>().DisposeAll();
+        
         graphName.Dispose();
         eventSubject.Dispose();
-        nodes.Dispose();
         connections.Dispose();
+        elements.Dispose();
     }
 
     private class NodeCanvasMutationProvider : INodeCanvasMutationProvider
     {
-        private readonly MutableReactiveProperty<IList<INodeModel>> nodes;
-        private readonly MutableReactiveProperty<IList<Connection>> connections;
+        private readonly ISourceCache<IGraphElementModel, string> elements;
+        private readonly ISourceList<Connection> connections;
         
-        public NodeCanvasMutationProvider(MutableReactiveProperty<IList<INodeModel>> nodes,
-            MutableReactiveProperty<IList<Connection>> connections)
+        public NodeCanvasMutationProvider(ISourceCache<IGraphElementModel, string> elements, ISourceList<Connection> connections)
         {
-            this.nodes = nodes;
+            this.elements = elements;
             this.connections = connections;
         }
         
-        public void AddNode(INodeModel node)
+        public void AddElement(IGraphElementModel element)
         {
-            nodes.AddAndInvalidate(node);
+            elements.AddOrUpdate(element);
         }
 
-        public void RemoveNode(INodeModel node)
+        public void RemoveElement(IGraphElementModel element)
         {
-            nodes.RemoveAndInvalidate(node);
+            elements.Remove(element);
+            
+            if (element is IDisposable d)
+            {
+                d.Dispose();
+            }
         }
 
         public void AddConnection(Connection connection)
         {
-            connections.AddAndInvalidate(connection);
+            connections.Add(connection);
         }
 
         public void RemoveConnection(Connection connection)
         {
-            connections.RemoveAndInvalidate(connection);
+            connections.Remove(connection);
         }
     }
 }

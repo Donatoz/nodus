@@ -23,12 +23,8 @@ using ReactiveUI;
 
 namespace Nodus.NodeEditor.Views;
 
-public partial class Node : UserControl
+public partial class Node : GraphElement
 {
-    public static readonly RoutedEvent<NodeEventArgs> NodePressedEvent = 
-        RoutedEvent.Register<Node, NodeEventArgs>(nameof(NodePressedEvent), RoutingStrategies.Bubble);
-    public SelectableComponent SelectionHandler { get; }
-
     private IDisposable? portAlterationContract;
     private readonly ISet<Port> ports;
 
@@ -40,6 +36,9 @@ public partial class Node : UserControl
     protected Grid NodeContainer => Container;
     protected StackPanel BottomExtensions => BottomExtensionsContainer;
 
+    protected override Control ContainerControl => Container;
+    protected override Control BodyControl => Body;
+
     private LinearGradientBrush borderAscent;
     private GradientStop borderAscentStop;
     private LinearGradientBrush backgroundAscent;
@@ -47,14 +46,11 @@ public partial class Node : UserControl
     
     public Node()
     {
-        SelectionHandler = new SelectableComponent(this);
         ports = new HashSet<Port>();
         NodeId = string.Empty;
         
         InitializeAscentColors();
         InitializeComponent();
-        
-        Body.AddHandler(PointerPressedEvent, OnPointerPressed);
     }
 
     private void InitializeAscentColors()
@@ -180,13 +176,6 @@ public partial class Node : UserControl
     {
         return type == PortType.Input ? InputPortsContainer : OutputPortsContainer;
     }
-    
-    private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.Source is not Control c || !c.HasVisualAncestorOrSelf(Container)) return;
-        
-        RaiseEvent(new NodeEventArgs(this) {RoutedEvent = NodePressedEvent});
-    }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
@@ -214,7 +203,6 @@ public partial class Node : UserControl
     {
         base.OnUnloaded(e);
         
-        SelectionHandler.Dispose();
         portAlterationContract?.Dispose();
     }
 }

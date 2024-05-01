@@ -23,7 +23,7 @@ public class TypedComponentFactoryProvider<T> : IFactoryProvider<T>, ITypeCached
     {
         if (!factories.ContainsKey(typeof(TFactory)))
         {
-            throw new ArgumentException($"Failed to provide factory of type ({typeof(T)}): factory not registered.");
+            throw new ArgumentException($"Failed to provide factory of type ({typeof(TFactory)}): factory not registered.");
         }
 
         if (factories[typeof(TFactory)] is not TFactory f)

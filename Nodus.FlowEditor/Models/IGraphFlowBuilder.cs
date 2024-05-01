@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using Nodus.FlowEngine;
 using Nodus.NodeEditor.Meta;
@@ -15,17 +17,25 @@ public interface IGraphFlowBuilder
 public class GraphFlowBuilder : IGraphFlowBuilder
 {
     protected IFlowProducer Producer { get; }
+
+    private readonly IFlowLogger logger;
     
-    public GraphFlowBuilder(IFlowProducer producer)
+    public GraphFlowBuilder(IFlowProducer producer, IFlowLogger logger)
     {
         Producer = producer;
+        this.logger = logger;
     }
     
     public IFlowUnit BuildFlow(GraphContext graph, IFlowNodeModel root)
     {
+        var now = DateTime.Now;
         var rootToken = GetRootToken(graph, root);
 
-        return Producer.BuildFlow(rootToken);
+        var flow =  Producer.BuildFlow(rootToken);
+
+        logger.Debug($"Built flow in {DateTime.Now - now}");
+        
+        return flow;
     }
 
     public virtual IFlowToken GetRootToken(GraphContext graph, IFlowNodeModel root, Connection? sourceConnection = null)
@@ -49,16 +59,16 @@ public class GraphFlowBuilder : IGraphFlowBuilder
             // Get descendants
             var successionCandidates = current.GetSuccessionCandidates(graph);
 
+            // Assign succession candidates to the current token
             foreach (var (node, connection) in successionCandidates)
             {
                 var successionToken = GetNodeToken(node, graph, connection);
-                TryAddToTokenCache(node.NodeId, successionToken);
+                tokenCache.TryAdd(node.NodeId, successionToken);
                 descendants.Add(successionToken);
             }
 
-            token.DescendantTokens = descendants.ToArray();
-            
-            TryAddToTokenCache(current.NodeId, token);
+            token.DescendantTokens = descendants.ToImmutableArray();
+            tokenCache.TryAdd(current.NodeId, token);
             tokens.Add(token);
 
             (current, currentConnection) = graph.GetFlowSuccessor(current);
@@ -70,14 +80,6 @@ public class GraphFlowBuilder : IGraphFlowBuilder
         }
 
         return tokens.First();
-
-        void TryAddToTokenCache(string id, IFlowToken token)
-        {
-            if (!tokenCache.ContainsKey(id))
-            {
-                tokenCache[id] = token;
-            }
-        }
     }
 
     private IFlowToken GetNodeToken(IFlowNodeModel node, GraphContext context, Connection? connection)

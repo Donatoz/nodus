@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -99,7 +100,7 @@ public abstract class FlowContextBase : IFlowContext
         flow.Append(new FlowDelegate("Delay Unit", async ct =>
         {
             ct.ThrowIfCancellationRequested();
-            currentResolveContext.SetValue(new ResolveContext(true, sourceConnection));
+            UpdateResolveContext(true, sourceConnection);
             await Task.Delay(500, ct);
         }));
         
@@ -108,7 +109,12 @@ public abstract class FlowContextBase : IFlowContext
         Node?.ContextExtensions.Items.Select(x => x.CreateFlowUnit(context))
             .Where(x => x is not null).ForEach(flow.Append!);
         
-        flow.Append(new AnonymousFlowDelegate(() => currentResolveContext.SetValue(new ResolveContext(false, sourceConnection))));
+        flow.Append(new AnonymousFlowDelegate(() => UpdateResolveContext(false, sourceConnection)));
+    }
+
+    private void UpdateResolveContext(bool isResolved, Connection? sourceConnection)
+    {
+        currentResolveContext.SetValue(new ResolveContext(isResolved, sourceConnection));
     }
 
     protected virtual void AlterFlow(IFlow flow, GraphContext context, IFlowToken currentToken) { }
@@ -155,7 +161,7 @@ public abstract class FlowContextBase : IFlowContext
     {
         public IFlowToken? Successor { get; set; }
         public IList<IFlowToken>? Children { get; set; }
-        public IFlowToken[]? DescendantTokens { get; set; }
+        public ImmutableArray<IFlowToken>? DescendantTokens { get; set; }
 
         private readonly Action<IFlow, IFlowToken> resolveContext;
 

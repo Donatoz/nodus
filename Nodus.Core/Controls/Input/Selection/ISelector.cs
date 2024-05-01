@@ -1,4 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using DynamicData;
+using Nodus.Core.Extensions;
 using Nodus.Core.Reactive;
 
 namespace Nodus.Core.Selection;
@@ -14,7 +18,8 @@ public interface ISelector<T> : IDisposable where T : ISelectable
     /// </summary>
     /// <typeparam name="T">The type of value.</typeparam>
     /// <returns>The reactive property representing the currently selected value.</returns>
-    IReactiveProperty<T?> CurrentlySelected { get; }
+    IEnumerable<T> CurrentlySelected { get; }
+    IObservable<IChangeSet<T>> SelectedStream { get; }
 
     /// <summary>
     /// Select a value.
@@ -26,6 +31,8 @@ public interface ISelector<T> : IDisposable where T : ISelectable
     /// Deselects all items.
     /// </summary>
     void DeselectAll();
+
+    void Deselect(T item);
 }
 
 /// <summary>
@@ -34,16 +41,18 @@ public interface ISelector<T> : IDisposable where T : ISelectable
 /// <typeparam name="T">The type of the selectable items.</typeparam>
 public class Selector<T> : ISelector<T> where T : ISelectable
 {
-    private readonly MutableReactiveProperty<T?> currentlySelected;
+    private readonly ISourceList<T> currentlySelected;
 
     /// <summary>
     /// The currently selected value.
     /// </summary>
-    public IReactiveProperty<T?> CurrentlySelected => currentlySelected;
+    public IEnumerable<T> CurrentlySelected => currentlySelected.Items;
+
+    public IObservable<IChangeSet<T>> SelectedStream => currentlySelected.Connect();
 
     public Selector()
     {
-        currentlySelected = new MutableReactiveProperty<T?>();
+        currentlySelected = new SourceList<T>();
     }
 
     /// <summary>
@@ -53,10 +62,10 @@ public class Selector<T> : ISelector<T> where T : ISelectable
     /// <param name="selectable">The object to be selected</param>
     public void Select(T selectable)
     {
-        DeselectAll();
+        if (currentlySelected.Items.Contains(selectable)) return;
         
         selectable.Select();
-        currentlySelected.SetValue(selectable);
+        currentlySelected.Add(selectable);
     }
 
     /// <summary>
@@ -64,12 +73,19 @@ public class Selector<T> : ISelector<T> where T : ISelectable
     /// </summary>
     public void DeselectAll()
     {
-        currentlySelected.Value?.Deselect();
-        currentlySelected.SetValue(default);
+        currentlySelected.Items.ForEach(x => x.Deselect());
+        currentlySelected.Clear();
+    }
+
+    public void Deselect(T item)
+    {
+        if (!currentlySelected.Items.Contains(item)) return;
+        
+        item.Deselect();
+        currentlySelected.Remove(item);
     }
 
     public void Dispose()
     {
-        currentlySelected.Dispose();
     }
 }

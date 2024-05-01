@@ -1,4 +1,6 @@
-﻿namespace Nodus.FlowEngine;
+﻿using System.Collections.Immutable;
+
+namespace Nodus.FlowEngine;
 
 /// <summary>
 /// Represents a meta-object which is used to build the flow, i.e. it describes the logic of the flow alteration.
@@ -7,7 +9,7 @@ public interface IFlowToken
 {
     IFlowToken? Successor { get; set; }
     IList<IFlowToken>? Children { get; set; }
-    IFlowToken[]? DescendantTokens { get; set; }
+    ImmutableArray<IFlowToken>? DescendantTokens { get; set; }
 
     void Resolve(IFlow flow);
 }
@@ -17,7 +19,7 @@ public sealed class EmptyToken : IFlowToken
     public IFlowToken? Successor { get; set; }
     
     public IList<IFlowToken>? Children { get; set; }
-    public IFlowToken[]? DescendantTokens { get; set; }
+    public ImmutableArray<IFlowToken>? DescendantTokens { get; set; }
 
     public void Resolve(IFlow flow) { }
 }

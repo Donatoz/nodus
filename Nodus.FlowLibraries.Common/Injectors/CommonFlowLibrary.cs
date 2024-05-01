@@ -18,5 +18,6 @@ public static class CommonFlowLibrary
         provider.RegisterFactory<RandomRangeContext>(CommonNodes.RandomRangeNodeContextId, elementProvider);
         provider.RegisterFactory<LoopContext>(CommonNodes.LoopNodeContextId, elementProvider);
         provider.RegisterFactory<ParallelContext>(CommonNodes.ParallelNodeContextId, elementProvider);
+        provider.RegisterFactory<LogicContext>(CommonNodes.LogicNodeContextId, elementProvider);
     }
 }

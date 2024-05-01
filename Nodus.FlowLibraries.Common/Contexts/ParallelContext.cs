@@ -47,10 +47,7 @@ public class ParallelContext : FlowContextBase
 
     private Task GetContext(IFlowUnit rootUnit, CancellationToken ct)
     {
-        Task.Run(() => rootUnit.Execute(ct), ct).ContinueWith(t =>
-        {
-            if (t is { IsFaulted: true, Exception: not null }) throw t.Exception;
-        }, ct);
+        Task.Run(() => rootUnit.Execute(ct), ct);
 
         return Task.CompletedTask;
     }

@@ -22,9 +22,10 @@ public record GraphContext
     public IEnumerable<Connection> Connections { get; }
 
     // TODO: Maybe these caches should be dynamic and be populated by
-    // the canvas instead of being an init-only snapshot value.
+    // the canvas instead of being an init-only state snapshot.
     private readonly IDictionary<string, INodeModel> nodeCache;
     private readonly IDictionary<string, Connection[]> portConnectionsCache;
+    private readonly IDictionary<string, string> portOwners;
     
     public GraphContext(IEnumerable<INodeModel> nodes, IEnumerable<Connection> connections)
     {
@@ -33,6 +34,7 @@ public record GraphContext
 
         nodeCache = new Dictionary<string, INodeModel>();
         portConnectionsCache = new Dictionary<string, Connection[]>();
+        portOwners = new Dictionary<string, string>();
         
         foreach (var node in Nodes)
         {
@@ -42,6 +44,7 @@ public record GraphContext
             {
                 portConnectionsCache[port.Id] =
                     Connections.Where(x => x.SourcePortId == port.Id || x.TargetPortId == port.Id).ToArray();
+                portOwners[port.Id] = node.NodeId;
             }
         }
     }
@@ -56,10 +59,9 @@ public record GraphContext
         return FindNode(nodeId)?.Ports.Value.FirstOrDefault(x => x.Id == portId);
     }
 
-    public INodeModel GetPortOwner(string portId)
+    public INodeModel? GetPortOwner(string portId)
     {
-        return Nodes.FirstOrDefault(x => x.Ports.Value.Any(y => y.Id == portId))
-            .NotNull($"Failed to find port owner for port ({portId})");
+        return portOwners.TryGetValue(portId, out var owner) ? FindNode(owner) : null;
     }
 
     public IEnumerable<Connection> FindPortConnections(string portId)

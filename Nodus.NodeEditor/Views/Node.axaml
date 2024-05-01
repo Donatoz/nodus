@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+﻿<v:GraphElement xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -12,7 +12,7 @@
              x:DataType="vm:NodeViewModel">
     
     <StackPanel>
-        <Grid Name="Container" ClipToBounds="False">
+        <Grid Name="Container" ClipToBounds="False" Focusable="True">
             <Grid.ContextMenu>
                 <ContextMenu Name="NodeContextMenu">
                     <MenuItem Header="Add In Port" Command="{Binding AddIntPort}">
@@ -58,4 +58,4 @@
         <TextBlock IsVisible="{Binding Debug.Value}" Text="{Binding NodeId}" Foreground="{StaticResource AscentActive}" 
                    VerticalAlignment="Bottom" TextWrapping="Wrap" MaxWidth="230"/>
     </StackPanel>
-</UserControl>
+</v:GraphElement>

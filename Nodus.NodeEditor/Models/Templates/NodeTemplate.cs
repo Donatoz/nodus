@@ -1,12 +1,10 @@
-﻿using System;
-using Nodus.DI.Runtime;
-using Nodus.NodeEditor.Meta;
+﻿using Nodus.NodeEditor.Meta;
 
 namespace Nodus.NodeEditor.Models;
 
 public delegate INodeContext? NodeContextFactory();
 
-public readonly struct NodeTemplate
+public readonly struct NodeTemplate : IGraphElementTemplate<NodeData>
 {
     public NodeData Data { get; }
     public NodeContextFactory ContextFactory { get; }

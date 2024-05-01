@@ -8,10 +8,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Ninject;
 using Ninject.Parameters;
 using Nodus.App.Views;
+using Nodus.Core.Interaction;
 using Nodus.DI.Modules;
 using Nodus.DI.Runtime;
 using Nodus.NodeEditor.Services;
 using Nodus.ViewModels;
+using Nodus.Core.Extensions;
 using ReactiveUI;
 
 namespace Nodus.App;
@@ -67,6 +69,8 @@ public partial class App : Application
 {
     private IKernel diKernel;
     private IServiceProvider services;
+
+    private IClassicDesktopStyleApplicationLifetime Lifetime => ApplicationLifetime.MustBe<IClassicDesktopStyleApplicationLifetime>();
     
     public override void Initialize()
     {
@@ -102,9 +106,10 @@ public partial class App : Application
     {
         var container = new ServiceCollection();
 
-        container.AddScoped<IStorageProvider>(_ => (ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow?.StorageProvider);
+        container.AddScoped<IStorageProvider>(_ => Lifetime.MainWindow.NotNull().StorageProvider);
         container.AddTransient<INodeCanvasSerializationService>(p => new LocalNodeCanvasSerializationService(p.GetRequiredService<IStorageProvider>()));
-
+        container.AddScoped<IHotkeyBinder>(_ => new WindowHotkeyBinder(Lifetime.MainWindow.NotNull()));
+        
         return container.BuildServiceProvider();
     }
 

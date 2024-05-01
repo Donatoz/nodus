@@ -1,11 +1,18 @@
 ﻿using System;
 using System.Linq;
+using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using DynamicData;
+using DynamicData.Alias;
+using FlowEditor.ViewModels;
+using Nodus.Core.Extensions;
 using Nodus.Core.Reactive;
 using Nodus.DI.Factories;
 using Nodus.FlowEngine;
+using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
+using Nodus.NodeEditor.ViewModels;
 
 namespace FlowEditor.Models;
 
@@ -33,9 +40,10 @@ public class FlowCanvasModel : NodeCanvasModel, IFlowCanvasModel
     protected IGraphFlowBuilder FlowBuilder { get; }
     public IReactiveProperty<IFlowCanvasExecutable?> CurrentlyResolvedFlow => currentFlow;
 
-    public FlowCanvasModel(IFactoryProvider<INodeCanvasModel> componentFactoryProvider, 
-        INodeContextProvider contextProvider, IGraphFlowBuilder flowBuilder) 
-        : base(componentFactoryProvider, contextProvider)
+    public FlowCanvasModel(INodeContextProvider contextProvider, IGraphFlowBuilder flowBuilder,
+        IFactory<IGraphElementTemplate, IGraphElementModel> elementFactory,
+        IFactory<IGraphElementData, IGraphElementTemplate> templateFactory) 
+        : base(contextProvider, elementFactory, templateFactory)
     {
         currentFlow = new MutableReactiveProperty<IFlowCanvasExecutable?>();
         FlowBuilder = flowBuilder;
@@ -43,7 +51,7 @@ public class FlowCanvasModel : NodeCanvasModel, IFlowCanvasModel
 
     public void RunFlowFrom(string nodeId)
     {
-        var node = Nodes.Value.First(x => x.NodeId == nodeId) as IFlowNodeModel;
+        var node = Elements.OfType<IFlowNodeModel>().First(x => x.NodeId == nodeId);
         
         CurrentlyResolvedFlow.Value?.Dispose();
         

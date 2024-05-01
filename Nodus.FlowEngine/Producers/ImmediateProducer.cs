@@ -8,8 +8,9 @@ namespace Nodus.FlowEngine;
 /// whereas the resolve logic sequence is dynamically altered on each flow unit visit.
 ///
 /// <remarks>
-/// The flow that this producer generates might be not optimized and leave additional garbage in memory, while it
-/// fully respects the runtime aspect of each unit, where each unit can resolve the dependencies at runtime.
+/// The flow that this producer generates might be not optimized, while it
+/// fully respects the runtime aspect of each unit, where each unit can resolve the dependencies at runtime,
+/// as well as 
 /// </remarks>
 /// </summary>
 public class ImmediateProducer : IFlowProducer
@@ -89,6 +90,7 @@ public class ImmediateProducer : IFlowProducer
 
                 foreach (var u in cache)
                 {
+                    ct.ThrowIfCancellationRequested();
                     unit = u;
                     await unit.Execute(ct);
                 }

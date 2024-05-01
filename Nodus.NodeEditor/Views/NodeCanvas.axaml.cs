@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using System.Reactive;
 using System.Reactive.Disposables;
+using System.Reactive.Linq;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
@@ -12,11 +14,12 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
+using Avalonia.ReactiveUI;
+using DynamicData;
+using DynamicData.Binding;
 using Nodus.Core.Controls;
-using Nodus.Core.Entities;
 using Nodus.Core.Extensions;
 using Nodus.Core.Factories;
-using Nodus.Core.Reactive;
 using Nodus.Core.Utility;
 using Nodus.Core.ViewModels;
 using Nodus.DI.Factories;
@@ -29,7 +32,7 @@ using ReactiveUI;
 namespace Nodus.NodeEditor.Views;
 
 //TODO: Split this hell into different partial classes (one for nodes logic, one for connections, etc...)
-public partial class NodeCanvas : UserControl
+public partial class NodeCanvas : ReactiveUserControl<NodeCanvasViewModel>
 {
     private bool isPanning;
     private bool isSelecting;
@@ -49,10 +52,7 @@ public partial class NodeCanvas : UserControl
     private RelativeRect initialBackgroundRect;
 
     protected readonly ISet<ConnectionContainer> currentConnections;
-    protected readonly ISet<NodeContainer> nodes;
-    
-    private readonly BoundCollectionPresenter<NodeViewModel, Draggable> nodesCollectionView;
-    private readonly BoundCollectionPresenter<ConnectionViewModel, ConnectionPath> connectionsCollectionView;
+    protected readonly ISet<ElementContainer> elements;
     
     public ICommand ResetPositionCommand { get; }
     public ICommand AddNodeCommand { get; }
@@ -82,23 +82,30 @@ public partial class NodeCanvas : UserControl
         CanvasesGroup.RenderTransform = tGroup;
 
         currentConnections = new HashSet<ConnectionContainer>();
-        nodes = new HashSet<NodeContainer>();
-        
-        nodesCollectionView = new BoundCollectionPresenter<NodeViewModel, Draggable>(CreateNodeControl, CanvasRoot, RemoveNodeControl);
-        nodesCollectionView.DestructionPredicate =
-            (c, vm) => c is Panel p && p.Children.Any(x => x.DataContext == vm);
-
-        connectionsCollectionView =
-            new BoundCollectionPresenter<ConnectionViewModel, ConnectionPath>(CreateConnectionControl,
-                ConnectionsCanvas, RemoveConnectionControl);
+        elements = new HashSet<ElementContainer>();
 
         ResetPositionCommand = ReactiveCommand.Create(OnResetPosition);
         AddNodeCommand = ReactiveCommand.Create(OnAddNode);
+
+        this.WhenActivated(d =>
+        {
+            ViewModel?.Elements
+                .ToObservableChangeSet()
+                .TunnelChanges(ProcessElementAddition, ProcessElementRemoval)
+                .Subscribe()
+                .DisposeWith(d);
+
+            ViewModel?.Connections
+                .ToObservableChangeSet()
+                .TunnelChanges(ProcessConnectionAddition, ProcessConnectionRemoval)
+                .Subscribe()
+                .DisposeWith(d);
+        });
         
         AddHandler(Port.PortPressedEvent, OnPortPressed);
         AddHandler(Port.PortReleasedEvent, OnPortReleased);
         AddHandler(Port.PortDragEvent, OnPortDrag);
-        AddHandler(Node.NodePressedEvent, OnNodePressed);
+        AddHandler(GraphElement.ElementPressedEvent, OnElementPressed);
         AddHandler(Draggable.OnDragEvent, OnDraggableDrag);
     }
 
@@ -123,12 +130,7 @@ public partial class NodeCanvas : UserControl
         
         if (DataContext is NodeCanvasViewModel vm)
         {
-            nodesCollectionView.Repopulate(vm.Nodes.Items);
-            nodesCollectionView.Subscribe(vm.Nodes.AlterationStream);
-            connectionsCollectionView.Repopulate(vm.Connections.Items);
-            connectionsCollectionView.Subscribe(vm.Connections.AlterationStream);
-            
-            disposables.Add(vm.EventStream.OnEvent<NodeVisualMutationEvent>(OnNodeVisualDataMutation));
+            disposables.Add(vm.EventStream.OnEvent<ElementVisualMutationEvent>(OnElementVisualDataMutation));
         }
         
     }
@@ -138,72 +140,125 @@ public partial class NodeCanvas : UserControl
         return new NodeCanvasComponentsSelector();
     }
 
-    #region Nodes Interactions
+    #region Elements
 
-    protected virtual Draggable CreateNodeControl(NodeViewModel ctx)
+    private void ProcessElementAddition(ElementViewModel element)
+    {
+        var wrapper = CreateElementWrapper(element);
+
+        GraphElement? elementControl = element switch
+        {
+            NodeViewModel n => CreateNodeControl(n, wrapper),
+            CommentViewModel c => CreateCommentControl(c),
+            _ => null
+        };
+
+        if (elementControl == null)
+        {
+            throw new Exception($"Failed to create control for element: {element}");
+        }
+
+        elements.Add(new ElementContainer(wrapper, elementControl));
+        wrapper.Children.Add(elementControl);
+        CanvasRoot.Children.Add(wrapper);
+    }
+
+    private void ProcessElementRemoval(ElementViewModel element)
+    {
+        var container = elements.First(x => x.ViewModel == element);
+        
+        CanvasRoot.Children.Remove(container.Parent);
+        elements.Remove(container);
+    }
+
+    protected virtual Panel CreateElementWrapper(ElementViewModel element)
     {
         var draggable = new Draggable();
+        
+        Point? dataPos = element.VisualData != null ? new Point(element.VisualData.Position.X, element.VisualData.Position.Y) : null;
 
-        var pos = ctx.VisualData?.Position 
-                  ?? (lastPointerPosition.Equals(default) 
-                    ? new Point(400, 0) * (CanvasRoot.Children.OfType<Draggable>().Count() + 1) + new Point(0, 200)
-                    : lastPointerPosition);
+        var pos = dataPos ?? (lastPointerPosition.Equals(default) 
+            ? new Point(400, 0) * (CanvasRoot.Children.OfType<Draggable>().Count() + 1) + new Point(0, 200)
+            : lastPointerPosition);
         
         draggable.SetValue(Canvas.LeftProperty, pos.X);
         draggable.SetValue(Canvas.TopProperty, pos.Y);
 
-        var node = FactoryProvider.GetFactory<IControlFactory<Node, NodeViewModel>>().Create(ctx);
-        
-        draggable.Children.Add(node);
-
-        nodes.Add(new NodeContainer(draggable, node));
-
         return draggable;
     }
-    
-    private void RemoveNodeControl(Control nodeParent)
-    {
-        var c = nodes.FirstOrDefault(x => x.Parent == nodeParent);
 
-        if (c.Parent != null)
-        {
-            nodes.Remove(c);
-        }
+    #endregion
+
+    #region Nodes Interactions
+
+    protected virtual Node CreateNodeControl(NodeViewModel ctx, Control parent)
+    {
+        var node = FactoryProvider.GetFactory<IControlFactory<Node, NodeViewModel>>().Create(ctx);
+        
+        return node;
     }
 
-    private void OnNodePressed(object? sender, NodeEventArgs e)
+    private void OnElementPressed(object? sender, ElementEventArgs e)
     {
         if (DataContext is NodeCanvasViewModel vm)
         {
-            vm.RequestNodeSelectionCommand.Execute(e.Node.DataContext);
+            vm.RequestElementSelectionCommand.Execute(e.Element.DataContext);
         }
     }
     
     private void OnAddNode()
     {
-        var c = this.InputHitTest(lastPointerPosition);
-        
-        if (c != BackgroundVisual || DataContext is not NodeCanvasViewModel vm) return;
+        if (DataContext is not NodeCanvasViewModel vm) return;
         
         vm.AddNodeCommand.Execute(null);
+    }
+
+    private Node FindNode(string id)
+    {
+        return elements.First(x => x.ViewModel is NodeViewModel vm && vm.NodeId == id).Element
+            .MustBe<Node>();
+    }
+
+    private IEnumerable<Node> GetNodes()
+    {
+        return elements.Where(x => x.ViewModel is NodeViewModel).Select(x => x.Element.MustBe<Node>());
     }
     
     #endregion
 
+    #region Comments
+
+    protected virtual Comment CreateCommentControl(CommentViewModel vm)
+    {
+        return FactoryProvider.GetFactory<IControlFactory<Comment, CommentViewModel>>().Create(vm);
+    }
+
+    #endregion
+
     #region Connections Interactions
 
+    private void ProcessConnectionAddition(ConnectionViewModel connection)
+    {
+        var connectionControl = CreateConnectionControl(connection);
+        ConnectionsCanvas.Children.Add(connectionControl);
+    }
+
+    private void ProcessConnectionRemoval(ConnectionViewModel connection)
+    {
+        ConnectionsCanvas.Children.Remove(currentConnections.First(x => x.ViewModel == connection).Path);
+        RemoveConnectionControl(connection);
+    }
+    
     protected virtual ConnectionPath CreateConnectionControl(ConnectionViewModel connection)
     {
         var path = FactoryProvider.GetFactory<IControlFactory<ConnectionPath, ConnectionViewModel>>().Create(connection);
         var (data, lines) = GeometryUtility.CreatePolyLineGeometry(3);
         path.PathContainer.Data = data;
         
-        var sourcePort = nodes.FirstOrDefault(n => n.ViewModel.NodeId == connection.SourceNode.NodeId).Node?
-            .FindPort(connection.SourcePort.PortId);
+        var sourcePort = FindNode(connection.SourceNode.NodeId).FindPort(connection.SourcePort.PortId);
         if (sourcePort == null) return null;
         
-        var destPort = nodes.FirstOrDefault(n => n.ViewModel.NodeId == connection.TargetNode.NodeId).Node?
-            .FindPort(connection.TargetPort.PortId);
+        var destPort = FindNode(connection.TargetNode.NodeId).FindPort(connection.TargetPort.PortId);
         if (destPort == null) return null;
 
         var container = new ConnectionContainer(path, lines, connection, sourcePort, destPort, connection.Data);
@@ -214,14 +269,9 @@ public partial class NodeCanvas : UserControl
         return path;
     }
     
-    private void RemoveConnectionControl(Control connectionControl)
+    private void RemoveConnectionControl(ConnectionViewModel connection)
     {
-        var c = currentConnections.FirstOrDefault(x => x.Path == connectionControl);
-
-        if (c.Path != null)
-        {
-            currentConnections.Remove(c);
-        }
+        currentConnections.Remove(currentConnections.First(x => x.ViewModel == connection));
     }
 
     private void UpdateConnections()
@@ -282,15 +332,15 @@ public partial class NodeCanvas : UserControl
 
     private void TryConnectToPortAtPoint(Point targetPoint, Port sourcePort)
     {
-        foreach (var p in nodes.SelectMany(n => n.Node.Ports))
+        foreach (var p in GetNodes().Select(n => n.Ports).SelectMany(x => x))
         {
             var portPos = p.PortHandler.TranslatePoint(default, CanvasRoot);
             var portBounds = new Rect((Point)portPos, p.PortHandler.DesiredSize);
 
             if (portBounds.Contains(targetPoint) && DataContext is NodeCanvasViewModel vm && p != sourcePort)
             {
-                var sourceNode = nodes.First(n => n.Node.HasPort(sourcePort.PortId)).Node.NodeId;
-                var targetNode = nodes.First(n => n.Node.HasPort(p.PortId)).Node.NodeId;
+                var sourceNode = GetNodes().First(n => n.HasPort(sourcePort.PortId)).NodeId;
+                var targetNode = GetNodes().First(n => n.HasPort(p.PortId)).NodeId;
                 
                 vm.CreateConnection(sourceNode, sourcePort.PortId, targetNode, p.PortId);
                 
@@ -370,7 +420,7 @@ public partial class NodeCanvas : UserControl
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
-        if (!Equals(e.Source, BackgroundVisual)) return;
+        if (!Equals(e.Source, PointerArea)) return;
 
         var props = e.GetCurrentPoint(CanvasRoot).Properties;
         
@@ -396,7 +446,7 @@ public partial class NodeCanvas : UserControl
         
         if (isPanning)
         {
-            if (!Equals(e.GetCurrentPoint(CanvasRoot).Pointer.Captured, BackgroundVisual))
+            if (!Equals(e.GetCurrentPoint(CanvasRoot).Pointer.Captured, PointerArea))
             {
                 isPanning = false;
                 return;
@@ -453,7 +503,7 @@ public partial class NodeCanvas : UserControl
     {
         if (DataContext is NodeCanvasViewModel vm)
         {
-            vm.NodesSelector.DeselectAll();
+            vm.ElementSelector.DeselectAll();
         }
     }
 
@@ -461,18 +511,18 @@ public partial class NodeCanvas : UserControl
 
     #region Serialization
 
-    protected virtual void OnNodeVisualDataMutation(NodeVisualMutationEvent evt)
+    protected virtual void OnElementVisualDataMutation(ElementVisualMutationEvent evt)
     {
-        var container = nodes.FirstOrDefault(x => x.ViewModel == evt.ViewModel);
+        var container = elements.FirstOrDefault(x => x.ViewModel == evt.ViewModel);
 
-        if (container.Node == null)
+        if (container.ViewModel == null)
         {
-            throw new Exception($"Failed to mutate node visual data: node not found ({evt.ViewModel.NodeId})");
+            throw new Exception($"Failed to mutate element visual data: element not found ({evt.ViewModel.ElementId})");
         }
 
-        var pos = container.Node.TranslatePoint(default, CanvasRoot);
+        var pos = container.Parent.TranslatePoint(default, CanvasRoot);
         
-        evt.MutatedValue.Position = (Point) pos;
+        evt.MutatedValue.Position = new Vector2((float)(pos?.X ?? 0), (float)(pos?.Y ?? 0));
     }
 
     #endregion
@@ -481,19 +531,18 @@ public partial class NodeCanvas : UserControl
     {
         base.OnUnloaded(e);
         disposables?.Dispose();
-        nodesCollectionView.Dispose();
     }
 
-    protected readonly struct NodeContainer
+    protected readonly struct ElementContainer
     {
         public Control Parent { get; }
-        public Node Node { get; }
-        public NodeViewModel? ViewModel => Node.DataContext as NodeViewModel;
+        public GraphElement Element { get; }
+        public ElementViewModel? ViewModel => Element.DataContext as ElementViewModel;
 
-        public NodeContainer(Control parent, Node node)
+        public ElementContainer(Control parent, GraphElement element)
         {
             Parent = parent;
-            Node = node;
+            Element = element;
         }
     }
     

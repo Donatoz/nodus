@@ -5,16 +5,14 @@ using Nodus.Core.Entities;
 using Nodus.Core.Extensions;
 using Nodus.DI.Factories;
 using Nodus.NodeEditor.Extensions;
-using Nodus.NodeEditor.Factories;
 using Nodus.NodeEditor.Meta;
 
 namespace Nodus.NodeEditor.Models;
 
 public interface ICanvasOperatorModel
 {
-    void CreateNode(NodeTemplate template);
-    void AddNode(INodeModel node);
-    void RemoveNode(string nodeId);
+    void CreateElement(IGraphElementTemplate template);
+    void RemoveElement(string elementId);
     void Connect(string sourceNode, string sourcePort, string destinationNode, string destinationPort);
     void Disconnect(Connection connection);
 }
@@ -23,63 +21,49 @@ public class NodeCanvasOperatorModel : ICanvasOperatorModel
 {
     protected INodeCanvasModel Canvas { get; }
     protected INodeCanvasMutationProvider MutationProvider { get; }
-    protected IFactoryProvider<INodeCanvasModel> FactoryProvider { get; }
     protected INodeContextProvider NodeContextProvider { get; }
+    protected IFactory<IGraphElementTemplate, IGraphElementModel> ElementFactory { get; }
     
-    public NodeCanvasOperatorModel(INodeCanvasModel canvas, INodeCanvasMutationProvider mutationProvider, 
-        IFactoryProvider<INodeCanvasModel> factoryProvider, INodeContextProvider nodeContextProvider)
+    public NodeCanvasOperatorModel(INodeCanvasModel canvas, INodeCanvasMutationProvider mutationProvider,
+        IFactory<IGraphElementTemplate, IGraphElementModel> elementFactory, INodeContextProvider nodeContextProvider)
     {
         Canvas = canvas;
         MutationProvider = mutationProvider;
-        FactoryProvider = factoryProvider;
+        ElementFactory = elementFactory;
         NodeContextProvider = nodeContextProvider;
     }
-    
-    public void CreateNode(NodeTemplate template)
-    {
-        var nodeFactory = FactoryProvider.GetFactory<INodeModelFactory>();
-        var portFactory = FactoryProvider.GetFactory<IPortModelFactory>();
-        
-        var node = nodeFactory.CreateNode(template.WithContext(NodeContextProvider.TryGetContextFactory(template.Data.ContextId ?? string.Empty)), portFactory);
 
-        node.AddComponent(new ValueContainer<NodeData>(template.Data));
-        
-        AddNode(node);
+    public void CreateElement(IGraphElementTemplate template)
+    {
+        MutationProvider.AddElement(ElementFactory.Create(template));
     }
 
-    public void AddNode(INodeModel node)
+    public void RemoveElement(string elementId)
     {
-        if (Canvas.Nodes.Value.Contains(node))
+        var element = Canvas.Elements.FirstOrDefault(x => x.ElementId == elementId);
+
+        if (element == null)
         {
-            throw new ArgumentException($"Node {node} was already added to canvas");
+            throw new ArgumentException($"Element with id ({elementId}) was not found.");
         }
         
-        MutationProvider.AddNode(node);
-    }
-
-    public void RemoveNode(string nodeId)
-    {
-        var node = Canvas.Nodes.Value.FirstOrDefault(x => x.NodeId == nodeId);
-
-        if (node == null)
+        if (element is INodeModel)
         {
-            throw new ArgumentException($"Node with id ({nodeId}) was not found.");
+            Canvas.Connections
+                .Where(x => x.SourceNodeId ==  elementId || x.TargetNodeId == elementId)
+                .ReverseForEach(Disconnect);
         }
 
-        MutationProvider.RemoveNode(node);
-        
-        Canvas.Connections.Value
-            .Where(x => x.SourceNodeId == nodeId || x.TargetNodeId == nodeId)
-            .ReverseForEach(Disconnect);
-        
-        node.Dispose();
+        MutationProvider.RemoveElement(element);
     }
 
     public void Connect(string sourceNode, string sourcePort, string destinationNode, string destinationPort)
     {
-        var sourcePortModel = Canvas.Nodes.Value.FirstOrDefault(x => x.NodeId == sourceNode)?.TryFindPort(sourcePort)
+        var nodes = Canvas.Elements.OfType<INodeModel>();
+        
+        var sourcePortModel = nodes.FirstOrDefault(x => x.NodeId == sourceNode)?.TryFindPort(sourcePort)
             .NotNull($"Failed to find source port: {sourcePort}");
-        var targetPortModel = Canvas.Nodes.Value.FirstOrDefault(x => x.NodeId == destinationNode)?.TryFindPort(destinationPort)
+        var targetPortModel = nodes.FirstOrDefault(x => x.NodeId == destinationNode)?.TryFindPort(destinationPort)
             .NotNull($"Failed to find destination port: {destinationPort}");
 
         // Make sure that only input-type ports can be destinations and only output-type ports can be sources

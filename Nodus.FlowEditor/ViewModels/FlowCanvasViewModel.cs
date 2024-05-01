@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Linq;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
 using System.Windows.Input;
+using DynamicData.Binding;
 using FlowEditor.Models;
 using Nodus.Core.Entities;
 using Nodus.Core.Extensions;
@@ -18,6 +21,7 @@ namespace FlowEditor.ViewModels;
 public class FlowCanvasViewModel : NodeCanvasViewModel
 {
     private readonly IFlowCanvasModel model;
+    private readonly CompositeDisposable disposables;
     
     public NotifyingBoundProperty<IFlowCanvasExecutable?> FlowExecutable { get; }
     public ICommand StopFlowCommand { get; }
@@ -25,10 +29,11 @@ public class FlowCanvasViewModel : NodeCanvasViewModel
     public ICommand DestroyFlowCommand { get; }
     
     public FlowCanvasViewModel(IFlowCanvasModel model, IServiceProvider serviceProvider, 
-        IFactoryProvider<NodeCanvasViewModel> elementsFactoryProvider, 
-        INodeCanvasViewModelComponentFactory componentFactory, IFlowLogger logger) : base(model, serviceProvider, elementsFactoryProvider, componentFactory)
+        IFactory<IGraphElementModel, ElementViewModel> elementsFactory, 
+        INodeCanvasViewModelComponentFactory componentFactory, IFlowLogger logger) : base(model, serviceProvider, componentFactory, elementsFactory)
     {
         this.model = model;
+        disposables = new CompositeDisposable();
 
         FlowExecutable = model.CurrentlyResolvedFlow.ToNotifying();
         
@@ -36,16 +41,21 @@ public class FlowCanvasViewModel : NodeCanvasViewModel
         RestartFlowCommand = ReactiveCommand.Create(OnRestartFlow);
         DestroyFlowCommand = ReactiveCommand.Create(OnDestroyFlow);
 
+        Elements
+            .ToObservableChangeSet()
+            .TunnelAdditions(OnElementAdded)
+            .Subscribe()
+            .DisposeWith(disposables);
+
         this.AddComponent(new DisposableContainer<LogViewModel>(new LogViewModel(logger)));
     }
 
-    protected override NodeViewModel CreateNode(INodeModel model)
+    private void OnElementAdded(ElementViewModel element)
     {
-        var n = base.CreateNode(model);
-
-        n.EventStream.OnEvent<RunFlowEvent>(OnRunFlow);
-        
-        return n;
+        element.EventStream
+            .OfType<RunFlowEvent>()
+            .Subscribe(OnRunFlow)
+            .DisposeWith(disposables);
     }
 
     private void OnRunFlow(RunFlowEvent evt)
@@ -66,5 +76,14 @@ public class FlowCanvasViewModel : NodeCanvasViewModel
     private void OnStopFlow()
     {
         model.CurrentlyResolvedFlow.Value?.Stop();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        
+        if (!disposing) return;
+        
+        disposables.Dispose();
     }
 }
