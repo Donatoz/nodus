@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Reactive;
 using System.Windows.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Nodus.Core.Extensions;
@@ -12,9 +13,9 @@ namespace Nodus.NodeEditor.ViewModels;
 
 public class NodeCanvasToolbarViewModel
 {
-    public ICommand SaveGraphCommand { get; }
-    public ICommand LoadGraphCommand { get; }
-    public ICommand NewGraphCommand { get; }
+    public ReactiveCommand<Unit, Unit> SaveGraphCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadGraphCommand { get; }
+    public ReactiveCommand<Unit, Unit> NewGraphCommand { get; }
     
     protected INodeCanvasModel CanvasModel { get; }
     protected IServiceProvider ServiceProvider { get; }

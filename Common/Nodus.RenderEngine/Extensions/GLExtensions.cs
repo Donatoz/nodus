@@ -1,0 +1,38 @@
+﻿using Nodus.RenderEngine.Common;
+using Nodus.RenderEngine.OpenGL;
+using Silk.NET.OpenGL;
+
+namespace Nodus.RenderEngine;
+
+public static class GLExtensions
+{
+    public static void IterateErrors(this GL gl, Action<GLEnum>? onError = null)
+    {
+        GLEnum error;
+        do
+        {
+            error = gl.GetError();
+            onError?.Invoke(error);
+        } while (error != GLEnum.NoError);
+    }
+
+    public static void TryThrowNextError(this GL gl)
+    {
+        var error = gl.GetError();
+
+        if (error != GLEnum.NoError)
+        {
+            throw new OpenGlException(error.ToString());
+        }
+    }
+
+    public static void TryThrowShaderError(this GL gl, uint shaderHandle, string? shaderName = null)
+    {
+        var log = gl.GetShaderInfoLog(shaderHandle);
+
+        if (!string.IsNullOrWhiteSpace(log))
+        {
+            throw new OpenGlException($"Failed to compile shader ({shaderName ?? string.Empty}): {log}");
+        }
+    }
+}

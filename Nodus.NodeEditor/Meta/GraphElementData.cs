@@ -4,7 +4,7 @@ namespace Nodus.NodeEditor.Meta;
 
 public interface IGraphElementData
 {
-    string? ElementId { get; init; }
+    string? ElementId { get; set; }
     
     VisualGraphElementData? VisualData { get; set; }
 }

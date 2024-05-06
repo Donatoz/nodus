@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using System.Diagnostics;
+using Serilog;
 
 namespace Nodus.FlowEngine;
 
@@ -94,7 +95,7 @@ public class ImmediateProducer : IFlowProducer
                     unit = u;
                     await unit.Execute(ct);
                 }
-                    
+                
                 cache.Clear();
 
                 if (token.Children == null) return;

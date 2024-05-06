@@ -15,14 +15,10 @@ public class NodeCanvasDIModule : NinjectModule
 {
     public override void Load()
     {
+        // Factory providers
+        
         Rebind<IFactoryProvider<INodeCanvasModel>>()
             .To<NodeCanvasComponentFactoryProvider>()
-            .WhenInjectedInto<INodeCanvasModel>()
-            .InTransientScope();
-        
-        Rebind<INodeCanvasViewModelComponentFactory>()
-            .To<NodeCanvasViewModelComponentFactory>()
-            .WhenInjectedInto<NodeCanvasViewModel>()
             .InTransientScope();
 
         Rebind<IFactoryProvider<NodeCanvasViewModel>>()
@@ -32,6 +28,8 @@ public class NodeCanvasDIModule : NinjectModule
         Rebind<IFactoryProvider<NodeCanvas>>()
             .To<NodeCanvasControlFactoryProvider>()
             .InTransientScope();
+        
+        // Data -> Template -> Model -> ViewModel pipeline
         
         Rebind<IFactory<IGraphElementData, IGraphElementTemplate>>()
             .To<ElementTemplateFactory>()
@@ -45,6 +43,15 @@ public class NodeCanvasDIModule : NinjectModule
             .To<ElementViewModelFactory>()
             .InSingletonScope();
 
+        // Specialized factories
+        
+        Rebind<INodeCanvasViewModelComponentFactory>()
+            .To<NodeCanvasViewModelComponentFactory>()
+            .WhenInjectedInto<NodeCanvasViewModel>()
+            .InTransientScope();
+        
+        // Miscellaneous providers
+        
         Bind<INodeContextProvider>()
             .To<NodeContextProvider>()
             .InSingletonScope();

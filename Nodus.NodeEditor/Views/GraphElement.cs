@@ -10,8 +10,8 @@ namespace Nodus.NodeEditor.Views;
 
 public abstract class GraphElement : UserControl
 {
-    public static readonly RoutedEvent<NodeEventArgs> ElementPressedEvent = 
-        RoutedEvent.Register<Node, NodeEventArgs>(nameof(ElementPressedEvent), RoutingStrategies.Bubble);
+    public static readonly RoutedEvent<ElementPressedEventArgs> ElementPressedEvent = 
+        RoutedEvent.Register<GraphElement, ElementPressedEventArgs>(nameof(ElementPressedEvent), RoutingStrategies.Bubble);
     
     public SelectableComponent SelectionHandler { get; }
     
@@ -34,7 +34,7 @@ public abstract class GraphElement : UserControl
     {
         if (e.Source is not Control c || !c.HasVisualAncestorOrSelf(ContainerControl)) return;
         
-        RaiseEvent(new ElementEventArgs(this) {RoutedEvent = ElementPressedEvent});
+        RaiseEvent(new ElementPressedEventArgs(this, e.KeyModifiers) {RoutedEvent = ElementPressedEvent});
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -42,6 +42,11 @@ public abstract class GraphElement : UserControl
         base.OnDetachedFromVisualTree(e);
         
         SelectionHandler.Dispose();
+    }
+
+    public virtual void DestroySelf(Action onDestructionComplete)
+    {
+        onDestructionComplete.Invoke();
     }
 }
 
@@ -52,5 +57,15 @@ public class ElementEventArgs : RoutedEventArgs
     public ElementEventArgs(GraphElement element)
     {
         Element = element;
+    }
+}
+
+public class ElementPressedEventArgs : ElementEventArgs
+{
+    public KeyModifiers Modifiers { get; }
+    
+    public ElementPressedEventArgs(GraphElement element, KeyModifiers modifiers) : base(element)
+    {
+        Modifiers = modifiers;
     }
 }

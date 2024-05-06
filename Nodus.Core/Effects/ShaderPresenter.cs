@@ -74,7 +74,7 @@ public class ShaderPresenter : Control
     }
 
     private ShaderDrawOperation? drawOperation;
-    private const float RenderTimerTick = 3f;
+    private const float RenderTick = 3f;
     private float time;
 
     private readonly IShaderUniformFactory uniformFactory;
@@ -95,7 +95,7 @@ public class ShaderPresenter : Control
         
         EffectRenderTimer = new DispatcherTimer(DispatcherPriority.Render)
         {
-            Interval = TimeSpan.FromMilliseconds(RenderTimerTick)
+            Interval = TimeSpan.FromMilliseconds(RenderTick)
         };
         EffectRenderTimer.Start();
         
@@ -121,6 +121,21 @@ public class ShaderPresenter : Control
             EffectRenderTimer.Tick += OnEffectRenderTimerTick;
         }
 
+        TryUpdateSurface();
+    }
+
+    private void TryUpdateSource()
+    {
+        drawOperation?.Dispose();
+
+        if (ShaderSource != null)
+        {
+            drawOperation = CreateOperation(AssetUtility.TryReadAsset(ShaderSource));
+        }
+    }
+
+    private void TryUpdateSurface()
+    {
         if (Surface != null)
         {
             var ps = new PixelSize((int) Surface.Width + 1, (int) Surface.Height + 1);
@@ -133,16 +148,6 @@ public class ShaderPresenter : Control
             
             surfaceBitmap.Render(Surface);
             Bitmap = surfaceBitmap;
-        }
-    }
-
-    private void TryUpdateSource()
-    {
-        drawOperation?.Dispose();
-
-        if (ShaderSource != null)
-        {
-            drawOperation = CreateOperation(AssetUtility.TryReadAsset(ShaderSource));
         }
     }
 
@@ -210,7 +215,7 @@ public class ShaderPresenter : Control
 
     private void OnEffectRenderTimerTick(object? sender, EventArgs e)
     {
-        time += RenderTimerTick / UpdateSpeed % 100;
+        time += RenderTick / UpdateSpeed % 100;
         InvalidateVisual();
     }
 
@@ -230,7 +235,5 @@ public class ShaderPresenter : Control
         {
             EffectRenderTimer.Tick -= OnEffectRenderTimerTick;
         }
-        
-        Trace.WriteLine($"Dispose all res");
     }
 }

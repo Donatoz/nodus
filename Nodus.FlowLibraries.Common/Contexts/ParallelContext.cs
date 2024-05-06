@@ -19,7 +19,7 @@ public class ParallelContext : FlowContextBase
         this.flowBuilder = flowBuilder;
     }
     
-    protected override void AlterFlow(IFlow flow, GraphContext context, IFlowToken currentToken)
+    protected override async Task Resolve(GraphContext context, IFlowToken currentToken, CancellationToken ct)
     {
         if (Node == null) return;
         
@@ -42,7 +42,7 @@ public class ParallelContext : FlowContextBase
         var token = flowBuilder.GetRootToken(context, context.FindNode(branchConnection.TargetNodeId).MustBe<IFlowNodeModel>(), branchConnection);
         var rootBranchUnit = flowProducer.BuildFlow(token);
         
-        flow.Append(new FlowDelegate("Parallel Context", ct => GetContext(rootBranchUnit, ct)));
+        await GetContext(rootBranchUnit, ct);
     }
 
     private Task GetContext(IFlowUnit rootUnit, CancellationToken ct)

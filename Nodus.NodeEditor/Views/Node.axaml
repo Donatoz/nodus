@@ -11,51 +11,54 @@
              Design.Height="200" Design.Width="200"
              x:DataType="vm:NodeViewModel">
     
-    <StackPanel>
-        <Grid Name="Container" ClipToBounds="False" Focusable="True">
-            <Grid.ContextMenu>
-                <ContextMenu Name="NodeContextMenu">
-                    <MenuItem Header="Add In Port" Command="{Binding AddIntPort}">
-                        <MenuItem.Icon>
-                            <Image Source="{StaticResource PlusIcon}"/>
-                        </MenuItem.Icon>
-                    </MenuItem>
-                    <MenuItem Header="Add Out Port" Command="{Binding AddOutPort}"/>
-                    <MenuItem Header="Delete" ec:Hotkey.MenuItemHotkey="Delete" Command="{Binding DeleteSelf}"/>
-                    <MenuItem Header="Switch Debug" Command="{Binding SwitchDebug}"/>
-                </ContextMenu>
-            </Grid.ContextMenu>
-            
-            <Border ec:Draggable.ProvideDrag="True" Name="Body" Classes="panel node" Padding="10" ClipToBounds="False"
-                    Classes.active="{Binding $parent[v:Node].SelectionHandler.IsSelected}">
-                <Border.Effect>
-                    <DropShadowEffect BlurRadius="15" Color="Black" Opacity="0.4" OffsetX="0" />
-                </Border.Effect>
-                <ToolTip.Tip>
-                    <ec:Tooltip IsVisible="{Binding Tooltip.Value.Tip, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                Container="{Binding #Container}"
-                                Header="{Binding Tooltip.Value.Title, FallbackValue=Tooltip}" 
-                                Text="{Binding Tooltip.Value.Tip, FallbackValue=Tooltip Text}"/>
-                </ToolTip.Tip>
-                <Grid>
-                    <Border Name="NodeGroupBorder" IsVisible="False" Height="6" Classes="nodegroup-default" VerticalAlignment="Top"
-                            Margin="-11 -11 -11 0" CornerRadius="15 15 0 0" />
-                    <StackPanel Name="NodeHeader" Orientation="Vertical">
-                        <TextBlock ec:Draggable.ProvideDrag="True" TextAlignment="Center" Text="{Binding Title, FallbackValue=Node Title}" 
-                                   HorizontalAlignment="Center" Classes="h2" />
-                        <TextBlock MaxWidth="200" ec:Draggable.ProvideDrag="True" Text="{Binding Tooltip.Value.Tip}" HorizontalAlignment="Center"
-                                   Classes="h4" TextWrapping="Wrap" TextAlignment="Center" Foreground="{StaticResource Highlight}"/>
+    <Panel Name="Root" Classes="anim-scale visible">
+        <StackPanel>
+            <Grid Name="Container" ClipToBounds="False" Focusable="True">
+                <Grid.ContextMenu>
+                    <ContextMenu Name="NodeContextMenu">
+                        <MenuItem Header="Add In Port" Command="{Binding AddIntPort}">
+                            <MenuItem.Icon>
+                                <Image Source="{StaticResource PlusIcon}"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Add Out Port" Command="{Binding AddOutPort}"/>
+                        <MenuItem Header="Delete" ec:Hotkey.MenuItemHotkey="Delete" Command="{Binding DeleteSelf}"/>
+                        <MenuItem Header="Switch Debug" Command="{Binding SwitchDebug}"/>
+                    </ContextMenu>
+                </Grid.ContextMenu>
+                
+                <Border ec:Draggable.ProvideDrag="True" Name="Body" Classes="panel node" Padding="10" ClipToBounds="False"
+                        Classes.active="{Binding $parent[v:Node].SelectionHandler.IsSelected}">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="15" Color="Black" Opacity="0.4" OffsetX="0" />
+                    </Border.Effect>
+                    <ToolTip.Tip>
+                        <ec:Tooltip IsVisible="{Binding Tooltip.Value.Tip, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                    Container="{Binding #Container}"
+                                    Header="{Binding Tooltip.Value.Title, FallbackValue=Tooltip}" 
+                                    Text="{Binding Tooltip.Value.Tip, FallbackValue=Tooltip Text}"/>
+                    </ToolTip.Tip>
+                    <Grid>
+                        <Border Name="NodeGroupBorder" IsVisible="False" Height="6" Classes="nodegroup-default" VerticalAlignment="Top"
+                                Margin="-11 -11 -11 0" CornerRadius="15 15 0 0" />
+                        <StackPanel Name="NodeHeader" Orientation="Vertical">
+                            <TextBlock ec:Draggable.ProvideDrag="True" TextAlignment="Center" Text="{Binding Title, FallbackValue=Node Title}" 
+                                       HorizontalAlignment="Center" Classes="h2" />
+                            <TextBlock MaxWidth="200" ec:Draggable.ProvideDrag="True" Text="{Binding Tooltip.Value.Tip}" HorizontalAlignment="Center"
+                                       Classes="h4" TextWrapping="Wrap" TextAlignment="Center" Foreground="{StaticResource Highlight}"/>
 
-                        <ContentControl Name="Content" />
-                    </StackPanel>
-                </Grid>
-            </Border>
-            
-            <StackPanel Name="InputPortsContainer" HorizontalAlignment="Left" ClipToBounds="False" VerticalAlignment="Center"/>
-            <StackPanel Name="OutputPortsContainer" HorizontalAlignment="Right" ClipToBounds="False" VerticalAlignment="Center"/>
-        </Grid>
-        <StackPanel Name="BottomExtensionsContainer" VerticalAlignment="Bottom" ClipToBounds="False"/>
-        <TextBlock IsVisible="{Binding Debug.Value}" Text="{Binding NodeId}" Foreground="{StaticResource AscentActive}" 
-                   VerticalAlignment="Bottom" TextWrapping="Wrap" MaxWidth="230"/>
-    </StackPanel>
+                            <ContentControl Name="Content" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                
+                <StackPanel Name="InputPortsContainer" HorizontalAlignment="Left" ClipToBounds="False" VerticalAlignment="Center"/>
+                <StackPanel Name="OutputPortsContainer" HorizontalAlignment="Right" ClipToBounds="False" VerticalAlignment="Center"/>
+            </Grid>
+            <StackPanel Name="BottomExtensionsContainer" VerticalAlignment="Bottom" ClipToBounds="False"/>
+            <TextBlock IsVisible="{Binding Debug.Value}" Text="{Binding NodeId}" Foreground="{StaticResource AscentActive}" 
+                       VerticalAlignment="Bottom" TextWrapping="Wrap" MaxWidth="230"/>
+        </StackPanel>
+    </Panel>
+
 </v:GraphElement>

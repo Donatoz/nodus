@@ -49,8 +49,6 @@ public class ShaderDrawOperation : ICustomDrawOperation
     protected SKRuntimeEffectChildren Children { get; }
     
     private SKShader? targetShader;
-    
-    protected bool IsDirty { get; private set; }
 
     public ShaderDrawOperation(Visual container, string shaderSource)
     {
@@ -158,6 +156,7 @@ public class ShaderDrawOperation : ICustomDrawOperation
     {
         disposables.Dispose();
         targetShader?.Dispose();
+        effect.Dispose();
         Uniforms.Reset();
         Children.Reset();
     }

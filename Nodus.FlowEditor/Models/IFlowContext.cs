@@ -16,7 +16,7 @@ namespace FlowEditor.Models;
 public interface IFlowContext : INodeContext, IDisposable
 {
     IReactiveProperty<IFlowResolveContext?> CurrentResolveContext { get; }
-    DescriptionProvider? GetDescriptionProvider();
+    DescriptionProvider? TryGetDescriptionProvider();
     
     void Bind(IFlowNodeModel node);
     object? ResolvePortValue(IFlowPortModel port, GraphContext context);
@@ -89,27 +89,34 @@ public abstract class FlowContextBase : IFlowContext
 
     public IFlowToken GetFlowToken(GraphContext context, Connection? sourceConnection)
     {
-        return GetEffectiveFlowToken(new FlowTokenContainer((f, t) => BeginResolve(f, context, sourceConnection, t)), context);
+        return GetEffectiveFlowToken(new FlowTokenContainer((f, t) => AlterFlow(f, context, sourceConnection, t)), context);
     }
 
     public virtual IFlowPortModel? GetEffectiveSuccessionPort(GraphContext ctx) => null;
     protected virtual IFlowToken GetEffectiveFlowToken(IFlowToken original, GraphContext context) => original;
 
-    private void BeginResolve(IFlow flow, GraphContext context, Connection? sourceConnection, IFlowToken currentToken)
+    private void AlterFlow(IFlow flow, GraphContext context, Connection? sourceConnection, IFlowToken currentToken)
     {
-        flow.Append(new FlowDelegate("Delay Unit", async ct =>
+        flow.Append(new FlowDelegate("Flow Unit", ct => Task.Run(async () =>
         {
             ct.ThrowIfCancellationRequested();
             UpdateResolveContext(true, sourceConnection);
-            await Task.Delay(500, ct);
-        }));
-        
-        AlterFlow(flow, context, currentToken);
+            
+            await Resolve(context, currentToken, ct);
 
-        Node?.ContextExtensions.Items.Select(x => x.CreateFlowUnit(context))
-            .Where(x => x is not null).ForEach(flow.Append!);
-        
-        flow.Append(new AnonymousFlowDelegate(() => UpdateResolveContext(false, sourceConnection)));
+            var extensionUnits = Node?.ContextExtensions.Items.Select(x => x.CreateFlowUnit(context))
+                .Where(x => x is not null);
+
+            if (extensionUnits != null)
+            {
+                foreach (var unit in extensionUnits)
+                {
+                    await unit!.Execute(ct);
+                }
+            }
+            
+            await Task.Delay(500, ct);
+        }, ct).ContinueWith(_ => UpdateResolveContext(false, sourceConnection))));
     }
 
     private void UpdateResolveContext(bool isResolved, Connection? sourceConnection)
@@ -117,13 +124,14 @@ public abstract class FlowContextBase : IFlowContext
         currentResolveContext.SetValue(new ResolveContext(isResolved, sourceConnection));
     }
 
-    protected virtual void AlterFlow(IFlow flow, GraphContext context, IFlowToken currentToken) { }
+    protected virtual Task Resolve(GraphContext context, IFlowToken currentToken, CancellationToken ct) =>
+        Task.CompletedTask;
     
     public virtual void Deserialize(NodeContextData data) { }
 
     public virtual NodeContextData? Serialize() => null;
 
-    public DescriptionProvider? GetDescriptionProvider()
+    public DescriptionProvider? TryGetDescriptionProvider()
     {
         var descs = GetDescriptors();
 

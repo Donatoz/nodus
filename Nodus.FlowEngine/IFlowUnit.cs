@@ -44,3 +44,31 @@ public readonly struct AnonymousFlowDelegate : IFlowUnit
         return Task.CompletedTask;
     }
 }
+
+public readonly struct FlowGroup : IFlowUnit
+{
+    public string UnitId { get; }
+
+    private readonly IFlowUnit[] units;
+
+    public FlowGroup(string id, params IFlowUnit[] units)
+    {
+        UnitId = id;
+        this.units = units;
+    }
+    
+    public Task Execute(CancellationToken ct = default)
+    {
+        var u = units;
+        
+        return Task.Run(async () =>
+        {
+            ct.ThrowIfCancellationRequested();
+
+            foreach (var flowUnit in u)
+            {
+                await flowUnit.Execute(ct);
+            }
+        }, ct);
+    }
+}

@@ -17,13 +17,13 @@ public sealed class GenericFlowContext : FlowContextBase
         this.resolveContext = resolveContext;
     }
 
-    protected override void AlterFlow(IFlow flow, GraphContext context, IFlowToken currentToken)
+    protected override Task Resolve(GraphContext context, IFlowToken currentToken, CancellationToken ct)
     {
         if (Node == null)
         {
             throw new Exception("Failed to resolve node context: node is not bound.");
         }
-        
-        flow.Append(new FlowDelegate("Generic", ct => resolveContext.Invoke(Node, context, ct)));
+
+        return resolveContext.Invoke(Node, context, ct);
     }
 }

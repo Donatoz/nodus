@@ -4,7 +4,10 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reactive;
 using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -43,6 +46,8 @@ public partial class Node : GraphElement
     private GradientStop borderAscentStop;
     private LinearGradientBrush backgroundAscent;
     private GradientStop backgroundAscentStop;
+
+    protected virtual TimeSpan DestroyAnimationDuration => TimeSpan.FromMilliseconds(100);
     
     public Node()
     {
@@ -197,6 +202,15 @@ public partial class Node : GraphElement
     public bool HasPort(string portId)
     {
         return ports.Any(p => p.PortId == portId);
+    }
+
+    public override void DestroySelf(Action onDestructionComplete)
+    {
+        Root.SwitchStyleVisibility(false);
+        Observable.FromAsync(() => Task.Delay(DestroyAnimationDuration))
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Concat(Observable.Return(Unit.Default).Do(_ => onDestructionComplete.Invoke()))
+            .Subscribe();
     }
 
     protected override void OnUnloaded(RoutedEventArgs e)

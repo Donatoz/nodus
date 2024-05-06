@@ -40,7 +40,7 @@ public class BranchContext : CachedExposeContext
         falseOutPort = outPorts.Last();
     }
 
-    protected override void AlterFlow(IFlow flow, GraphContext context, IFlowToken currentToken)
+    protected override Task Resolve(GraphContext context, IFlowToken currentToken, CancellationToken ct)
     {
         var direction = Node?.GetPortValue(inPort.NotNull().Id, context) is bool b
             ? b
@@ -49,6 +49,8 @@ public class BranchContext : CachedExposeContext
         currentToken.Successor = direction
             ? currentToken.DescendantTokens?.FirstOrDefault()
             : currentToken.DescendantTokens?.LastOrDefault();
+
+        return Task.CompletedTask;
     }
 
     public override IFlowPortModel? GetEffectiveSuccessionPort(GraphContext ctx)

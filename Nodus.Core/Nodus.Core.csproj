@@ -53,5 +53,9 @@
         <DependentUpon>PropertyEditor.axaml</DependentUpon>
         <SubType>Code</SubType>
       </Compile>
+      <Compile Update="Controls\Popups\Log.axaml.cs">
+        <DependentUpon>Log.axaml</DependentUpon>
+        <SubType>Code</SubType>
+      </Compile>
     </ItemGroup>
 </Project>

@@ -24,6 +24,13 @@ class Program
         return AppBuilder.Configure<App.App>()
             .UsePlatformDetect()
             .WithInterFont()
+            .With(new Win32PlatformOptions()
+            {
+                RenderingMode = new []
+                {
+                    Win32RenderingMode.Wgl
+                }
+            })
             .LogToTrace()
             .UseReactiveUI();
     }

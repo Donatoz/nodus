@@ -56,7 +56,7 @@ public class NodeCanvasModel : Entity, INodeCanvasModel
     /// Returns a NEW graph context instance, meaning that with EACH getter call
     /// it will allocate new memory for the context cache.
     /// </summary>
-    public GraphContext Context => new(Elements.OfType<NodeModel>(), Connections);
+    public GraphContext Context => new(Elements.OfType<INodeModel>(), Connections);
 
     public ICanvasOperatorModel Operator { get; }
     
@@ -93,7 +93,7 @@ public class NodeCanvasModel : Entity, INodeCanvasModel
 
     protected virtual NodeCanvasOperatorModel CreateOperator(INodeContextProvider contextProvider, IFactory<IGraphElementTemplate, IGraphElementModel> elementFactory)
     {
-        return new NodeCanvasOperatorModel(this, MutationProvider, elementFactory, contextProvider);
+        return new NodeCanvasOperatorModel(this, MutationProvider, elementFactory, contextProvider, templateFactory);
     }
     
     public virtual void LoadGraph(NodeGraph graph)
@@ -151,6 +151,11 @@ public class NodeCanvasModel : Entity, INodeCanvasModel
         
         public void AddElement(IGraphElementModel element)
         {
+            if (elements.Items.Any(x => x.ElementId == element.ElementId))
+            {
+                throw new Exception($"Element collision detected on: {element.ElementId}");
+            }
+            
             elements.AddOrUpdate(element);
         }
 

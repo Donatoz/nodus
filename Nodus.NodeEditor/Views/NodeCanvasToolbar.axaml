@@ -62,7 +62,7 @@
             </Border.Effect>
             
             <DockPanel>
-                <Menu>
+                <Menu DockPanel.Dock="Left">
                     <MenuItem Header="Graph">
                         <MenuItem Header="New Graph" Command="{Binding NewGraphCommand}"/>
                         <MenuItem Header="Load Graph" Command="{Binding LoadGraphCommand}"/>
@@ -70,7 +70,7 @@
                     </MenuItem>
                 </Menu>
                 
-                <StackPanel Name="RightPanel" Orientation="Horizontal" HorizontalAlignment="Right"/>
+                <StackPanel Name="RightPanel" Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Right"/>
             </DockPanel>
         </Border>
     </Grid>

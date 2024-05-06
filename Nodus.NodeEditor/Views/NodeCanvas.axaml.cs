@@ -3,9 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
-using System.Reactive;
 using System.Reactive.Disposables;
-using System.Reactive.Linq;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
@@ -15,7 +13,6 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
 using Avalonia.ReactiveUI;
-using DynamicData;
 using DynamicData.Binding;
 using Nodus.Core.Controls;
 using Nodus.Core.Extensions;
@@ -50,6 +47,7 @@ public partial class NodeCanvas : ReactiveUserControl<NodeCanvasViewModel>
     private RectangleGeometry selectionRectGeometry;
     private CompositeDisposable? disposables;
     private RelativeRect initialBackgroundRect;
+    private Point previousCreatedElementPosition;
 
     protected readonly ISet<ConnectionContainer> currentConnections;
     protected readonly ISet<ElementContainer> elements;
@@ -167,7 +165,7 @@ public partial class NodeCanvas : ReactiveUserControl<NodeCanvasViewModel>
     {
         var container = elements.First(x => x.ViewModel == element);
         
-        CanvasRoot.Children.Remove(container.Parent);
+        container.Element.DestroySelf(() => CanvasRoot.Children.Remove(container.Parent));
         elements.Remove(container);
     }
 
@@ -180,9 +178,16 @@ public partial class NodeCanvas : ReactiveUserControl<NodeCanvasViewModel>
         var pos = dataPos ?? (lastPointerPosition.Equals(default) 
             ? new Point(400, 0) * (CanvasRoot.Children.OfType<Draggable>().Count() + 1) + new Point(0, 200)
             : lastPointerPosition);
+
+        if (pos == previousCanvasPointerPosition)
+        {
+            pos += new Point(100, 0);
+        }
         
         draggable.SetValue(Canvas.LeftProperty, pos.X);
         draggable.SetValue(Canvas.TopProperty, pos.Y);
+
+        previousCanvasPointerPosition = pos;
 
         return draggable;
     }
@@ -198,11 +203,12 @@ public partial class NodeCanvas : ReactiveUserControl<NodeCanvasViewModel>
         return node;
     }
 
-    private void OnElementPressed(object? sender, ElementEventArgs e)
+    private void OnElementPressed(object? sender, ElementPressedEventArgs e)
     {
         if (DataContext is NodeCanvasViewModel vm)
         {
-            vm.RequestElementSelectionCommand.Execute(e.Element.DataContext);
+            vm.RequestElementSelectionCommand.Execute(new ElementSelectionRequest(e.Element.DataContext as ElementViewModel,
+                e.Modifiers == KeyModifiers.Shift));
         }
     }
     

@@ -28,9 +28,9 @@ public class WaitContext : FlowContextBase
         };
     }
 
-    protected override void AlterFlow(IFlow flow, GraphContext context, IFlowToken currentToken)
+    protected override Task Resolve(GraphContext context, IFlowToken currentToken, CancellationToken ct)
     {
-        flow.Append(new FlowDelegate("Wait Context", ct => Task.Delay(TimeSpan.FromMilliseconds(waitTime), ct)));
+        return Task.Delay(TimeSpan.FromMilliseconds(waitTime), ct);
     }
 
     protected override IEnumerable<ValueDescriptor> GetDescriptors()

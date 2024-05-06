@@ -35,10 +35,11 @@ public interface IFlowCanvasExecutable : IDisposable
 
 public class FlowCanvasModel : NodeCanvasModel, IFlowCanvasModel
 {
+    public IReactiveProperty<IFlowCanvasExecutable?> CurrentlyResolvedFlow => currentFlow;
+    
     private readonly MutableReactiveProperty<IFlowCanvasExecutable?> currentFlow;
     
     protected IGraphFlowBuilder FlowBuilder { get; }
-    public IReactiveProperty<IFlowCanvasExecutable?> CurrentlyResolvedFlow => currentFlow;
 
     public FlowCanvasModel(INodeContextProvider contextProvider, IGraphFlowBuilder flowBuilder,
         IFactory<IGraphElementTemplate, IGraphElementModel> elementFactory,
@@ -59,6 +60,12 @@ public class FlowCanvasModel : NodeCanvasModel, IFlowCanvasModel
         executable.Execute();
         
         currentFlow.SetValue(executable);
+    }
+
+    public override void LoadGraph(NodeGraph graph)
+    {
+        base.LoadGraph(graph);
+        TryDestroyFlow();
     }
 
     public void TryRestartFlow()

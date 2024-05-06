@@ -25,18 +25,15 @@ public sealed class DebugContext : FlowContextBase
         inPort = node.GetFlowPorts().FirstOrDefault(x => x.Type == PortType.Input && x.ValueType.Value != typeof(FlowType));
     }
 
-    protected override void AlterFlow(IFlow flow, GraphContext context, IFlowToken currentToken)
+    protected override Task Resolve(GraphContext context, IFlowToken currentToken, CancellationToken ct)
     {
-        if (Node == null || inPort == null) return;
+        if (Node == null || inPort == null) return Task.CompletedTask;
         
-        flow.Append(new FlowDelegate("Debug Context", ct =>
-        {
-            ct.ThrowIfCancellationRequested();
+        ct.ThrowIfCancellationRequested();
 
-            var msg = Node.GetPortValue(inPort.Id, context);
-            logger.Debug(msg?.ToString() ?? "Null");
+        var msg = Node.GetPortValue(inPort.Id, context);
+        logger.Debug(msg?.ToString() ?? "Null");
             
-            return Task.CompletedTask;
-        }));
+        return Task.CompletedTask;
     }
 }

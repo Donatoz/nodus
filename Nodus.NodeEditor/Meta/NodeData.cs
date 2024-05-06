@@ -6,7 +6,7 @@ namespace Nodus.NodeEditor.Meta;
 
 public class NodeData : IGraphElementData
 {
-    public string? ElementId { get; init; }
+    public string? ElementId { get; set; }
     public string? Group { get; init; }
     public string Title { get; init; }
     public NodeTooltip Tooltip { get; init; }

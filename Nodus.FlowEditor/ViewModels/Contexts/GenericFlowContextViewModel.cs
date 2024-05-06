@@ -28,7 +28,7 @@ public sealed class GenericFlowContextViewModel : IFlowContextViewModel
 
     public void ChangeModel(IFlowContext context)
     {
-        this.context.SetValue(context.GetDescriptionProvider());
+        this.context.SetValue(context.TryGetDescriptionProvider());
     }
 
     public void Dispose()

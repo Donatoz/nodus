@@ -55,6 +55,7 @@
 
     <ItemGroup>
         <PackageReference Include="Avalonia" Version="11.0.6"/>
+        <PackageReference Include="Avalonia.Angle.Windows.Natives" Version="2.1.22087.20231008" />
         <PackageReference Include="Avalonia.Desktop" Version="11.0.6"/>
         <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.6"/>
         <PackageReference Include="Avalonia.Fonts.Inter" Version="11.0.6"/>
@@ -69,6 +70,7 @@
         <PackageReference Include="Serilog" Version="3.1.1" />
         <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
         <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+        <PackageReference Include="Silk.NET.OpenGL" Version="2.21.0" />
     </ItemGroup>
 
 
@@ -91,9 +93,12 @@
 
 
     <ItemGroup>
+      <ProjectReference Include="..\Common\Nodus.RenderEngine.Avalonia\Nodus.RenderEngine.Avalonia.csproj" />
       <ProjectReference Include="..\Nodus.FlowEditor\Nodus.FlowEditor.csproj" />
       <ProjectReference Include="..\Nodus.Core\Nodus.Core.csproj" />
       <ProjectReference Include="..\Nodus.FlowLibraries.Common\Nodus.FlowLibraries.Common.csproj" />
       <ProjectReference Include="..\Nodus.NodeEditor\Nodus.NodeEditor.csproj" />
+      <ProjectReference Include="..\Nodus.RenderEditor\Nodus.RenderEditor.csproj" />
+      <ProjectReference Include="..\Nodus.RenderLibraries.Common\Nodus.RenderLibraries.Common.csproj" />
     </ItemGroup>
 </Project>

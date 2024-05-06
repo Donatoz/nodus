@@ -11,8 +11,9 @@ namespace Nodus.NodeEditor.Models;
 
 public interface ICanvasOperatorModel
 {
-    void CreateElement(IGraphElementTemplate template);
+    IGraphElementModel CreateElement(IGraphElementTemplate template);
     void RemoveElement(string elementId);
+    IGraphElementModel? TryDuplicateElement(string elementId);
     void Connect(string sourceNode, string sourcePort, string destinationNode, string destinationPort);
     void Disconnect(Connection connection);
 }
@@ -23,19 +24,27 @@ public class NodeCanvasOperatorModel : ICanvasOperatorModel
     protected INodeCanvasMutationProvider MutationProvider { get; }
     protected INodeContextProvider NodeContextProvider { get; }
     protected IFactory<IGraphElementTemplate, IGraphElementModel> ElementFactory { get; }
+    protected IFactory<IGraphElementData, IGraphElementTemplate> TemplateFactory { get; }
     
-    public NodeCanvasOperatorModel(INodeCanvasModel canvas, INodeCanvasMutationProvider mutationProvider,
-        IFactory<IGraphElementTemplate, IGraphElementModel> elementFactory, INodeContextProvider nodeContextProvider)
+    public NodeCanvasOperatorModel(INodeCanvasModel canvas, 
+        INodeCanvasMutationProvider mutationProvider,
+        IFactory<IGraphElementTemplate, IGraphElementModel> elementFactory, 
+        INodeContextProvider nodeContextProvider,
+        IFactory<IGraphElementData, IGraphElementTemplate> templateFactory)
     {
         Canvas = canvas;
         MutationProvider = mutationProvider;
         ElementFactory = elementFactory;
         NodeContextProvider = nodeContextProvider;
+        TemplateFactory = templateFactory;
     }
 
-    public void CreateElement(IGraphElementTemplate template)
+    public IGraphElementModel CreateElement(IGraphElementTemplate template)
     {
-        MutationProvider.AddElement(ElementFactory.Create(template));
+        var element = ElementFactory.Create(template);
+        MutationProvider.AddElement(element);
+
+        return element;
     }
 
     public void RemoveElement(string elementId)
@@ -55,6 +64,19 @@ public class NodeCanvasOperatorModel : ICanvasOperatorModel
         }
 
         MutationProvider.RemoveElement(element);
+    }
+
+    public IGraphElementModel? TryDuplicateElement(string elementId)
+    {
+        var element = Canvas.Elements.FirstOrDefault(x => x.ElementId == elementId)
+            .NotNull($"Failed to duplicate element with id: {elementId} - not found.");
+
+        if (element is not IPersistentElementModel p) return null;
+
+        var data = p.Serialize();
+        data.ElementId = Guid.NewGuid().ToString();
+        
+        return CreateElement(TemplateFactory.Create(data));
     }
 
     public void Connect(string sourceNode, string sourcePort, string destinationNode, string destinationPort)

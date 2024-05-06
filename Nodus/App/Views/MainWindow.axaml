@@ -3,11 +3,9 @@
         xmlns:vm="using:Nodus.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:v="using:Nodus.App.Views"
-        xmlns:fx="clr-namespace:Nodus.Core.Effects;assembly=Nodus.Core"
-        xmlns:views="using:Nodus.NodeEditor.Views"
-        xmlns:evm="clr-namespace:Nodus.NodeEditor.ViewModels;assembly=Nodus.NodeEditor"
         xmlns:c="clr-namespace:Nodus.Core.Controls;assembly=Nodus.Core"
+        xmlns:rea="using:Nodus.RenderEngine.Avalonia"
+        xmlns:gl="using:Nodus.RenderEngine.OpenGL"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="Nodus.App.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
@@ -21,28 +19,13 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
     
-    <Grid>
+    <Grid Name="Root">
         <Panel Name="Container" Background="{StaticResource BackgroundDefault}">
-            <!--
-            <Panel.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="My item">
-                        <MenuItem.Icon>
-                            <fx:ShaderPresenter Width="100" Height="100" Canvas.Left="155" Canvas.Top="155"
-                                                ShaderSource="avares://Nodus.Core/Assets/Shaders/Tint.glsl" 
-                                                UniformsOverride="tintColor=[1,1,1]">
-                                <fx:ShaderPresenter.Surface>
-                                    <Image Width="100" Height="100" Source="{StaticResource TestBitmap}"/>
-                                </fx:ShaderPresenter.Surface>
-                            </fx:ShaderPresenter>
-                        </MenuItem.Icon>
-                    </MenuItem>
-                </ContextMenu>
-            </Panel.ContextMenu>-->
-            
             <c:LoadingOverlay IsVisible="False"/>
+            <rea:RenderSurface Name="Surface" Width="400" Height="400"
+                               RendererFactory="{x:Static gl:PrimitiveRenderers.QuadRenderer}"
+                               VertexShaderSource="avares://Nodus.RenderEngine.Avalonia/Assets/Shaders/example.vert"
+                               FragmentShaderSource="avares://Nodus.RenderEngine.Avalonia/Assets/Shaders/example.frag"/>
         </Panel>
     </Grid>
-
-    
 </Window>

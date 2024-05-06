@@ -10,6 +10,7 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Nodus.NodeEditor.Views.NodeCanvas"
              x:DataType="vm:NodeCanvasViewModel">
+    
     <Grid Name="Root" Background="{StaticResource BackgroundDefault}">
         <TextBlock Text="{Binding GraphName.Value}" FontSize="72" FontWeight="SemiBold" Opacity="0.1" HorizontalAlignment="Left"
                    VerticalAlignment="Bottom" Margin="20" />
@@ -54,9 +55,15 @@
             </Canvas>
         </Grid>
         
-        <ContentControl Content="{Binding NodeContextContainer}" HorizontalAlignment="Right" 
-                        VerticalAlignment="Top" Margin="0 75 15 0"/>
+        <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0 75 15 0">
+            <ContentControl Content="{Binding NodeContextContainer}" Margin="0 0 0 10"/>
+            <StackPanel Name="RightExtensionPanel">
+                
+            </StackPanel>
+        </StackPanel>
+        
         <ContentControl Content="{Binding Toolbar}" VerticalAlignment="Top"
                         HorizontalAlignment="Stretch" MaxHeight="75"/>
     </Grid>
+    
 </UserControl>

@@ -56,6 +56,7 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     public ICommand AddNodeCommand { get; }
     public ICommand AddCommentCommand { get; }
     public ICommand RemoveSelectedCommand { get; }
+    public ICommand DuplicateSelectedCommand { get; }
 
     private readonly NodeSearchModalViewModel? nodeSearchModal;
     private readonly CompositeDisposable disposables;
@@ -120,16 +121,15 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         NodeContextContainer =
             componentFactory.CreateNodeContextContainer(() => model.Elements.OfType<INodeModel>(), nodeSelectionStream);
 
-        RequestElementSelectionCommand = ReactiveCommand.Create<ElementViewModel?>(OnElementSelectionRequested);
+        RequestElementSelectionCommand = ReactiveCommand.Create<ElementSelectionRequest>(OnElementSelectionRequested);
         AddNodeCommand = ReactiveCommand.Create(CreateNewNode);
-        RemoveSelectedCommand = ReactiveCommand.Create(RemoveCurrent);
+        RemoveSelectedCommand = ReactiveCommand.Create(RemoveSelected);
         AddCommentCommand = ReactiveCommand.Create(CreateComment);
+        DuplicateSelectedCommand = ReactiveCommand.Create(DuplicateSelected);
 
         GraphName = model.GraphName.ToBound();
 
-        serviceProvider.GetRequiredService<IHotkeyBinder>()
-            .BindHotkey(KeyGesture.Parse("Delete"), RemoveSelectedCommand)
-            .DisposeWith(disposables);
+        BindHotkeys(serviceProvider.GetRequiredService<IHotkeyBinder>());
         
         if (model.TryGetGeneric<IContainer<INodeSearchModalModel>>(out var c))
         {
@@ -140,21 +140,42 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         this.AddComponent(new DisposableContainer<PopupContainerViewModel>(componentFactory.CreatePopupContainer()));
     }
 
-    private void OnElementSelectionRequested(ElementViewModel? element)
+    private void BindHotkeys(IHotkeyBinder binder)
     {
-        if (element == null)
+        binder.BindHotkey(KeyGesture.Parse("Delete"), RemoveSelectedCommand)
+            .DisposeWith(disposables);
+        binder.BindHotkey(KeyGesture.Parse("Ctrl+D"), DuplicateSelectedCommand)
+            .DisposeWith(disposables);
+    }
+
+    private void OnElementSelectionRequested(ElementSelectionRequest request)
+    {
+        if (request.Element == null)
         {
             ElementSelector.DeselectAll();
         }
         else
         {
-            ElementSelector.Select(element);
+            if (!request.Additive)
+            {
+                ElementSelector.DeselectAll();
+            }
+            
+            ElementSelector.Select(request.Element);
         }
     }
 
-    private void RemoveCurrent()
+    private void RemoveSelected()
     {
         ElementSelector.CurrentlySelected.ForEach(RemoveElement);
+    }
+    
+    private void DuplicateSelected()
+    {
+        foreach (var data in ElementSelector.CurrentlySelected)
+        {
+            Model.Operator.TryDuplicateElement(data.ElementId);
+        }
     }
 
     private void OnElementsChange(IChangeSet<ElementViewModel> changes)
@@ -186,17 +207,13 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
             .OfType<ElementDeleteRequest>()
             .Subscribe(x => RemoveElement(x.Element))
             .DisposeWith(disposables);
-
+        
         return element;
     }
     
     private void OnElementDataMutation(MutationEvent<IGraphElementData> evt)
     {
         evt.MutatedValue.VisualData ??= new VisualGraphElementData();
-
-        Trace.WriteLine($"---------- Mutated: {evt.MutatedValue}");
-        Trace.WriteLine($"---------- Id: {evt.MutatedValue.ElementId}");
-        elements.ForEach(x => Trace.WriteLine($"---------------- {x.ElementId}"));
         
         var elementVm = elements.FirstOrDefault(x => x.ElementId == evt.MutatedValue.ElementId)
             .NotNull($"Failed to find mutated element view model: {evt.MutatedValue.ElementId}");
@@ -247,3 +264,5 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         disposables.Dispose();
     }
 }
+
+public readonly record struct ElementSelectionRequest(ElementViewModel? Element, bool Additive);

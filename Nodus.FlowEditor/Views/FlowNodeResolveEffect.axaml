@@ -10,11 +10,13 @@
             <Setter Property="Transitions">
                 <Transitions>
                     <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseInOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" Easing="CubicEaseInOut"/>
                 </Transitions>
             </Setter>
             
             <Style Selector="^.invisible">
                 <Setter Property="Opacity" Value="0"/>
+                <Setter Property="RenderTransform" Value="scale(0.7)"/>
             </Style>
         </Style>
         <Style Selector="Border.flow-node-resolve-effect">
@@ -26,11 +28,13 @@
             
             <Style Selector="^.visible">
                 <Setter Property="Opacity" Value="0.3"/>
+                <Setter Property="RenderTransform" Value="scale(1)"/>
             </Style>
         </Style>
         <Style Selector="Border.flow-node-resolve-effect-border">
             <Style Selector="^.visible">
                 <Setter Property="Opacity" Value="1"/>
+                <Setter Property="RenderTransform" Value="scale(1)"/>
             </Style>
         </Style>
     </UserControl.Styles>

@@ -4,6 +4,7 @@ using Nodus.Core.Common;
 using Nodus.Core.Entities;
 using Nodus.Core.Selection;
 using Nodus.Core.ViewModels;
+using Nodus.DI.Factories;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
 using ReactiveUI;
@@ -16,7 +17,7 @@ public class ElementViewModel : ReactiveViewModel, ISelectable
     public VisualGraphElementData? VisualData { get; protected set; }
 
     public ICommand DeleteSelf { get; }
-
+    
     public ElementViewModel(IGraphElementModel model)
     {
         ElementId = model.ElementId;

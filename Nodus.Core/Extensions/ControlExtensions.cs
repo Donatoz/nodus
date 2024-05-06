@@ -54,6 +54,11 @@ public static class ControlExtensions
         element.Classes.Remove(isActive ? inactiveClass : activeClass);
         element.Classes.Add(isActive ? activeClass : inactiveClass);
     }
+
+    public static void SwitchStyleVisibility(this StyledElement element, bool isVisible)
+    {
+        element.SwitchBetweenClasses("visible", "invisible", isVisible);
+    }
     
     public static TControl CreateExtensionControl<TControl, TCtx>(this StyledElement container)
         where TCtx : class

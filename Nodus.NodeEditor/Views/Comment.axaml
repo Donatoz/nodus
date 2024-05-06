@@ -15,24 +15,36 @@
         </Style>
     </v:GraphElement.Styles>
     
-    <Grid Name="Container">
-        <Border ec:Draggable.ProvideDrag="True" Name="Body" Classes="panel" Padding="10 2" CornerRadius="4" BorderThickness="1"
-                Classes.active="{Binding $parent[v:Comment].SelectionHandler.IsSelected}">
-            <Border.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="Delete" ec:Hotkey.MenuItemHotkey="Delete" Command="{Binding DeleteSelf}"/>
-                </ContextMenu>
-            </Border.ContextMenu>
-            <Border.Effect>
-                <DropShadowEffect OffsetX="0" OffsetY="5" BlurRadius="25" Opacity="0.2"/>
-            </Border.Effect>
-            <DockPanel>
-                <TextBlock ec:Draggable.ProvideDrag="True" Classes="h1" Text="//" LetterSpacing="3" Foreground="{StaticResource Ascent}" Margin="0 0 5 0"/>
-                <TextBlock ec:Draggable.ProvideDrag="True" Classes="h2" VerticalAlignment="Center" Text="{Binding Content.Value}" 
-                           FontWeight="Normal" Foreground="{StaticResource AscentActiveHighlight}"
-                           DockPanel.Dock="Right"/>
-            </DockPanel>
-        </Border>
-    </Grid>
-    
+    <Panel Name="Root" Classes="anim-scale visible">
+        <Grid Name="Container" MaxWidth="600">
+            <Border ec:Draggable.ProvideDrag="True" Name="Body" Classes="panel" Padding="10 2" CornerRadius="4" BorderThickness="1"
+                    Classes.active="{Binding $parent[v:Comment].SelectionHandler.IsSelected}">
+                <Border.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Delete" ec:Hotkey.MenuItemHotkey="Delete" Command="{Binding DeleteSelf}"/>
+                        <MenuItem Header="Edit" Command="{Binding SwitchEditMode}"/>
+                        <MenuItem HotKey="Enter" Command="{Binding SwitchEditMode}" IsVisible="False"/>
+                    </ContextMenu>
+                </Border.ContextMenu>
+                <Border.Effect>
+                    <DropShadowEffect OffsetX="0" OffsetY="5" BlurRadius="25" Opacity="0.2"/>
+                </Border.Effect>
+                <DockPanel>
+                    <TextBlock ec:Draggable.ProvideDrag="True" Classes="h1" VerticalAlignment="Center" Text="//" LetterSpacing="3" Foreground="{StaticResource Ascent}" Margin="5 0"/>
+                    <TextBlock ec:Draggable.ProvideDrag="True" Classes="h3" FontSize="28" VerticalAlignment="Center" Text="{Binding Content.Value}" 
+                               FontWeight="Normal" Foreground="{StaticResource AscentActiveHighlight}"
+                               TextWrapping="Wrap" IsVisible="{Binding !IsInEditMode.Value}"
+                               DockPanel.Dock="Right"/>
+                    <TextBox ec:Draggable.ProvideDrag="True" FontSize="28" VerticalAlignment="Center" Text="{Binding Content.Value}"
+                             Name="ContentTextbox"
+                             Margin="0" FontWeight="Normal" Foreground="{StaticResource AscentActiveHighlight}"
+                             Background="Transparent" Padding="0" TextWrapping="Wrap"
+                             IsVisible="{Binding IsInEditMode.Value}"
+                             DockPanel.Dock="Right">
+                    </TextBox>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Panel>
+
 </v:GraphElement>

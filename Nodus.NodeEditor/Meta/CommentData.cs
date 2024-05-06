@@ -2,7 +2,7 @@
 
 public class CommentData : IGraphElementData
 {
-    public string? ElementId { get; init; }
+    public string? ElementId { get; set; }
     public string Content { get; }
     public VisualGraphElementData? VisualData { get; set; }
 
