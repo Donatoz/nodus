@@ -1,9 +1,12 @@
 ﻿namespace Nodus.RenderEngine.Common;
 
-public interface IRenderer<in TCtx>
+public interface IRenderContext
 {
-    void Initialize(TCtx context);
+}
+
+public interface IRenderer : IRenderDispatcher
+{
+    void Initialize(IRenderContext context);
     void RenderFrame();
-    void Enqueue(Action item);
     void UpdateShaders(IEnumerable<IShaderDefinition> shaders);
 }

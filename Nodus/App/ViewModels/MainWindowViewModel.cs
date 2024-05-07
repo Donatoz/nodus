@@ -20,7 +20,7 @@ public class MainWindowViewModel : ReactiveObject
     {
         moduleLoader.Repopulate();
         
-        LoadRenderGraph(elementProvider, moduleLoader);
+        LoadFlowGraph(elementProvider, moduleLoader);
     }
 
     private void LoadRenderGraph(IRuntimeElementProvider elementProvider, IRuntimeModuleLoader moduleLoader)

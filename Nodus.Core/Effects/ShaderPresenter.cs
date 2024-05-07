@@ -130,7 +130,7 @@ public class ShaderPresenter : Control
 
         if (ShaderSource != null)
         {
-            drawOperation = CreateOperation(AssetUtility.TryReadAsset(ShaderSource));
+            drawOperation = CreateOperation(AssetUtility.ReadAsset(ShaderSource));
         }
     }
 
@@ -155,7 +155,7 @@ public class ShaderPresenter : Control
     {
         if (UniformsScheme != null)
         {
-            TryUpdateUniforms(AssetUtility.TryReadAsset(UniformsScheme));
+            TryUpdateUniforms(AssetUtility.ReadAsset(UniformsScheme));
         }
     }
 

@@ -1,15 +1,17 @@
-﻿#version 330 core
+﻿#version 300 es
 
-layout (location = 0) in vec3 vPos;
-layout (location = 1) in vec4 vColor;
+precision mediump float;
 
-out vec4 vertexColor;
+in vec3 vPos;
+in vec2 vTexCoord;
+
+out vec2 texCoord;
 out vec4 vertexPosition;
 
 void main()
 {
     vertexPosition = vec4(vPos, 1.0);
-    vertexColor = vColor;
-
+    texCoord = vTexCoord;
+    
     gl_Position = vertexPosition;
 }

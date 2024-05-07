@@ -1,7 +1,9 @@
 ﻿using Avalonia;
 using Avalonia.ReactiveUI;
 using System;
+using System.Collections.Generic;
 using Avalonia.Logging;
+using Avalonia.OpenGL;
 using Projektanker.Icons.Avalonia;
 using Projektanker.Icons.Avalonia.FontAwesome;
 
@@ -24,13 +26,6 @@ class Program
         return AppBuilder.Configure<App.App>()
             .UsePlatformDetect()
             .WithInterFont()
-            .With(new Win32PlatformOptions()
-            {
-                RenderingMode = new []
-                {
-                    Win32RenderingMode.Wgl
-                }
-            })
             .LogToTrace()
             .UseReactiveUI();
     }

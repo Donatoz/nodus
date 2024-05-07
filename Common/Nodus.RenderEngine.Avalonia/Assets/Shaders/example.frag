@@ -1,20 +1,25 @@
-﻿#version 330 core
+﻿#version 300 es
 
-in vec4 vertexColor;
+precision mediump float;
+
+in vec2 texCoord;
 in vec4 vertexPosition;
+
+uniform float time;
+
+uniform sampler2D mainTexture;
+uniform sampler2D distortion;
 
 out vec4 FragColor;
 
-float remap(float val, float from1, float to1, float from2, float to2) {
-    return (val - from1) / (to1 - from1) * (to2 - from2) + from2;
-}
-
 void main()
 {
-    vec4 color = vertexPosition;
+    vec2 uv = texCoord;
     
-    color.x = remap(color.x, -1., 1., 0., 1.);
-    color.y = remap(color.y, -1., 1., 0., 1.);
+    vec2 speed = vec2(time, time) * .005;
+    vec4 distortionColor = texture(distortion, uv + speed);
     
-    FragColor = color;
+    float factor = sin(time / 6.) * 0.1;
+    
+    FragColor = texture(mainTexture, mix(uv, distortionColor.xy, factor));
 }

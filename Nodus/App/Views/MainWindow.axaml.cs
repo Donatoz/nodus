@@ -1,22 +1,14 @@
 using System;
-using System.Diagnostics;
-using System.Numerics;
-using System.Threading.Tasks;
-using System.Windows.Input;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Threading;
-using DynamicData;
 using FlowEditor.Views;
 using Nodus.Core.Interaction;
 using Nodus.DI.Runtime;
-using Nodus.NodeEditor.Views;
 using Nodus.RenderEngine.Avalonia;
-using Nodus.RenderEngine.Common;
 using Nodus.RenderEngine.OpenGL;
 using Nodus.ViewModels;
-using PropertyModels.ComponentModel;
 
 namespace Nodus.App.Views;
 
@@ -29,9 +21,6 @@ public partial class MainWindow : Window
         ElementProvider = elementProvider;
         
         InitializeComponent();
-        
-        var binder = new WindowHotkeyBinder(this);
-        binder.BindHotkey(KeyGesture.Parse("Space"), () => Surface?.UpdateShaders());
         
         this.AttachDevTools();
     }
@@ -48,8 +37,29 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnSurfacePressed(object? sender, PointerPressedEventArgs e)
+    private void OnContainerAttached(object? sender, VisualTreeAttachmentEventArgs e)
     {
-        Trace.WriteLine("press");
+        var renderSurface = new GlRenderSurface
+        {
+            Width = 400, Height = 400,
+            RendererFactory = PrimitiveRenderers.QuadRenderer,
+            VertexShaderSource = "avares://Nodus.RenderEngine.Avalonia/Assets/Shaders/example.vert",
+            FragmentShaderSource = "avares://Nodus.RenderEngine.Avalonia/Assets/Shaders/example.frag",
+            Uniforms = UniformSets.TimerUniform.Concat(new []
+            {
+                new GlFloatUniform("mainTexture", () => 0, true),
+                new GlFloatUniform("distortion", () => 1, true)
+            }).ToArray(),
+            TextureSources = new []
+            {
+                "avares://Nodus.RenderEngine.Avalonia/Assets/Textures/Noise_008.png",
+                "avares://Nodus.RenderEngine.Avalonia/Assets/Textures/Noise_077.png"
+            }
+        };
+        
+        var binder = new WindowHotkeyBinder(this);
+        binder.BindHotkey(KeyGesture.Parse("Space"), () => renderSurface.UpdateShaders());
+        
+        Container.Children.Add(renderSurface);
     }
 }

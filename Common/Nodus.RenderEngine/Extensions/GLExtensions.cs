@@ -12,7 +12,10 @@ public static class GLExtensions
         do
         {
             error = gl.GetError();
-            onError?.Invoke(error);
+            if (error != GLEnum.Zero)
+            {
+                onError?.Invoke(error);
+            }
         } while (error != GLEnum.NoError);
     }
 
@@ -24,6 +27,11 @@ public static class GLExtensions
         {
             throw new OpenGlException(error.ToString());
         }
+    }
+
+    public static void TryThrowAllErrors(this GL gl)
+    {
+        gl.IterateErrors(x => throw new Exception($"Caught OpenGL exception: {x}"));
     }
 
     public static void TryThrowShaderError(this GL gl, uint shaderHandle, string? shaderName = null)

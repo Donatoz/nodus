@@ -14,7 +14,6 @@ public class GlVertexArray<TVert> : GlObject, IGlVertexArray where TVert : unman
     public GlVertexArray(GL gl) : base(gl)
     {
         Handle = Context.GenVertexArray();
-        Bind();
     }
 
     public unsafe void SetVertexAttribute(uint index, int byteCount, VertexAttribPointerType type, uint vertexSize, int offSet)

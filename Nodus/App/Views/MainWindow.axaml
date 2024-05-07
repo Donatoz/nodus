@@ -20,12 +20,8 @@
     </Design.DataContext>
     
     <Grid Name="Root">
-        <Panel Name="Container" Background="{StaticResource BackgroundDefault}">
+        <Panel Name="Container" Background="{StaticResource BackgroundDefault}" AttachedToVisualTree="OnContainerAttached">
             <c:LoadingOverlay IsVisible="False"/>
-            <rea:RenderSurface Name="Surface" Width="400" Height="400"
-                               RendererFactory="{x:Static gl:PrimitiveRenderers.QuadRenderer}"
-                               VertexShaderSource="avares://Nodus.RenderEngine.Avalonia/Assets/Shaders/example.vert"
-                               FragmentShaderSource="avares://Nodus.RenderEngine.Avalonia/Assets/Shaders/example.frag"/>
         </Panel>
     </Grid>
 </Window>

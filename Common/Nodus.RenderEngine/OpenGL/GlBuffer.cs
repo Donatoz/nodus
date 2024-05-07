@@ -13,7 +13,7 @@ public class GlBuffer<T> : GlObject, IGlBuffer<T> where T : unmanaged
 {
     private readonly BufferTargetARB bufferType;
 
-    public unsafe GlBuffer(GL gl, Span<T> data, BufferTargetARB bufferType, bool autoUnbind = true) : base(gl)
+    public GlBuffer(GL gl, Span<T> data, BufferTargetARB bufferType, bool autoUnbind = true) : base(gl)
     {
         this.bufferType = bufferType;
         
