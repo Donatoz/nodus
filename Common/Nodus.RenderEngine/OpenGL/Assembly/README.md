@@ -15,6 +15,12 @@ asm.AddUniform(new GlUniformFeature("myUniform", "vec2"));
 asm.AddUniform(new GlUniformFeature("mySecondUniform", "float"));
 asm.AddVarying(new GlVaryingFeature(true, "someInput", "float"));
 asm.AddVarying(new GlVaryingFeature(false, "someOutput", "float"));
+asm.AddBody(new GlFragmentBodyFeature("main", new IGlShaderVariableDefinition[]
+{
+    new GlShaderVariableDefinition("myVar", "float"),
+    new GlShaderVariableDefinition("myVar2", "float")
+}, 
+Enumerable.Empty<IGlShaderBodyToken>()));
 ```
 
 The result of such assembly will be the next shader:
@@ -24,5 +30,7 @@ layout (location = 0) in float someInput;
 out float someOutput;
 uniform vec2 myUniform;
 uniform float mySecondUniform;
+void main(float myVar, float myVar2) {
 
+}
 ```
