@@ -6,4 +6,9 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\Nodus.NodeEditor\Nodus.NodeEditor.csproj" />
+      <ProjectReference Include="..\Nodus.RenderEditor\Nodus.RenderEditor.csproj" />
+    </ItemGroup>
+
 </Project>

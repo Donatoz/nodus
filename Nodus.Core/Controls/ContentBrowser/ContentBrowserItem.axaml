@@ -1,0 +1,26 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Nodus.Core.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nodus.Core.Controls.ContentBrowserItem"
+             x:DataType="vm:ContentBrowserItemViewModel">
+    
+    <Border Name="Container" Classes="panel" BorderThickness="1" CornerRadius="5" MinWidth="130" MinHeight="150" Cursor="Hand">
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Name="DeleteMenuItem" Header="Delete"/>
+            </ContextMenu>
+        </Border.ContextMenu>
+        
+        <Grid RowDefinitions="120,30">
+            <Border Background="{StaticResource BackgroundDark}" CornerRadius="5">
+                                
+            </Border>
+            <TextBlock Grid.Row="1" Text="Asset Name" Classes="h4" MaxWidth="125" TextTrimming="CharacterEllipsis"
+                       TextAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource FontDark}"/>
+        </Grid>
+    </Border>
+    
+</UserControl>

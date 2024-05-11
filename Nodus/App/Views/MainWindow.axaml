@@ -20,7 +20,7 @@
     </Design.DataContext>
     
     <Grid Name="Root">
-        <Panel Name="Container" Background="{StaticResource BackgroundDefault}" AttachedToVisualTree="OnContainerAttached">
+        <Panel Name="Container" Background="{StaticResource BackgroundDefault}">
             <c:LoadingOverlay IsVisible="False"/>
         </Panel>
     </Grid>

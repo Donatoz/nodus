@@ -22,11 +22,9 @@ public class GlBuffer<T> : GlObject, IGlBuffer<T> where T : unmanaged
         Handle = Context.GenBuffer();
         Bind();
         
-        gl.TryThrowNextError();
-        
         UpdateData(data);
         
-        gl.TryThrowNextError();
+        gl.TryThrowAllErrors();
 
         if (autoUnbind)
         {

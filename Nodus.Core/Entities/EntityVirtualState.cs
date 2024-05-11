@@ -98,6 +98,11 @@ public sealed class EntityVirtualState : IDisposable
         }
     }
 
+    public bool HasComponent(Type componentType)
+    {
+        return components.ContainsKey(componentType);
+    }
+
     /// <summary>
     /// Check if the entity has a component of the specified type.
     /// </summary>
@@ -105,7 +110,12 @@ public sealed class EntityVirtualState : IDisposable
     /// <returns>True if the entity has a component of type T; otherwise, false.</returns>
     public bool HasComponent<T>() where T : IEntityComponent
     {
-        return components.ContainsKey(typeof(T));
+        return HasComponent(typeof(T));
+    }
+    
+    public bool HasGeneric<T>() where T : IEntityComponent
+    {
+        return components.Values.Any(x => x is T);
     }
 
     /// <summary>

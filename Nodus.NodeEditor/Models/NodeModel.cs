@@ -20,6 +20,7 @@ public interface INodeModel : IEntity, IPersistentElementModel, IDisposable
 
     void AddPort(IPortModel port);
     void ChangeContext(INodeContext? context);
+    object? GetPortValue(string portId, GraphContext context);
 }
 
 public class NodeModel : Entity, INodeModel
@@ -66,7 +67,21 @@ public class NodeModel : Entity, INodeModel
     public void ChangeContext(INodeContext? context)
     {
         this.context.SetValue(context);
+        this.context.Value?.Bind(this);
     }
+    
+    public object? GetPortValue(string portId, GraphContext context)
+    {
+        var port = Ports.Value.FirstOrDefault(x => x.Id == portId);
+
+        if (port == null)
+        {
+            throw new ArgumentException($"Failed to get port value ({portId}): port not found.");
+        }
+
+        return Context.Value?.ResolvePortValue(port, context);
+    }
+
 
     protected override void Dispose(bool disposing)
     {

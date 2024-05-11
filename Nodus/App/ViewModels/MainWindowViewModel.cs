@@ -1,4 +1,5 @@
-﻿using FlowEditor.Models;
+﻿using System.Reflection;
+using FlowEditor.Models;
 using FlowEditor.ViewModels;
 using Ninject.Parameters;
 using Nodus.DI;
@@ -8,6 +9,7 @@ using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.ViewModels;
 using Nodus.RenderEditor.Models;
 using Nodus.RenderEditor.ViewModels;
+using Nodus.RenderLibraries.Common;
 using ReactiveUI;
 
 namespace Nodus.ViewModels;
@@ -18,14 +20,18 @@ public class MainWindowViewModel : ReactiveObject
     
     public MainWindowViewModel(IRuntimeElementProvider elementProvider, IRuntimeModuleLoader moduleLoader)
     {
+        Assembly.Load(typeof(RenderCanvasModel).Assembly.GetName());
         moduleLoader.Repopulate();
         
-        LoadFlowGraph(elementProvider, moduleLoader);
+        LoadRenderGraph(elementProvider, moduleLoader);
     }
 
     private void LoadRenderGraph(IRuntimeElementProvider elementProvider, IRuntimeModuleLoader moduleLoader)
     {
         moduleLoader.LoadModulesForType<NodeCanvasModel>();
+        moduleLoader.LoadModulesForType<RenderCanvasModel>();
+        
+        CommonRenderLibrary.Register(elementProvider.GetRuntimeElement<INodeContextProvider>(), elementProvider);
 
         CanvasViewModel = elementProvider.GetRuntimeElement<RenderCanvasViewModel>(
             new TypeMatchingConstructorArgument(typeof(INodeCanvasModel),

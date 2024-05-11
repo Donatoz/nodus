@@ -42,6 +42,7 @@ public class GlGeometryPrimitiveRenderer : IRenderer, IDisposable
     public void Initialize(IRenderContext context)
     {
         TryDisposeBuffers();
+        textures?.DisposeAll();
 
         var primitiveContext = context.MustBe<IGlPrimitiveRenderContext>();
         

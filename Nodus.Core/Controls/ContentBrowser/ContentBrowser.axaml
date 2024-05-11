@@ -1,0 +1,46 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Nodus.Core.ViewModels"
+             xmlns:c="using:Nodus.Core.Controls"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nodus.Core.Controls.ContentBrowser" ClipToBounds="False"
+             x:DataType="vm:ContentBrowserViewModel">
+    
+    <UserControl.Styles>
+        <Style Selector="Border.panel.active">
+            <Setter Property="Background" Value="{StaticResource BackgroundDefault}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource AscentActive}"/>
+        </Style>
+        <Style Selector="c|ContentBrowserItem">
+            <Setter Property="Margin" Value="5"/>
+        </Style>
+    </UserControl.Styles>
+    
+    <Panel Classes="anim-slide-fade visible" MinHeight="250">
+        <Border Classes="panel" CornerRadius="2" BorderThickness="1" Background="{StaticResource BackgroundDark}">
+            <Border.Effect>
+                <DropShadowEffect OffsetX="0" OffsetY="5" BlurRadius="20" Opacity="0.2"/>
+            </Border.Effect>
+            
+            <DockPanel Margin="10">
+                <TextBlock Text="Loaded Assets" Classes="h2" Foreground="{StaticResource FontDark}" Opacity="0.6" DockPanel.Dock="Top" HorizontalAlignment="Left"/>
+                
+                <ItemsControl Name="ItemsControl" DockPanel.Dock="Bottom" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ContentBrowserItemViewModel">
+                            <c:ContentBrowserItem/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </DockPanel>
+        </Border>
+    </Panel>
+    
+</UserControl>

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using Avalonia.Logging;
 using Avalonia.OpenGL;
+using Avalonia.Win32;
 using Projektanker.Icons.Avalonia;
 using Projektanker.Icons.Avalonia.FontAwesome;
 
@@ -26,6 +27,12 @@ class Program
         return AppBuilder.Configure<App.App>()
             .UsePlatformDetect()
             .WithInterFont()
+            .With(new AngleOptions {
+                GlProfiles = new List<GlVersion>
+                {
+                    new(GlProfileType.OpenGLES, 3, 1)
+                }
+            })
             .LogToTrace()
             .UseReactiveUI();
     }

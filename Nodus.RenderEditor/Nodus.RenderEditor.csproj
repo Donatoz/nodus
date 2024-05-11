@@ -8,7 +8,6 @@
 
     <ItemGroup>
         <AvaloniaResource Include="Assets\**"/>
-        <Folder Include="Views\" />
     </ItemGroup>
 
 
@@ -24,6 +23,7 @@
 
 
     <ItemGroup>
+      <ProjectReference Include="..\Common\Nodus.RenderEngine.Avalonia\Nodus.RenderEngine.Avalonia.csproj" />
       <ProjectReference Include="..\Nodus.Core\Nodus.Core.csproj" />
       <ProjectReference Include="..\Nodus.DI\Nodus.DI.csproj" />
       <ProjectReference Include="..\Nodus.NodeEditor\Nodus.NodeEditor.csproj" />

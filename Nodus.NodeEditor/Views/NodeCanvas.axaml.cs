@@ -63,6 +63,9 @@ public partial class NodeCanvas : ReactiveUserControl<NodeCanvasViewModel>
     
     protected IFactoryProvider<NodeCanvas> FactoryProvider { get; }
     protected Panel CanvasContainer => Root;
+    protected Panel RightExtensionsContainer => RightExtensionPanel;
+    protected Panel BottomExtensionsContainer => BottomExtensionPanel;
+    protected virtual string GraphType => "Node Graph";
 
     public NodeCanvas(IFactoryProvider<NodeCanvas> factoryProvider)
     {
@@ -117,6 +120,7 @@ public partial class NodeCanvas : ReactiveUserControl<NodeCanvasViewModel>
         
         Root.Children.Add(this.CreateExtensionControl<ModalContainer, ModalCanvasViewModel>());
         Root.Children.Add(this.CreateExtensionControl<PopupContainer, PopupContainerViewModel>());
+        GraphTypeText.Text = GraphType;
     }
 
     protected override void OnDataContextChanged(EventArgs e)

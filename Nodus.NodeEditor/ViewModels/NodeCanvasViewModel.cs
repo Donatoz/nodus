@@ -183,7 +183,7 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
         if (changes.Removes > 0)
         {
             changes
-                .Where(x => x is { Reason: ListChangeReason.Remove or ListChangeReason.Clear, Item.Current: ISelectable })
+                .Where(x => x is { Reason: ListChangeReason.Remove or ListChangeReason.Clear, Item.Current: not null })
                 .ForEach(x =>
                 {
                     if (ElementSelector.CurrentlySelected.Contains(x.Item.Current))
@@ -203,10 +203,9 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     {
         var element = elementsFactory.Create(model);
 
-        element.EventStream
+        element.AttachDisposable(element.EventStream
             .OfType<ElementDeleteRequest>()
-            .Subscribe(x => RemoveElement(x.Element))
-            .DisposeWith(disposables);
+            .Subscribe(x => RemoveElement(x.Element)));
         
         return element;
     }
@@ -252,6 +251,7 @@ public class NodeCanvasViewModel : ReactiveViewModel, INodeCanvasOperatorViewMod
     {
         Model.Operator.Disconnect(connection.Data);
     }
+    
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);

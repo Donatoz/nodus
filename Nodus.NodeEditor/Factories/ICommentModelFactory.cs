@@ -14,7 +14,7 @@ public class CommentModelFactory : ICommentModelFactory
     public ICommentModel CreateComment(CommentData data)
     {
         var comment = CreateBase(data);
-        comment.Attach(data);
+        comment.AttachContainer(data);
 
         return comment;
     }

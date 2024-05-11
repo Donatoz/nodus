@@ -5,5 +5,5 @@ namespace Nodus.RenderEngine.OpenGL;
 
 public static class TextureProviders
 {
-    public static readonly ITextureProvider<Rgba32> RgbaProvider = new Rgba32TextureProvider();
+    public static readonly ITextureDataProvider<Rgba32> RgbaProvider = new TextureDataProvider<Rgba32>();
 }

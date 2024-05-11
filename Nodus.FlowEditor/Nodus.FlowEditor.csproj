@@ -46,14 +46,11 @@
         <DependentUpon>FlowOutputPort.axaml</DependentUpon>
         <SubType>Code</SubType>
       </Compile>
-      <Compile Update="Controls\FlowPortTooltip.axaml.cs">
-        <DependentUpon>FlowPortTooltip.axaml</DependentUpon>
-        <SubType>Code</SubType>
-      </Compile>
     </ItemGroup>
 
 
     <ItemGroup>
       <Folder Include="Assets\Icons\" />
+      <Folder Include="Models\Templates\" />
     </ItemGroup>
 </Project>

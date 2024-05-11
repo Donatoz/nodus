@@ -17,11 +17,11 @@ public class CompareContext : CachedExposeContext
         ExposeValue(OperationName, "Operation", CompareOperation.Equal);
     }
 
-    public override void Bind(IFlowNodeModel node)
+    public override void Bind(INodeModel node)
     {
         base.Bind(node);
 
-        var inputPorts = node.GetFlowPorts().Where(x => x.Type == PortType.Input);
+        var inputPorts = Node!.GetFlowPorts().Where(x => x.Type == PortType.Input);
 
         if (inputPorts.Count() < 2)
         {
@@ -29,8 +29,8 @@ public class CompareContext : CachedExposeContext
         }
         
         TryBindFirstOutPort(ctx => GetExposedValue<CompareOperation>(OperationName)
-            .Evaluate(node.GetPortValue(inputPorts.First().Id, ctx).MustBeNumber(),
-                node.GetPortValue(inputPorts.Last().Id, ctx).MustBeNumber()));
+            .Evaluate(Node!.GetPortValue(inputPorts.First().Id, ctx).MustBeNumber(),
+                Node!.GetPortValue(inputPorts.Last().Id, ctx).MustBeNumber()));
     }
 }
 
@@ -47,11 +47,11 @@ public class LogicContext : CachedExposeContext
         ExposeValue(DefaultBName, "Default B", false);
     }
 
-    public override void Bind(IFlowNodeModel node)
+    public override void Bind(INodeModel node)
     {
         base.Bind(node);
         
-        var inputPorts = node.GetFlowPorts().Where(x => x.Type == PortType.Input);
+        var inputPorts = Node!.GetFlowPorts().Where(x => x.Type == PortType.Input);
 
         if (inputPorts.Count() < 2)
         {
@@ -59,7 +59,7 @@ public class LogicContext : CachedExposeContext
         }
         
         TryBindFirstOutPort(ctx => GetExposedValue<LogicalOperation>(OperationName)
-            .Evaluate(node.GetPortValue(inputPorts.First().Id, ctx) as bool? ?? GetExposedValue<bool>(DefaultAName),
-                node.GetPortValue(inputPorts.Last().Id, ctx) as bool? ?? GetExposedValue<bool>(DefaultBName)));
+            .Evaluate(Node!.GetPortValue(inputPorts.First().Id, ctx) as bool? ?? GetExposedValue<bool>(DefaultAName),
+                Node!.GetPortValue(inputPorts.Last().Id, ctx) as bool? ?? GetExposedValue<bool>(DefaultBName)));
     }
 }

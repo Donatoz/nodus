@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Reactive.Disposables;
 using System.Reactive.Subjects;
 using Nodus.Core.Common;
 using Nodus.Core.Entities;
@@ -16,6 +19,7 @@ public abstract class ReactiveViewModel : ReactiveObject, IReactiveViewModel, ID
     public string EntityId { get; }
 
     private readonly ISubject<IEvent> eventSubject;
+    private readonly CompositeDisposable disposables;
 
     public IObservable<IEvent> EventStream => eventSubject;
 
@@ -23,6 +27,7 @@ public abstract class ReactiveViewModel : ReactiveObject, IReactiveViewModel, ID
     {
         EntityId = Guid.NewGuid().ToString();
         eventSubject = CreateSubject();
+        disposables = new CompositeDisposable();
         
         this.Register();
     }
@@ -42,6 +47,8 @@ public abstract class ReactiveViewModel : ReactiveObject, IReactiveViewModel, ID
         {
             d.Dispose();
         }
+        
+        disposables.Dispose();
     }
 
     protected virtual ISubject<IEvent> CreateSubject()

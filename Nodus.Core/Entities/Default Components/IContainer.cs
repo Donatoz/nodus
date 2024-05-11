@@ -1,6 +1,6 @@
 ﻿namespace Nodus.Core.Entities;
 
-public interface IContainer<out T>
+public interface IContainer<out T> : IEntityComponent
 {
     T Value { get; }
 }

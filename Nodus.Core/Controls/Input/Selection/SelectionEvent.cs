@@ -1,4 +1,7 @@
-﻿using Nodus.Core.Common;
+﻿using Avalonia.Input;
+using Avalonia.Interactivity;
+using Nodus.Core.Common;
+using Nodus.Core.Utility;
 
 namespace Nodus.Core.Selection;
 
@@ -25,5 +28,15 @@ public readonly struct SelectionEvent : IEvent
     {
         Sender = sender;
         IsSelected = isSelected;
+    }
+}
+
+public class SelectablePressedEventArgs<TControl> : ControlRoutedEventArgs<TControl>
+{
+    public KeyModifiers Modifiers { get; }
+    
+    public SelectablePressedEventArgs(TControl control, KeyModifiers modifiers) : base(control)
+    {
+        Modifiers = modifiers;
     }
 }

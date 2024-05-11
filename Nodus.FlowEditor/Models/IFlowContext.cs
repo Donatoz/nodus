@@ -18,8 +18,6 @@ public interface IFlowContext : INodeContext, IDisposable
     IReactiveProperty<IFlowResolveContext?> CurrentResolveContext { get; }
     DescriptionProvider? TryGetDescriptionProvider();
     
-    void Bind(IFlowNodeModel node);
-    object? ResolvePortValue(IFlowPortModel port, GraphContext context);
     IFlowToken GetFlowToken(GraphContext context, Connection? sourceConnection);
     IFlowPortModel? GetEffectiveSuccessionPort(GraphContext ctx);
 }
@@ -30,61 +28,15 @@ public interface IFlowResolveContext
     Connection? SourceConnection { get; }
 }
 
-public abstract class FlowContextBase : IFlowContext
+public abstract class FlowContextBase : NodeContextBase<IFlowNodeModel>, IFlowContext
 {
-    private readonly IDictionary<IFlowPortModel, Func<GraphContext, object?>> portValueBindings;
     private readonly MutableReactiveProperty<IFlowResolveContext?> currentResolveContext;
-
-    protected IFlowNodeModel? Node { get; private set; }
-
+    
     public IReactiveProperty<IFlowResolveContext?> CurrentResolveContext => currentResolveContext;
 
     protected FlowContextBase()
     {
-        portValueBindings = new Dictionary<IFlowPortModel, Func<GraphContext, object?>>();
         currentResolveContext = new MutableReactiveProperty<IFlowResolveContext?>();    
-    }
-
-    public virtual void Bind(IFlowNodeModel node)
-    {
-        Node = node;
-        ResetPortBindings();
-    }
-    
-    public object? ResolvePortValue(IFlowPortModel port, GraphContext context)
-    {
-        return port.Type == PortType.Input ? context.GetInputPortValue(port) : GetOutputValue(port, context);
-    }
-
-    protected void BindPortValue(IFlowPortModel port, Func<GraphContext, object?> valueGetter)
-    {
-        portValueBindings[port] = valueGetter;
-    }
-
-    protected void TryBindFirstOutPort(Func<GraphContext, object?> valueGetter) => TryBindOutPort(0, valueGetter);
-
-    protected void TryBindOutPort(int index, Func<GraphContext, object?> valueGetter)
-    {
-        var port = Node?.GetFlowPorts().Where(x => x.Type == PortType.Output).ElementAt(index);
-        
-        if (port == null) return;
-        
-        BindPortValue(port, valueGetter);
-    }
-
-    protected void ResetPortBindings()
-    {
-        portValueBindings.Clear();
-    }
-
-    protected object? GetOutputValue(IFlowPortModel port, GraphContext context)
-    {
-        if (!portValueBindings.ContainsKey(port))
-        {
-            throw new Exception($"Port ({port.Header}) value is not bound to anything.");
-        }
-
-        return portValueBindings[port].Invoke(context);
     }
 
     public IFlowToken GetFlowToken(GraphContext context, Connection? sourceConnection)
@@ -127,9 +79,9 @@ public abstract class FlowContextBase : IFlowContext
     protected virtual Task Resolve(GraphContext context, IFlowToken currentToken, CancellationToken ct) =>
         Task.CompletedTask;
     
-    public virtual void Deserialize(NodeContextData data) { }
+    public override void Deserialize(NodeContextData data) { }
 
-    public virtual NodeContextData? Serialize() => null;
+    public override NodeContextData? Serialize() => null;
 
     public DescriptionProvider? TryGetDescriptionProvider()
     {

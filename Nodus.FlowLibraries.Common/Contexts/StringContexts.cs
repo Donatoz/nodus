@@ -27,11 +27,11 @@ public sealed class StringFormatContext : FlowContextBase
             };
     }
 
-    public override void Bind(IFlowNodeModel node)
+    public override void Bind(INodeModel node)
     {
         base.Bind(node);
         
-        var inPorts = node.GetFlowPorts().Where(x => x.Type == PortType.Input);
+        var inPorts = Node!.GetFlowPorts().Where(x => x.Type == PortType.Input);
         
         if (!inPorts.Any()) return;
         

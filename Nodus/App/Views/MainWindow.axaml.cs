@@ -3,9 +3,14 @@ using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using FlowEditor.ViewModels;
 using FlowEditor.Views;
 using Nodus.Core.Interaction;
 using Nodus.DI.Runtime;
+using Nodus.NodeEditor.ViewModels;
+using Nodus.NodeEditor.Views;
+using Nodus.RenderEditor.ViewModels;
+using Nodus.RenderEditor.Views;
 using Nodus.RenderEngine.Avalonia;
 using Nodus.RenderEngine.OpenGL;
 using Nodus.ViewModels;
@@ -31,35 +36,19 @@ public partial class MainWindow : Window
         
         if (DataContext is MainWindowViewModel vm)
         {
-            var canvas = ElementProvider.GetRuntimeElement<FlowCanvas>();
+            var canvas = CrateNodeCanvas(vm.CanvasViewModel);
             canvas.DataContext = vm.CanvasViewModel;
-            //Container.Children.Insert(0, canvas);
+            Container.Children.Insert(0, canvas);
         }
     }
 
-    private void OnContainerAttached(object? sender, VisualTreeAttachmentEventArgs e)
+    private NodeCanvas CrateNodeCanvas(NodeCanvasViewModel vm)
     {
-        var renderSurface = new GlRenderSurface
+        return vm switch
         {
-            Width = 400, Height = 400,
-            RendererFactory = PrimitiveRenderers.QuadRenderer,
-            VertexShaderSource = "avares://Nodus.RenderEngine.Avalonia/Assets/Shaders/example.vert",
-            FragmentShaderSource = "avares://Nodus.RenderEngine.Avalonia/Assets/Shaders/example.frag",
-            Uniforms = UniformSets.TimerUniform.Concat(new []
-            {
-                new GlFloatUniform("mainTexture", () => 0, true),
-                new GlFloatUniform("distortion", () => 1, true)
-            }).ToArray(),
-            TextureSources = new []
-            {
-                "avares://Nodus.RenderEngine.Avalonia/Assets/Textures/Noise_008.png",
-                "avares://Nodus.RenderEngine.Avalonia/Assets/Textures/Noise_077.png"
-            }
+            FlowCanvasViewModel => ElementProvider.GetRuntimeElement<FlowCanvas>(),
+            RenderCanvasViewModel => ElementProvider.GetRuntimeElement<RenderCanvas>(),
+            _ => throw new Exception($"Node canvas of type ({vm}) is not supported.")
         };
-        
-        var binder = new WindowHotkeyBinder(this);
-        binder.BindHotkey(KeyGesture.Parse("Space"), () => renderSurface.UpdateShaders());
-        
-        Container.Children.Add(renderSurface);
     }
 }

@@ -1,5 +1,4 @@
 ﻿using FlowEditor;
-using FlowEditor.Models.Templates;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
 
@@ -26,14 +25,14 @@ public static class CommonNodes
     {
         yield return new NodeTemplateBuilder("Start", "This is where the flow starts",
             FlowUtility.FlowPort(PortType.Output))
-            .WithGroup(NodeGroups.FlowGroup)
+            .WithGroup(FlowNodeGroups.FlowGroup)
             .Build();
         
         yield return new NodeTemplateBuilder("Debug", "Prints a value into console",
                 FlowUtility.FlowPort(PortType.Input),
                 FlowUtility.FlowPort(PortType.Output),
                 FlowUtility.Port("Message", PortType.Input))
-            .WithGroup(NodeGroups.FlowGroup)
+            .WithGroup(FlowNodeGroups.FlowGroup)
             .WithContextId(DebugNodeContextId)
             .Build();
         
@@ -63,14 +62,14 @@ public static class CommonNodes
                 FlowUtility.Port<bool>("Condition", PortType.Input),
                 FlowUtility.FlowPort(PortType.Output, "True"),
                 FlowUtility.FlowPort(PortType.Output, "False"))
-            .WithGroup(NodeGroups.FlowGroup)
+            .WithGroup(FlowNodeGroups.FlowGroup)
             .WithContextId(BranchNodeContextId)
             .Build();
         
         yield return new NodeTemplateBuilder("Wait", "Blocks the flow for specified amount time",
                 FlowUtility.FlowPort(PortType.Input),
                 FlowUtility.FlowPort(PortType.Output))
-            .WithGroup(NodeGroups.FlowGroup)
+            .WithGroup(FlowNodeGroups.FlowGroup)
             .WithContextId(WaitNodeContextId)
             .Build();
         
@@ -101,7 +100,7 @@ public static class CommonNodes
                 FlowUtility.Port<float>("Iterations", PortType.Input),
                 FlowUtility.FlowPort(PortType.Output, "Exit"),
                 FlowUtility.FlowPort(PortType.Output, "Loop"))
-            .WithGroup(NodeGroups.FlowGroup)
+            .WithGroup(FlowNodeGroups.FlowGroup)
             .WithContextId(LoopNodeContextId)
             .Build();
         
@@ -109,7 +108,7 @@ public static class CommonNodes
                 FlowUtility.FlowPort(PortType.Input),
                 FlowUtility.FlowPort(PortType.Output, "Subsequent"),
                 FlowUtility.FlowPort(PortType.Output, "Parallel"))
-            .WithGroup(NodeGroups.FlowGroup)
+            .WithGroup(FlowNodeGroups.FlowGroup)
             .WithContextId(ParallelNodeContextId)
             .Build();
         

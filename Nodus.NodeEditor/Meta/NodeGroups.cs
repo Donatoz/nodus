@@ -4,6 +4,5 @@ public static partial class NodeGroups
 {
     public const string NodeGroupPrefix = "nodegroup-";
     
-    public static readonly string FlowGroup = "flow";
     public static readonly string ConstGroup = "const";
 }

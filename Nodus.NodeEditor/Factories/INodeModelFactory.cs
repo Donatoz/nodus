@@ -16,7 +16,7 @@ public class NodeModelFactory : INodeModelFactory
     public INodeModel CreateNode(NodeTemplate template, IPortModelFactory portFactory)
     {
         var node = CreateBase(template.Data);
-        node.Attach(template.Data);
+        node.AttachContainer(template.Data);
         
         template.Data.Ports.ForEach(x => node.AddPort(portFactory.CreatePort(x)));
         node.ChangeContext(template.ContextFactory.Invoke());

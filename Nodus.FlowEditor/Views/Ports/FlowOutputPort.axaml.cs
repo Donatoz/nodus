@@ -6,7 +6,7 @@ using Nodus.NodeEditor.Views;
 
 namespace FlowEditor.Views;
 
-public partial class FlowOutputPort : FlowPort
+public partial class FlowOutputPort : TypedPort
 {
     public override Border PortHandler => Handler;
     protected override Control? TooltipContainer => Container;

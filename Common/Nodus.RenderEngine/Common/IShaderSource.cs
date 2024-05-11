@@ -14,7 +14,8 @@ public interface IShaderDefinition
 public enum ShaderSourceType
 {
     Vertex,
-    Fragment
+    Fragment,
+    Compute
 }
 
 public readonly struct ShaderDefinition : IShaderDefinition

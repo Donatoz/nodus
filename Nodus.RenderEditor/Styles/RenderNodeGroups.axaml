@@ -1,0 +1,12 @@
+﻿<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <Style Selector="Border.nodegroup-const">
+        <Setter Property="Background" Value="#5F8ABF"/>
+    </Style>
+    
+    <Style Selector="Border.nodegroup-render">
+        <Setter Property="Background" Value="#d6984b"/>
+    </Style>
+    
+</Styles>

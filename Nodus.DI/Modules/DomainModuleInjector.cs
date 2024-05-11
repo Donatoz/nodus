@@ -25,7 +25,7 @@ public class DomainModuleInjector : IModuleInjector
                 Attribute = x.GetCustomAttribute<ModuleInjectionEntryAttribute>(),
                 Type = x
             }).GroupBy(x => x.Attribute!.ContextualBinding);
-
+        
         boundTypeGroups.ForEach(x =>
         {
             moduleFactoryBindings[x.Key] = x.OrderBy(y => y.Attribute!.InjectionPriority)

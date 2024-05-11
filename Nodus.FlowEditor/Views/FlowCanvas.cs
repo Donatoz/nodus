@@ -17,7 +17,9 @@ namespace FlowEditor.Views;
 public class FlowCanvas : NodeCanvas
 {
     private DataContextControlBinding? dataContextBinding;
-    
+
+    protected override string GraphType => "Flow Graph";
+
     public FlowCanvas(IFactoryProvider<NodeCanvas> factoryProvider) : base(factoryProvider)
     {
     }

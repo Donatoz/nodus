@@ -4,6 +4,7 @@ using FlowEditor.Models.Primitives;
 using Nodus.Core.Extensions;
 using Nodus.Core.Reactive;
 using Nodus.NodeEditor.Meta;
+using Nodus.NodeEditor.Models;
 
 namespace Nodus.FlowLibraries.Common;
 
@@ -48,11 +49,11 @@ public sealed class ConstantContext : FlowContextBase
         outputDescriptor.Value = type.GetDefaultValue();
     }
 
-    public override void Bind(IFlowNodeModel node)
+    public override void Bind(INodeModel node)
     {
         base.Bind(node);
 
-        outPort = node.GetFlowPorts().FirstOrDefault();
+        outPort = Node!.GetFlowPorts().FirstOrDefault();
 
         if (outPort == null) return;
         

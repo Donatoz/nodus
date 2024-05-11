@@ -23,7 +23,7 @@ public sealed class ArithmeticsContext : FlowContextBase
         };
     }
 
-    public override void Bind(IFlowNodeModel node)
+    public override void Bind(INodeModel node)
     {
         base.Bind(node);
 

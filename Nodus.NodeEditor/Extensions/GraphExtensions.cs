@@ -90,4 +90,17 @@ public static class GraphExtensions
     {
         canvas.Connect(connection.SourceNodeId, connection.SourcePortId, connection.TargetNodeId, connection.TargetPortId);
     }
+    
+    public static object? GetInputPortValue(this GraphContext context, IPortModel port)
+    {
+        var connection = context.FindPortFirstConnection(port.Id);
+
+        if (connection.IsValid)
+        {
+            var sourcePortId = connection.SourcePortId;
+            return context.GetPortOwner(sourcePortId)?.GetPortValue(sourcePortId, context);
+        }
+
+        return null;
+    }
 }

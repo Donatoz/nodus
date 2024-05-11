@@ -1,4 +1,4 @@
-﻿#version 300 es
+﻿#version 310 es
 
 precision mediump float;
 
@@ -19,7 +19,7 @@ void main()
     vec2 speed = vec2(time, time) * .005;
     vec4 distortionColor = texture(distortion, uv + speed);
     
-    float factor = sin(time / 6.) * 0.1;
+    float factor = sin(time / 6.) * .1;
     
     FragColor = texture(mainTexture, mix(uv, distortionColor.xy, factor));
 }

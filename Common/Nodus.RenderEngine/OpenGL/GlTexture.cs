@@ -18,10 +18,12 @@ public interface IGlTextureSpecification
 {
     TextureUnit Unit { get; }
     TextureTarget Target { get; }
-    ITextureProvider<Rgba32> Provider { get; }
+    ITextureDataProvider<Rgba32> DataProvider { get; }
     TextureWrapMode WrapMode { get; }
     TextureMinFilter MinFilter { get; }
     TextureMagFilter MagFilter { get; }
+    bool GenerateMipMaps { get; }
+    TextureMinFilter MipMapFilter { get; }
 }
 
 /// <summary>
@@ -36,20 +38,24 @@ public class GlTexture : GlObject, IGlTexture
     private TextureMinFilter minFilter;
     private TextureMagFilter magFilter;
     private bool readyToBind;
+    private bool generateMipMaps;
+    private TextureMinFilter mipFilter;
 
     private readonly IRenderDispatcher dispatcher;
-    private readonly ITextureProvider<Rgba32> provider;
+    private readonly ITextureDataProvider<Rgba32> dataProvider;
     
     public GlTexture(GL context, ITextureSource source, IGlTextureSpecification specification, IRenderDispatcher dispatcher) : base(context)
     {
         this.dispatcher = dispatcher;
-        provider = specification.Provider;
+        dataProvider = specification.DataProvider;
         
         Retarget(specification.Unit, specification.Target);
         
         wrapMode = specification.WrapMode;
         minFilter = specification.MinFilter;
         magFilter = specification.MagFilter;
+        generateMipMaps = specification.GenerateMipMaps;
+        mipFilter = specification.MipMapFilter;
         
         Handle = Context.GenTexture();
         
@@ -60,7 +66,7 @@ public class GlTexture : GlObject, IGlTexture
     {
         readyToBind = false;
 
-        provider.ProvideTexture(source)
+        dataProvider.ProvideTextureData(source)
             .Do(x =>
             {
                 ProcessLoadedTexture(x);
@@ -89,10 +95,15 @@ public class GlTexture : GlObject, IGlTexture
             });
             
             tex.Dispose();
+
+            if (generateMipMaps)
+            {
+                Context.GenerateMipmap(target);
+            }
             
             Context.TexParameterI(target, GLEnum.TextureWrapS, (int) wrapMode);
             Context.TexParameterI(target, GLEnum.TextureWrapT, (int) wrapMode);
-            Context.TexParameterI(target, GLEnum.TextureMinFilter, (int) minFilter);
+            Context.TexParameterI(target, GLEnum.TextureMinFilter, (int) (generateMipMaps ? mipFilter : minFilter));
             Context.TexParameterI(target, GLEnum.TextureMagFilter, (int) magFilter);
         
             Context.BindTexture(target, 0);
@@ -119,12 +130,19 @@ public class GlTexture : GlObject, IGlTexture
     }
 }
 
-public readonly record struct GlTextureSpecification(TextureUnit Unit, TextureTarget Target, ITextureProvider<Rgba32> Provider, 
-    TextureWrapMode WrapMode, TextureMinFilter MinFilter, TextureMagFilter MagFilter) : IGlTextureSpecification
+public readonly record struct GlTextureSpecification(
+    TextureUnit Unit, 
+    TextureTarget Target, 
+    ITextureDataProvider<Rgba32> DataProvider, 
+    TextureWrapMode WrapMode, 
+    TextureMinFilter MinFilter,
+    TextureMagFilter MagFilter,
+    bool GenerateMipMaps, 
+    TextureMinFilter MipMapFilter) : IGlTextureSpecification
 {
     public GlTextureSpecification(TextureUnit unit, TextureTarget target) 
         : this(unit, target, TextureProviders.RgbaProvider, TextureWrapMode.Repeat, 
-            TextureMinFilter.Nearest, TextureMagFilter.Nearest)
+            TextureMinFilter.Nearest, TextureMagFilter.Nearest, true, TextureMinFilter.NearestMipmapNearest)
     {
     }
 }

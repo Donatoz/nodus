@@ -9,33 +9,33 @@ using SixLabors.ImageSharp.Processing;
 
 namespace Nodus.RenderEngine.Common;
 
-public interface ITextureProvider<T> where T : unmanaged, IPixel<T>
+public interface ITextureDataProvider<T> where T : unmanaged, IPixel<T>
 {
-    IObservable<ITexture<T>> ProvideTexture(ITextureSource source);
+    IObservable<ITexture<T>> ProvideTextureData(ITextureSource source);
 }
 
-public class Rgba32TextureProvider : ITextureProvider<Rgba32>
+public class TextureDataProvider<T> : ITextureDataProvider<T> where T : unmanaged, IPixel<T>
 {
     private readonly bool flipVertically;
     
-    public Rgba32TextureProvider(bool flipVertically = true)
+    public TextureDataProvider(bool flipVertically = true)
     {
         this.flipVertically = flipVertically;
     }
 
-    public IObservable<ITexture<Rgba32>> ProvideTexture(ITextureSource source)
+    public IObservable<ITexture<T>> ProvideTextureData(ITextureSource source)
     {
         return Observable.FromAsync(async () =>
         {
             using var stream = new MemoryStream(source.FetchBytes());
-            var img = await Image.LoadAsync<Rgba32>(stream);
+            var img = await Image.LoadAsync<T>(stream);
 
             if (flipVertically)
             {
                 img.Mutate(x => x.Flip(FlipMode.Vertical));
             }
             
-            return new Texture<Rgba32>(img.Width, img.Height, img);
-        }).Select(x => x.MustBe<ITexture<Rgba32>>());
+            return new Texture<T>(img.Width, img.Height, img);
+        }).Select(x => x.MustBe<ITexture<T>>());
     }
 }

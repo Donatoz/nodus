@@ -2,11 +2,11 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 
-namespace FlowEditor.Controls;
+namespace Nodus.NodeEditor.Views;
 
-public partial class FlowPortTooltip : UserControl
+public partial class TypedPortTooltip : UserControl
 {
-    public FlowPortTooltip()
+    public TypedPortTooltip()
     {
         InitializeComponent();
     }

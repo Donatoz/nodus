@@ -23,13 +23,13 @@ public class BranchContext : CachedExposeContext
         ExposeValue(DefaultValueName, "Default Value", false);
     }
 
-    public override void Bind(IFlowNodeModel node)
+    public override void Bind(INodeModel node)
     {
         base.Bind(node);
 
-        inPort = node.GetFlowPorts().FirstOrDefault(x => x.Type == PortType.Input && x.ValueType.Value == typeof(bool));
+        inPort = Node!.GetFlowPorts().FirstOrDefault(x => x.Type == PortType.Input && x.ValueType.Value == typeof(bool));
         
-        var outPorts = node.GetFlowPorts().Where(x => x.Type == PortType.Output && x.ValueType.Value == typeof(FlowType));
+        var outPorts = Node!.GetFlowPorts().Where(x => x.Type == PortType.Output && x.ValueType.Value == typeof(FlowType));
 
         if (outPorts.Count() < 2)
         {

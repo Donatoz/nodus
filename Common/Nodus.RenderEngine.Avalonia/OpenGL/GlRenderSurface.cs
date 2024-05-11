@@ -5,11 +5,13 @@ using System.Linq;
 using Avalonia;
 using Avalonia.OpenGL;
 using Avalonia.OpenGL.Controls;
+using Avalonia.OpenGL.Egl;
 using Avalonia.Threading;
 using Nodus.Core.Extensions;
 using Nodus.RenderEngine.Common;
 using Nodus.RenderEngine.OpenGL;
 using Silk.NET.OpenGL;
+using Silk.NET.OpenGLES.Extensions.OES;
 
 namespace Nodus.RenderEngine.Avalonia;
 
@@ -20,6 +22,7 @@ public class GlRenderSurface : OpenGlControlBase
     public static readonly AvaloniaProperty<string> FragmentShaderSourceProperty;
     public static readonly AvaloniaProperty<IEnumerable<IGlShaderUniform>?> UniformsProperty;
     public static readonly AvaloniaProperty<IEnumerable<string>?> TextureSourcesProperty;
+    public static readonly AvaloniaProperty<bool> IsRenderEnabledProperty;
     
     public string VertexShaderSource
     {
@@ -51,6 +54,12 @@ public class GlRenderSurface : OpenGlControlBase
         set => SetValue(TextureSourcesProperty, value);
     }
     
+    public bool IsRenderEnabled
+    {
+        get => (bool) GetValue(IsRenderEnabledProperty).NotNull();
+        set => SetValue(IsRenderEnabledProperty, value);
+    }
+
     private GL? gl;
     private IRenderer? renderer;
     
@@ -61,6 +70,7 @@ public class GlRenderSurface : OpenGlControlBase
         FragmentShaderSourceProperty = AvaloniaProperty.Register<GlRenderSurface, string>(nameof(FragmentShaderSource));
         UniformsProperty = AvaloniaProperty.Register<GlRenderSurface, IEnumerable<IGlShaderUniform>?>(nameof(Uniforms));
         TextureSourcesProperty = AvaloniaProperty.Register<GlRenderSurface, IEnumerable<string>?>(nameof(TextureSources));
+        IsRenderEnabledProperty = AvaloniaProperty.Register<GlRenderSurface, bool>(nameof(IsRenderEnabled), true);
     }
     
     protected override void OnOpenGlInit(GlInterface gli)
@@ -90,20 +100,28 @@ public class GlRenderSurface : OpenGlControlBase
 
     protected override void OnOpenGlRender(GlInterface gli, int fb)
     {
-        gl!.Viewport(0, 0, (uint)Bounds.Width, (uint)Bounds.Height);
+        if (IsRenderEnabled)
+        {
+            gl!.Viewport(0, 0, (uint)Bounds.Width, (uint)Bounds.Height);
 
-        renderer?.RenderFrame();
+            renderer?.RenderFrame();
+        }
         
         Dispatcher.UIThread.Post(RequestNextFrameRendering, DispatcherPriority.Background);
     }
 
-    public void UpdateShaders()
+    public void UpdateShaders(IList<IShaderDefinition>? shaders = null)
     {
-        renderer?.UpdateShaders(new IShaderDefinition[]
+        renderer?.UpdateShaders(shaders ?? new IShaderDefinition[]
         {
             new ShaderDefinition(GetShaderSource(VertexShaderSource), ShaderSourceType.Vertex),
             new ShaderDefinition(GetShaderSource(FragmentShaderSource), ShaderSourceType.Fragment)
         });
+    }
+
+    public void SwitchRendering(bool isEnabled)
+    {
+        IsRenderEnabled = isEnabled;
     }
     
     private IEnumerable<IGlTextureDefinition> PackTextures()

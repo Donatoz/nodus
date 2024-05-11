@@ -34,19 +34,6 @@ public static class GraphExtensions
             .MustBe<IFlowNodeModel>($"Failed to get flow port ({portId}) owner: owner is not flow node.");
     }
 
-    public static object? GetInputPortValue(this GraphContext context, IFlowPortModel port)
-    {
-        var connection = context.FindPortFirstConnection(port.Id);
-
-        if (connection.IsValid)
-        {
-            var sourcePortId = connection.SourcePortId;
-            return context.GetFlowPortOwner(sourcePortId).GetPortValue(sourcePortId, context);
-        }
-
-        return null;
-    }
-
     public static IFlowPortModel? GetFlowSuccessionPort(this IFlowNodeModel node, GraphContext ctx)
     {
         if (node.Context.Value is IFlowContext fc && fc.GetEffectiveSuccessionPort(ctx) is { } p)

@@ -1,22 +1,16 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Linq;
-using System.Reactive;
 using Avalonia.Controls;
-using Avalonia.Data;
 using Avalonia.Interactivity;
-using FlowEditor.Controls;
-using FlowEditor.ViewModels;
 using Nodus.Core.Controls;
 using Nodus.Core.Extensions;
-using Nodus.NodeEditor.Views;
-using ReactiveUI;
+using Nodus.NodeEditor.ViewModels;
 
-namespace FlowEditor.Views;
+namespace Nodus.NodeEditor.Views;
 
-public abstract class FlowPort : Port
+public abstract class TypedPort : Port
 {
-    public Type ValueType { get; private set; }
+    public virtual string PortTypeName => "Typed Port";
     
     private IDisposable? valueTypeContract;
 
@@ -49,7 +43,7 @@ public abstract class FlowPort : Port
         
         valueTypeContract?.Dispose();
         
-        if (DataContext is FlowPortViewModel vm)
+        if (DataContext is TypedPortViewModel vm)
         {
             valueTypeContract = vm.PortValueType.AlterationStream.Subscribe(OnValueTypeChanged);
         }
@@ -67,13 +61,11 @@ public abstract class FlowPort : Port
         {
             t.Text = $"Port value type: {type.Name}";
         }
-
-        ValueType = type;
     }
-    
+
     protected virtual Control CreateTooltipControl()
     {
-        return new FlowPortTooltip();
+        return new TypedPortTooltip();
     }
 
     protected override void OnUnloaded(RoutedEventArgs e)

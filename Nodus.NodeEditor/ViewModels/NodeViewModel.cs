@@ -1,7 +1,10 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
+using System.Linq;
 using System.Windows.Input;
 using Nodus.Core.Common;
 using Nodus.Core.Entities;
+using Nodus.Core.Extensions;
 using Nodus.Core.Reactive;
 using Nodus.Core.Selection;
 using Nodus.Core.ViewModels;
@@ -74,11 +77,12 @@ public class NodeViewModel : ElementViewModel
     {
         base.Dispose(disposing);
 
-        if (disposing)
-        {
-            Tooltip.Dispose();
-            Ports.Dispose();
-            debug.Dispose();
-        }
+        if (!disposing) return;
+        
+        Ports.Items.OfType<IDisposable>().DisposeAll();
+
+        Tooltip.Dispose();
+        Ports.Dispose();
+        debug.Dispose();
     }
 }

@@ -5,18 +5,14 @@ using Nodus.NodeEditor.Models;
 
 namespace FlowEditor.Meta;
 
-public record FlowPortData : PortData
+public record FlowPortData : TypedPortData
 {
-    public Type ValueType { get; init; }
-
     [JsonConstructor]
-    public FlowPortData(string portHeader, PortType type, PortCapacity capacity, Type valueType) : base(portHeader, type, capacity)
+    public FlowPortData(string portHeader, PortType type, PortCapacity capacity, Type valueType) : base(portHeader, type, capacity, valueType)
     {
-        ValueType = valueType;
     }
-    
-    public FlowPortData(PortData parent, Type valueType) : this(parent.PortHeader, parent.Type, parent.Capacity, valueType)
+
+    public FlowPortData(PortData parent, Type valueType) : base(parent, valueType)
     {
-        PortId = parent.PortId;
     }
 }

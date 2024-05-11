@@ -1,8 +1,7 @@
 ﻿using System.Collections.Generic;
 using Nodus.NodeEditor.Meta;
-using Nodus.NodeEditor.Models;
 
-namespace FlowEditor.Models.Templates;
+namespace Nodus.NodeEditor.Models;
 
 public class NodeTemplateBuilder
 {
@@ -17,6 +16,22 @@ public class NodeTemplateBuilder
         this.title = title;
         this.tooltip = tooltip;
         this.ports = new List<PortData>(ports);
+    }
+
+    public NodeTemplateBuilder WithPort(PortData port)
+    {
+        ports.Add(port);
+        return this;
+    }
+
+    public NodeTemplateBuilder WithInputPort(string header)
+    {
+        return WithPort(new PortData(header, PortType.Input, PortCapacity.Single));
+    }
+    
+    public NodeTemplateBuilder WithOutputPort(string header)
+    {
+        return WithPort(new PortData(header, PortType.Output, PortCapacity.Multiple));
     }
 
     public NodeTemplateBuilder WithGroup(string group)

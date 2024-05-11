@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reactive.Disposables;
 
 namespace Nodus.Core.Entities;
 
@@ -62,10 +63,42 @@ public static class EntityMaster
         return component;
     }
 
-    public static void Attach<T>(this IEntity entity, T value)
+    public static void AttachContainer<T>(this IEntity entity, T value)
     {
         ValidateEntity(entity);
         states[entity].AddComponent(new ValueContainer<T>(value));
+    }
+    
+    public static void AttachDisposableContainer<T>(this IEntity entity, T value) where T : class, IDisposable
+    {
+        ValidateEntity(entity);
+        states[entity].AddComponent(new DisposableContainer<T>(value));
+    }
+
+    /// <summary>
+    /// Attaches a disposable object to an entity.
+    /// </summary>
+    /// <typeparam name="T">The type of the disposable object.</typeparam>
+    /// <param name="entity">The entity to attach the disposable object to.</param>
+    /// <param name="value">The disposable object to attach.</param>
+    /// <exception cref="ArgumentException">Thrown if the entity is not registered.</exception>
+    /// <exception cref="ArgumentNullException">Thrown if the value is null.</exception>
+    /// <remarks>
+    /// This method attaches the disposable object to the entity's virtual state, allowing it to be disposed along with the entity.
+    /// </remarks>
+    public static void AttachDisposable<T>(this IEntity entity, T value) where T : class, IDisposable
+    {
+        ValidateEntity(entity);
+
+        var state = states[entity];
+
+        if (!state.HasGeneric<IContainer<CompositeDisposable>>())
+        {
+            state.AddComponent(new DisposableContainer<CompositeDisposable>(new CompositeDisposable()));
+        }
+
+        var container = entity.TryGetGeneric<IContainer<CompositeDisposable>>()!;
+        container.Value.Add(value);
     }
 
     /// <summary>
@@ -160,5 +193,16 @@ public static class EntityMaster
     public static bool IsRegistered(this IEntity entity)
     {
         return states.ContainsKey(entity);
+    }
+
+    public static bool HasComponent(this IEntity entity, Type componentType)
+    {
+        ValidateEntity(entity);
+        return states[entity].HasComponent(componentType);
+    }
+    
+    public static bool HasComponent<T>(this IEntity entity) where T : IEntityComponent
+    {
+        return entity.HasComponent(typeof(T));
     }
 }

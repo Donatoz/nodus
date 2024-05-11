@@ -18,11 +18,11 @@ public sealed class DebugContext : FlowContextBase
         this.logger = logger;
     }
     
-    public override void Bind(IFlowNodeModel node)
+    public override void Bind(INodeModel node)
     {
         base.Bind(node);
         
-        inPort = node.GetFlowPorts().FirstOrDefault(x => x.Type == PortType.Input && x.ValueType.Value != typeof(FlowType));
+        inPort = Node!.GetFlowPorts().FirstOrDefault(x => x.Type == PortType.Input && x.ValueType.Value != typeof(FlowType));
     }
 
     protected override Task Resolve(GraphContext context, IFlowToken currentToken, CancellationToken ct)

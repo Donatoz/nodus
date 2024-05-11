@@ -1,0 +1,25 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nodus.RenderEditor.Views.RenderPreview" ClipToBounds="False">
+    
+    <Panel Name="Container" Classes="anim-slide-side-fade visible">
+        <Border Classes="panel" Padding="10 5" BorderThickness="1" CornerRadius="4" MinWidth="280">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="20" OffsetX="0" OffsetY="10" Opacity="0.15"/>
+            </Border.Effect>
+            <StackPanel Name="ContentContainer">
+                <TextBlock Text="Render Preview" HorizontalAlignment="Center"
+                           Classes="h3" FontWeight="Normal" TextAlignment="Center"/>
+                <ToggleSwitch Name="RenderSwitch" HorizontalAlignment="Center" Margin="0 5"/>
+                
+                <Grid Name="RenderContainer"/>
+                
+                <Button Name="UpdateButton" Content="Update from graph" Margin="0 10 0 0" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+    </Panel>
+    
+</UserControl>

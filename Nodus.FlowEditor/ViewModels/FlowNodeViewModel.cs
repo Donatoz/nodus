@@ -84,7 +84,6 @@ public class FlowNodeViewModel : NodeViewModel
         
         if (!disposing) return;
         
-        Ports.Items.OfType<FlowPortViewModel>().DisposeAll();
         contextContract.Dispose();
         extensionsContract.Dispose();
     }
