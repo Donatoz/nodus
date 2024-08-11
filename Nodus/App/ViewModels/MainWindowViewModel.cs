@@ -7,6 +7,7 @@ using Nodus.DI.Runtime;
 using Nodus.FlowLibraries.Common;
 using Nodus.NodeEditor.Models;
 using Nodus.NodeEditor.ViewModels;
+using Nodus.ObjectDescriptor.ViewModels;
 using Nodus.RenderEditor.Models;
 using Nodus.RenderEditor.ViewModels;
 using Nodus.RenderLibraries.Common;
@@ -17,13 +18,15 @@ namespace Nodus.ViewModels;
 public class MainWindowViewModel : ReactiveObject
 {
     public NodeCanvasViewModel CanvasViewModel { get; private set; }
-    
+    public ExposureTestVm TestVm { get; }
+
     public MainWindowViewModel(IRuntimeElementProvider elementProvider, IRuntimeModuleLoader moduleLoader)
     {
+        TestVm = new ExposureTestVm();
         Assembly.Load(typeof(RenderCanvasModel).Assembly.GetName());
         moduleLoader.Repopulate();
         
-        LoadRenderGraph(elementProvider, moduleLoader);
+        LoadFlowGraph(elementProvider, moduleLoader);
     }
 
     private void LoadRenderGraph(IRuntimeElementProvider elementProvider, IRuntimeModuleLoader moduleLoader)

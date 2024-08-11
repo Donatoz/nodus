@@ -1,0 +1,31 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nodus.ObjectDescriptor.Controls.ExposedMethodEditor">
+    
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Left" Name="LeftExtensions" Orientation="Horizontal" FlowDirection="RightToLeft"/>
+        <DockPanel DockPanel.Dock="Right">
+            <StackPanel Name="RightExtensions" Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
+            <Rectangle Margin="0 1" Name="TypeIndicator" Width="2" DockPanel.Dock="Left"/>
+            <Border MinHeight="30" Classes="exposed-value-editor" Padding="8 3" DockPanel.Dock="Right" HorizontalAlignment="Stretch">
+                <DockPanel Classes="exposed-value-editor-container">
+                    <icons:MaterialIcon VerticalAlignment="Center" Kind="Function" Width="20" Opacity="0.5" Height="20" Margin="0 0 5 2" DockPanel.Dock="Left"/>
+                    <TextBlock Classes="h5" Name="NameText" Margin="0 0 10 0" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                    
+                    <Button Name="InvokeButton" Classes="transparent" Padding="4 2" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="30 2 0 2"
+                            BorderThickness="1" BorderBrush="#555">
+                        <StackPanel Orientation="Horizontal">
+                            <icons:MaterialIcon Kind="PackageVariant" Width="18" Height="18"/>
+                            <TextBlock Text="Invoke" VerticalAlignment="Center" Margin="3 2 0 0"/>
+                        </StackPanel>
+                    </Button>
+                </DockPanel>
+            </Border>
+        </DockPanel>
+    </DockPanel>
+    
+</UserControl>

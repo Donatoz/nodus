@@ -1,26 +1,26 @@
-﻿using System.Drawing;
-using Nodus.Core.Extensions;
+﻿using Nodus.Core.Extensions;
 using Nodus.RenderEngine.Common;
+using Nodus.RenderEngine.OpenGL.Convention;
 using Silk.NET.OpenGL;
 
 namespace Nodus.RenderEngine.OpenGL;
 
 public interface IGlPrimitiveRenderContext : IGlRenderContext
 {
-    IEnumerable<IGlShaderUniform> Uniforms { get; }
-    IEnumerable<IGlTextureDefinition> Textures { get; }
+    IReadOnlyCollection<IGlShaderUniform> Uniforms { get; }
+    IReadOnlyCollection<IGlTextureDefinition> Textures { get; }
 }
 
 public record GlPrimitiveContext(
-    GL GraphicsContext,
-    IEnumerable<IGlShaderUniform> Uniforms,
-    IEnumerable<IGlTextureDefinition> Textures)
-    : GlContext(GraphicsContext), IGlPrimitiveRenderContext;
+    IEnumerable<IShaderDefinition> CoreShaders,
+    IReadOnlyCollection<IGlShaderUniform> Uniforms,
+    IReadOnlyCollection<IGlTextureDefinition> Textures)
+    : GlContext(CoreShaders), IGlPrimitiveRenderContext;
 
 /// <summary>
-/// A renderer that uses OpenGL to render a quad.
+/// An OpenGL context renderer that renders a geometry primitives using provided shaders, uniforms and textures.
 /// </summary>
-public class GlGeometryPrimitiveRenderer : IRenderer, IDisposable
+public class GlGeometryPrimitiveRenderer : GlRendererBase, IDisposable
 {
     private IGlVertexArray? vao;
     private IGlBuffer<Vertex>? vbo;
@@ -29,30 +29,34 @@ public class GlGeometryPrimitiveRenderer : IRenderer, IDisposable
     private GL? gl;
     private IEnumerable<IGlShaderUniform>? uniforms;
     private IEnumerable<IGlTexture>? textures;
-
-    private readonly PriorityQueue<Action, RenderWorkPriority> renderWorkerQueue;
-    private readonly IGeometryPrimitive primitive;
+    private IEnumerable<IShaderDefinition>? coreShaders;
     
-    public GlGeometryPrimitiveRenderer(IGeometryPrimitive primitive)
+    private IGeometryPrimitive primitive;
+    private readonly ITransform transform;
+    private GlMatrix4Uniform primitiveTransformUniform;
+    
+    public GlGeometryPrimitiveRenderer(IGeometryPrimitive primitive, ITransform transform)
     {
         this.primitive = primitive;
-        renderWorkerQueue = new PriorityQueue<Action, RenderWorkPriority>();
+        this.transform = transform;
+        primitiveTransformUniform = new GlMatrix4Uniform("transform", this.transform.GetMatrix, true);
     }
     
-    public void Initialize(IRenderContext context)
+    public override void Initialize(IRenderContext context, IRenderBackendProvider backendProvider)
+    {
+        Enqueue(() => InitializeImpl(context, backendProvider));
+    }
+
+    private void InitializeImpl(IRenderContext context, IRenderBackendProvider backendProvider)
     {
         TryDisposeBuffers();
         textures?.DisposeAll();
 
         var primitiveContext = context.MustBe<IGlPrimitiveRenderContext>();
         
-        gl = primitiveContext.GraphicsContext;
+        gl = backendProvider.GetBackend<GL>();
         uniforms = primitiveContext.Uniforms;
-        
-        gl.ClearColor(Color.Black);
-        gl.Enable(EnableCap.DepthTest);
-        //gl.Enable(EnableCap.Blend);
-        //gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+        coreShaders = primitiveContext.CoreShaders;
 
         vao = new GlVertexArray<float>(gl);
         vao.Bind();
@@ -60,30 +64,57 @@ public class GlGeometryPrimitiveRenderer : IRenderer, IDisposable
         vbo = new GlBuffer<Vertex>(gl, primitive.Vertices, BufferTargetARB.ArrayBuffer, false);
         ebo = new GlBuffer<uint>(gl, primitive.Indices, BufferTargetARB.ElementArrayBuffer, false);
         
-        vbo.Bind();
-        ebo.Bind();
-        
-        vao.SetVertexAttribute(0, 3, VertexAttribPointerType.Float, 5, 0);
-        vao.SetVertexAttribute(1, 2, VertexAttribPointerType.Float, 5, 3);
+        vao.ConformToStandardVertex();
 
         textures = primitiveContext.Textures.Select(x => new GlTexture(gl, x.Source, x.Specification, this)).ToArray();
+
+        if (coreShaders.Any())
+        {
+            UpdateShaders(Enumerable.Empty<IShaderDefinition>());
+        }
         
         gl.TryThrowAllErrors();
         gl.BindVertexArray(0);
     }
 
-    public unsafe void RenderFrame()
+    public void UpdatePrimitive(IGeometryPrimitive newPrimitive)
+    {
+        Enqueue(() => UpdatePrimitiveImpl(newPrimitive));
+    }
+
+    private void UpdatePrimitiveImpl(IGeometryPrimitive newPrimitive)
     {
         ValidateRenderState();
-        ExecuteRenderWorkerQueue();
-        UpdateUniforms();
         
-        gl!.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+        primitive = newPrimitive;
+        primitiveTransformUniform = new GlMatrix4Uniform(UniformConvention.TransformUniformName, transform.GetMatrix, true);
 
+        vao!.Bind();
+        vbo!.Bind();
+        ebo!.Bind();
+        
+        vbo.UpdateData(newPrimitive.Vertices);
+        ebo.UpdateData(primitive.Indices);
+        
+        gl!.BindVertexArray(0);
+    }
+
+    public override unsafe void RenderFrame()
+    {
+        base.RenderFrame();
+        
+        ValidateRenderState();
+        
+        gl!.TryThrowNextError();
+
+        UpdateUniforms();
+
+        gl!.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+        
+        program?.Use();
         textures?.ForEach(x => x.TryBind());
         vao!.Bind();
-        program?.Use();
-
+        
         gl.DrawElements(PrimitiveType.Triangles, (uint) primitive.Indices.Length, DrawElementsType.UnsignedInt, null);
     }
 
@@ -96,7 +127,9 @@ public class GlGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         program?.Dispose();
         
-        var shaders = definitions.Select(x => new GlShader(gl, x.Source, x.Type.ToShaderType())).ToArray();
+        var shaders = definitions
+            .Concat(coreShaders ?? Enumerable.Empty<IShaderDefinition>())
+            .Select(x => new GlShader(gl, x.Source, x.Type.ToShaderType())).ToArray();
 
         program = new GlShaderProgram(gl, shaders);
         
@@ -108,14 +141,8 @@ public class GlGeometryPrimitiveRenderer : IRenderer, IDisposable
         if (program == null || uniforms == null) return;
         
         uniforms.ForEach(program.ApplyUniform);
-    }
-
-    private void ExecuteRenderWorkerQueue()
-    {
-        while (renderWorkerQueue.Count > 0)
-        {
-            renderWorkerQueue.Dequeue().Invoke();
-        }
+        
+        program.ApplyUniform(primitiveTransformUniform);
     }
 
     private void ValidateRenderState()
@@ -131,14 +158,9 @@ public class GlGeometryPrimitiveRenderer : IRenderer, IDisposable
         }
     }
 
-    public void Enqueue(Action item, RenderWorkPriority priority)
+    public override void UpdateShaders(IEnumerable<IShaderDefinition> shaders)
     {
-        renderWorkerQueue.Enqueue(item, priority);
-    }
-
-    public void UpdateShaders(IEnumerable<IShaderDefinition> shaders)
-    {
-        Enqueue(() => UpdateProgram(shaders), RenderWorkPriority.Low);
+        Enqueue(() => UpdateProgram(shaders));
     }
 
     public void Dispose()

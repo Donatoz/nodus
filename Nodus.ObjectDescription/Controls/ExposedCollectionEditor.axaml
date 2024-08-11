@@ -1,0 +1,72 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Nodus.ObjectDescriptor.ViewModels"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:c="using:Nodus.ObjectDescriptor.Controls"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nodus.ObjectDescriptor.Controls.ExposedCollectionEditor"
+             x:DataType="vm:ExposedCollectionViewModel">
+    
+    <DockPanel>
+        <Grid ColumnDefinitions="Auto,*,Auto" DockPanel.Dock="Top">
+            <StackPanel Name="LeftExtensions" Orientation="Horizontal" FlowDirection="RightToLeft" Margin="0 2 0 0" VerticalAlignment="Top"/>
+            <DockPanel Grid.Column="1" HorizontalAlignment="Stretch">
+                <Border MinHeight="40" Classes="exposed-value-editor" Padding="8 3" DockPanel.Dock="Top">
+                    <DockPanel Classes="exposed-value-editor-container">
+                        <icons:MaterialIcon VerticalAlignment="Center" Kind="FormatListBulletedType" Width="20" 
+                                            Opacity="0.5" Height="20" Margin="0 0 5 2" DockPanel.Dock="Left"/>
+                        <TextBlock Classes="h5" Name="NameText" Margin="0 0 10 0" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                        <Border Background="{StaticResource BackgroundLight}" CornerRadius="3" VerticalAlignment="Center" MinWidth="25">
+                            <TextBlock Name="CountText" FontSize="15" HorizontalAlignment="Center" Foreground="{StaticResource Shine}" Margin="3 1 4 1"/>
+                        </Border>
+                        <Button Name="ExpandButton" Classes="transparent" Padding="2" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="30 0 0 0">
+                            <icons:MaterialIcon Name="ExpandIcon" Kind="ChevronDown" Width="25" Height="25"/>
+                        </Button>
+                        <Button Name="CreateButton" Classes="transparent" Padding="4 2" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="0 0 0 0"
+                                BorderThickness="1" BorderBrush="#555">
+                            <StackPanel Orientation="Horizontal">
+                                <icons:MaterialIcon Kind="CircleOutline" Width="18" Height="18"/>
+                                <TextBlock Text="New" VerticalAlignment="Center" Margin="3 2 0 0"/>
+                            </StackPanel>
+                        </Button>
+                    </DockPanel>
+                </Border>
+            </DockPanel>
+            
+            <StackPanel Grid.Column="2" Name="RightExtensions" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Name="AddNewButton" Classes="transparent" Padding="3" Margin="3 0 0 0">
+                    <icons:MaterialIcon Kind="Plus" Width="25" Height="25"/>
+                </Button>
+                <Button Name="ResetButton" Classes="transparent" Padding="3" Margin="3 0 0 0">
+                    <icons:MaterialIcon Kind="Refresh" Width="25" Height="25"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+        
+        <ItemsControl Name="Items" Margin="33 0 0 0" DockPanel.Dock="Bottom">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:ExposedCollectionItemViewModel">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <ContentControl Content="{Binding Value}">
+                            <ContentControl.ContentTemplate>
+                                <c:ExposedMemberEditorSelector/>
+                            </ContentControl.ContentTemplate>
+                        </ContentControl>
+                        <Button Command="{Binding DeleteSelf}" Grid.Column="1" 
+                                Classes="transparent" Padding="3" Margin="3 5 0 0" VerticalAlignment="Top">
+                            <icons:MaterialIcon Kind="Minus" Width="25" Height="25"/>
+                        </Button>
+                    </Grid>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </DockPanel>
+    
+</UserControl>

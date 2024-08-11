@@ -103,4 +103,114 @@ public static class GraphExtensions
 
         return null;
     }
+    
+    public static IEnumerable<Connection> GetNodeConnections(this GraphContext context, INodeModel node)
+    {
+        return node.Ports.Value.SelectMany(x => context.FindPortConnections(x.Id));
+    }
+
+    public static bool HasAncestor(this INodeModel node, Func<Connection, INodeModel, bool> ancestorValidator, GraphContext context)
+    {
+        var pendingConnections = new Queue<Connection>();
+
+        context.GetNodeConnections(node).ForEach(pendingConnections.Enqueue);
+
+        while (pendingConnections.Any())
+        {
+            var connection = pendingConnections.Dequeue();
+            var targetNode = context.FindNode(connection.TargetNodeId);
+
+            if (targetNode == null)
+            {
+                continue;
+            }
+
+            if (ancestorValidator.Invoke(connection, targetNode))
+            {
+                return true;
+            }
+
+            context.GetNodeConnections(targetNode)
+                .Where(x => x.SourceNodeId == targetNode.NodeId)
+                .ForEach(pendingConnections.Enqueue);
+        }
+
+        return false;
+    }
+
+    public static bool IsAncestorOf(this INodeModel node, INodeModel target, GraphContext context)
+    {
+        return node.HasAncestor((_, n) => n == target, context);
+    }
+
+    public static bool AffectsPort(this INodeModel node, IPortModel port, GraphContext context)
+    {
+        return node.HasAncestor((c, _) => c.TargetPortId == port.Id, context);
+    }
+    
+    public static IEnumerable<INodeModel> GetOriginNodes(this GraphContext context, INodeModel? relative = null)
+    {
+        return context.Nodes.Where(node => 
+            context.GetNodeConnections(node).All(x => x.SourceNodeId == node.NodeId)
+            && (relative == null || node.IsAncestorOf(relative, context)) 
+        );
+    }
+
+    public static IEnumerable<INodeModel> GetOriginNodes(this GraphContext context, IPortModel target)
+    {
+        return context.Nodes.Where(node => 
+            node.AffectsPort(target, context) && context.GetNodeConnections(node).All(x => x.SourceNodeId == node.NodeId)
+        );
+    }
+    
+    private static IEnumerable<INodeModel> GetPredecessorsFrom(this GraphContext context, IEnumerable<INodeModel> originSource, INodeModel node)
+    {
+        var nodesToVisit = new Queue<INodeModel>();
+        var result = new List<INodeModel>();
+        var visitedConnections = new HashSet<Connection>(); // The graph context is immutable, hence we need to track the visited connections
+
+        originSource.ForEach(nodesToVisit.Enqueue);
+
+        while (nodesToVisit.Any())
+        {
+            var current = nodesToVisit.Dequeue();
+
+            if (current == node 
+                || !current.IsAncestorOf(node, context)) // The visited node might not lead to the target node
+            {
+                continue;
+            }
+            
+            result.Add(current);
+
+            foreach (var connection in context.GetNodeConnections(current))
+            {
+                if (!visitedConnections.Add(connection))
+                {
+                    continue;
+                }
+
+                var next = context.FindNode(connection.TargetNodeId);
+
+                if (next != null && context.GetNodeConnections(next)
+                        .Where(x => x.TargetNodeId == next.NodeId)
+                        .All(x => visitedConnections.Contains(x)))
+                {
+                    nodesToVisit.Enqueue(next);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Get the node predecessor nodes in a topological order.
+    /// If affected port is specified - the port-affecting predecessors are the only counted.
+    /// </summary>
+    /// <returns></returns>
+    public static IEnumerable<INodeModel> GetSortedPredecessors(this GraphContext context, INodeModel node, IPortModel? affectedPort = null)
+    {
+        return context.GetPredecessorsFrom(affectedPort != null ? context.GetOriginNodes(affectedPort) : context.GetOriginNodes(node), node);
+    }
 }

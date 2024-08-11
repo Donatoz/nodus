@@ -99,6 +99,7 @@
       <ProjectReference Include="..\Nodus.Core\Nodus.Core.csproj" />
       <ProjectReference Include="..\Nodus.FlowLibraries.Common\Nodus.FlowLibraries.Common.csproj" />
       <ProjectReference Include="..\Nodus.NodeEditor\Nodus.NodeEditor.csproj" />
+      <ProjectReference Include="..\Nodus.ObjectDescription\Nodus.ObjectDescription.csproj" />
       <ProjectReference Include="..\Nodus.RenderEditor\Nodus.RenderEditor.csproj" />
       <ProjectReference Include="..\Nodus.RenderLibraries.Common\Nodus.RenderLibraries.Common.csproj" />
     </ItemGroup>

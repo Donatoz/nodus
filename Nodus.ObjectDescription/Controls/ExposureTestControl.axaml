@@ -1,0 +1,24 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Nodus.ObjectDescriptor.ViewModels"
+             xmlns:c="using:Nodus.ObjectDescriptor.Controls"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nodus.ObjectDescriptor.Controls.ExposureTestControl"
+             x:DataType="vm:ExposureTestVm">
+    
+    <StackPanel>
+        <TextBlock Name="TestText"/>
+        <StackPanel Orientation="Horizontal">
+            <ScrollViewer MaxHeight="700">
+                <c:DescribedObjectList MinWidth="500" Margin="15 0" DataContext="{Binding Described}"/>
+            </ScrollViewer>
+        </StackPanel>
+        
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 20 0 0">
+            <Button Content="Refresh" Command="{Binding Test}"/>
+        </StackPanel>
+    </StackPanel>
+    
+</UserControl>

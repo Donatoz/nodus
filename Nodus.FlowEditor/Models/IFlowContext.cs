@@ -87,14 +87,15 @@ public abstract class FlowContextBase : NodeContextBase<IFlowNodeModel>, IFlowCo
     {
         var descs = GetDescriptors();
 
-        if (!descs.Any())
+        var valueDescriptors = descs as ValueDescriptor[] ?? descs.ToArray();
+        if (!valueDescriptors.Any())
         {
             return null;
         }
 
         var d = new DescriptionProvider();
 
-        descs.ForEach(x => d.AddDescriptor(x));
+        valueDescriptors.ForEach(x => d.AddDescriptor(x));
 
         return d;
     }

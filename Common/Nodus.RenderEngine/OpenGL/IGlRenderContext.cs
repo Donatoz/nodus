@@ -5,7 +5,6 @@ namespace Nodus.RenderEngine.OpenGL;
 
 public interface IGlRenderContext : IRenderContext
 {
-    GL GraphicsContext { get; }
 }
 
-public record GlContext(GL GraphicsContext) : IGlRenderContext;
+public record GlContext(IEnumerable<IShaderDefinition> CoreShaders) : IGlRenderContext;

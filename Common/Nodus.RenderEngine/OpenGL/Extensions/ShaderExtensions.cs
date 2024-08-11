@@ -11,6 +11,7 @@ public static class ShaderExtensions
         {
             ShaderSourceType.Fragment => ShaderType.FragmentShader,
             ShaderSourceType.Vertex => ShaderType.VertexShader,
+            ShaderSourceType.Compute => ShaderType.ComputeShader,
             _ => throw new ArgumentException($"Failed to convert {sourceType} to shader type.")
         };
     }

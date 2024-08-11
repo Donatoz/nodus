@@ -1,13 +1,13 @@
 ﻿namespace Nodus.RenderEngine.Common;
 
+/// <summary>
+/// Represents a dispatcher that is responsible for dispatching work items to be executed in a rendering thread.
+/// </summary>
 public interface IRenderDispatcher
 {
-    void Enqueue(Action workItem, RenderWorkPriority priority);
-}
-
-public enum RenderWorkPriority
-{
-    Low,
-    Medium,
-    High
+    /// <summary>
+    /// Enqueues a work item to be processed by a rendering thread.
+    /// </summary>
+    /// <param name="workItem">The work item to enqueue.</param>
+    void Enqueue(Action workItem);
 }

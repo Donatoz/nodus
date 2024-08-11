@@ -36,5 +36,6 @@
         <StyleInclude Source="avares://Nodus.FlowEditor/Styles/FlowEditorElements.axaml"/>
         <StyleInclude Source="avares://Nodus.FlowEditor/Styles/FlowPortTypes.axaml"/>
         <StyleInclude Source="avares://Nodus.FlowEditor/Styles/FlowNodeGroups.axaml"/>
+        <StyleInclude Source="avares://Nodus.ObjectDescription/Styles/ObjectDescriptionStyles.axaml"/>
     </Application.Styles>
 </Application>

@@ -51,6 +51,5 @@
 
     <ItemGroup>
       <Folder Include="Assets\Icons\" />
-      <Folder Include="Models\Templates\" />
     </ItemGroup>
 </Project>

@@ -3,7 +3,7 @@
     
     <StyleInclude Source="avares://Nodus.NodeEditor/Styles/CommonPortTypes.axaml"/>
 
-    <Style Selector="Border.port-value-type-IRenderMetadata">
+    <Style Selector="Border.port-value-type-IRenderMetadata,Border.port-value-type-IFragmentStageMeta">
         <Setter Property="BorderBrush" Value="#d6984b"/>
         
         <Style Selector="^:pointerover">

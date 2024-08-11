@@ -12,8 +12,8 @@ public static class UniformSets
         ShaderTime.Start();
     }
     
-    public static readonly IEnumerable<IGlShaderUniform> TimerUniform = new[]
+    public static IEnumerable<IGlShaderUniform> GetTimerUniform(Stopwatch? timer = null) => new[]
     {
-        new GlFloatUniform("time", () => ShaderTime.ElapsedMilliseconds / 100f, true)
+        new GlFloatUniform("time", () => (timer ?? ShaderTime).ElapsedMilliseconds / 100f % short.MaxValue, true)
     };
 }

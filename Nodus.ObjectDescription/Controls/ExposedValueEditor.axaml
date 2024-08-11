@@ -1,0 +1,34 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Nodus.ObjectDescriptor.ViewModels"
+             xmlns:c="using:Nodus.ObjectDescriptor.Controls"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nodus.ObjectDescriptor.Controls.ExposedValueEditor"
+             x:DataType="vm:ExposedValueViewModel">
+    
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Left" Name="LeftExtensions" Orientation="Horizontal" FlowDirection="RightToLeft"/>
+        <DockPanel DockPanel.Dock="Right">
+            <StackPanel Name="RightExtensions" Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right">
+                <Button Name="ResetButton" Classes="transparent" Padding="3" Margin="3 0 0 0">
+                    <icons:MaterialIcon Kind="Refresh" Width="25" Height="25"/>
+                </Button>
+            </StackPanel>
+            <Rectangle Margin="0 1" Name="TypeIndicator" Width="2" DockPanel.Dock="Left"/>
+            <Border MinHeight="30" Classes="exposed-value-editor" Padding="8 3" DockPanel.Dock="Right" HorizontalAlignment="Stretch">
+                <DockPanel Classes="exposed-value-editor-container">
+                    <TextBlock Classes="h5" Name="NameText" Margin="0 0 10 0" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                    <ContentControl Content="{Binding}" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="30 0 0 0">
+                        <ContentControl.ContentTemplate>
+                            <c:ExposedValueEditorContentSelector/>
+                        </ContentControl.ContentTemplate>
+                    </ContentControl>
+                </DockPanel>
+            </Border>
+        </DockPanel>
+    </DockPanel>
+    
+</UserControl>

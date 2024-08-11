@@ -1,0 +1,49 @@
+﻿<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Nodus.ObjectDescriptor.ViewModels"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             xmlns:c="using:Nodus.ObjectDescriptor.Controls"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nodus.ObjectDescriptor.Controls.ExposedCompoundEditor"
+             x:DataType="vm:ExposedCompoundViewModel">
+    
+    <DockPanel>
+        
+        <DockPanel DockPanel.Dock="Top">
+            <StackPanel DockPanel.Dock="Left" Name="LeftExtensions" Orientation="Horizontal" FlowDirection="RightToLeft" Margin="0 2 0 0" VerticalAlignment="Top"/>
+            <DockPanel DockPanel.Dock="Right">
+                <StackPanel Name="RightExtensions" Orientation="Horizontal" Margin="0 5 0 0" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <Button Name="ResetButton" Classes="transparent" Padding="3" Margin="3 0 0 0">
+                        <icons:MaterialIcon Kind="Refresh" Width="25" Height="25"/>
+                    </Button>
+                </StackPanel>
+                <DockPanel DockPanel.Dock="Right" HorizontalAlignment="Stretch">
+                    <Border MinHeight="40" Classes="exposed-value-editor" Padding="8 3" DockPanel.Dock="Top">
+                        <DockPanel Classes="exposed-value-editor-container">
+                            <icons:MaterialIcon VerticalAlignment="Center" Name="TypeIcon" Width="20" Opacity="0.5" Height="20" Margin="0 0 5 2" DockPanel.Dock="Left"/>
+                            <TextBlock Classes="h5" Name="NameText" Margin="0 0 10 0" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                            <Button Name="ExpandButton" Classes="transparent" Padding="2" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="30 0 0 0">
+                                <icons:MaterialIcon Name="ExpandIcon" Kind="ChevronDown" Width="25" Height="25"/>
+                            </Button>
+                            
+                            <Button Name="CreateButton" Classes="transparent" Padding="4 2" DockPanel.Dock="Right" HorizontalAlignment="Right" Margin="30 0 0 0"
+                                    BorderThickness="1" BorderBrush="#555">
+                                <StackPanel Orientation="Horizontal">
+                                    <icons:MaterialIcon Kind="CircleOutline" Width="18" Height="18"/>
+                                    <TextBlock Text="New" VerticalAlignment="Center" Margin="3 2 0 0"/>
+                                </StackPanel>
+                            </Button>
+                        </DockPanel>
+                        
+                    </Border>
+                </DockPanel>
+            </DockPanel>
+        </DockPanel>
+        
+        <c:DescribedObjectList Margin="33 0 0 0" Name="MembersList" DockPanel.Dock="Bottom"/>
+        
+    </DockPanel>
+    
+</UserControl>

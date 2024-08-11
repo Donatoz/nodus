@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -9,6 +10,7 @@ using Nodus.Core.Interaction;
 using Nodus.DI.Runtime;
 using Nodus.NodeEditor.ViewModels;
 using Nodus.NodeEditor.Views;
+using Nodus.ObjectDescriptor.ViewModels;
 using Nodus.RenderEditor.ViewModels;
 using Nodus.RenderEditor.Views;
 using Nodus.RenderEngine.Avalonia;
@@ -38,6 +40,7 @@ public partial class MainWindow : Window
         {
             var canvas = CrateNodeCanvas(vm.CanvasViewModel);
             canvas.DataContext = vm.CanvasViewModel;
+            
             Container.Children.Insert(0, canvas);
         }
     }

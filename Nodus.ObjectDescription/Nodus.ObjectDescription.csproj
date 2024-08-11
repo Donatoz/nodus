@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>Nodus.ObjectDescriptor</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Avalonia" Version="11.0.6" />
+      <PackageReference Include="Avalonia.ReactiveUI" Version="11.0.6" />
+      <PackageReference Include="Material.Icons.Avalonia" Version="2.1.9" />
+      <PackageReference Include="System.Reactive" Version="6.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Nodus.Core\Nodus.Core.csproj" />
+      <ProjectReference Include="..\Nodus.DI\Nodus.DI.csproj" />
+    </ItemGroup>
+
+</Project>

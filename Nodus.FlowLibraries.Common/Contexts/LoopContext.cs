@@ -29,9 +29,9 @@ public class LoopContext : CachedExposeContext
 
         // Get the loop flow port (typically the last output one) connection
         
-        var outputFlowPorts = Node.GetFlowPorts().Where(x => x.ValueType.Value == typeof(FlowType) && x.Type == PortType.Output);
+        var outputFlowPorts = Node.GetFlowPorts().Where(x => x.ValueType.Value == typeof(FlowType) && x.Type == PortType.Output).ToArray();
 
-        if (outputFlowPorts.Count() < 2)
+        if (outputFlowPorts.Length < 2)
         {
             throw new Exception("A loop context must have at least 2 unique output flow ports.");
         }
@@ -40,7 +40,7 @@ public class LoopContext : CachedExposeContext
 
         if (iterPort == null)
         {
-            throw new Exception("A loop context must a numeric input port.");
+            throw new Exception("A loop context must have a numeric input port.");
         }
         
         var loopConnection = context.FindPortFirstConnection(outputFlowPorts.Last().Id);
@@ -52,7 +52,7 @@ public class LoopContext : CachedExposeContext
         var token = flowBuilder.GetRootToken(context, context.FindNode(loopConnection.TargetNodeId).MustBe<IFlowNodeModel>(), loopConnection);
         var iterations = Convert.ToInt32(Node.GetPortValue(iterPort.Id, context)?.MustBeNumber() ?? GetExposedValue<int>(IterationsCountName));
         
-        // Add it as a child specified amount of times.
+        // Add it as a child for the specified amount of times.
 
         for (var i = 0; i < iterations; i++)
         {

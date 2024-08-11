@@ -5,9 +5,13 @@ using Silk.NET.OpenGL;
 
 namespace Nodus.RenderEngine.OpenGL;
 
+/// <summary>
+/// Represents an OpenGL shader program.
+/// </summary>
 public class GlShaderProgram : GlObject, IDisposable
 {
     private readonly GL gl;
+    private readonly string[] shaders;
     
     public GlShaderProgram(GL gl, params IGlShader[] attachedShaders) : base(gl)
     {
@@ -21,12 +25,24 @@ public class GlShaderProgram : GlObject, IDisposable
         
         if (status == 0)
         {
-            throw new Exception($"Program failed to link with error: {Context.GetProgramInfoLog(Handle)}");
+            throw new Exception($"Failed to link the program: {Context.GetProgramInfoLog(Handle)}" +
+                                $"{Environment.NewLine}{GetShadersTraceList()}");
         }
+
+        shaders = attachedShaders.Select(x => x.ToString()).OfType<string>().ToArray();
         
         attachedShaders.ForEach(x => Context.DetachShader(Handle, x.Handle));
+        
+        gl.TryThrowNextError($"Failed to create shader program.{Environment.NewLine}{GetShadersTraceList()}");
     }
 
+    /// <summary>
+    /// Retrieve and log information about active uniforms in the shader program.
+    /// </summary>
+    /// <remarks>
+    /// This method retrieves the number of active uniforms in the shader program and logs
+    /// information about each uniform, including its name, size, and type.
+    /// </remarks>
     public void DebugUniforms()
     {
         gl.GetProgram(Handle, GLEnum.ActiveUniforms, out var activeUniforms);
@@ -52,8 +68,13 @@ public class GlShaderProgram : GlObject, IDisposable
     public void Use()
     {
         Context.UseProgram(Handle);
+        gl.TryThrowNextError();
     }
 
+    /// <summary>
+    /// Apply a uniform value to the shader program.
+    /// </summary>
+    /// <param name="uniform">The shader uniform to apply.</param>
     public void ApplyUniform(IGlShaderUniform uniform)
     {
         var location = Context.GetUniformLocation(Handle, uniform.Name);
@@ -66,6 +87,14 @@ public class GlShaderProgram : GlObject, IDisposable
         }
         
         uniform.Apply(gl, location);
+
+        gl.TryThrowNextError($"Failed to apply uniform: {uniform}.{Environment.NewLine}{GetShadersTraceList()}");
+    }
+
+    private string GetShadersTraceList()
+    {
+        return $"Shaders:{Environment.NewLine}" +
+               $"{string.Join(Environment.NewLine, shaders.Select(x => $"[{x}]"))}";
     }
 
     public void Dispose()

@@ -26,9 +26,10 @@ public class ParallelContext : FlowContextBase
         // Get the branch flow port (typically the last output one) connection
         
         var outputFlowPorts = Node.GetFlowPorts()
-            .Where(x => x.ValueType.Value == typeof(FlowType) && x.Type == PortType.Output);
+            .Where(x => x.ValueType.Value == typeof(FlowType) && x.Type == PortType.Output)
+            .ToArray();
 
-        if (outputFlowPorts.Count() < 2)
+        if (outputFlowPorts.Length < 2)
         {
             throw new Exception("A branch context must have at least 2 unique output flow ports.");
         }

@@ -1,14 +1,18 @@
-﻿namespace Nodus.RenderEngine.Assembly;
+﻿using Nodus.RenderEngine.OpenGL.Assembly;
 
-public abstract record SingleLineFeature : IShaderAssemblyFeature
+namespace Nodus.RenderEngine.Assembly;
+
+public record DeclarationFeature(ShaderVariableDefinition VariableDefinition, object? DeclarativeValue) : IShaderAssemblyFeature
 {
-    private readonly string line;
-    
-    protected SingleLineFeature(string line)
-    {
-        this.line = line;
-    }
+    public ushort AssemblyPriority { get; init; }
+}
 
-    public IShaderAssemblyToken GetToken(IShaderAssemblyContext context) => 
-        new GenericShaderAssemblyToken(d => d.SourceBuilder.AppendLine(line));
+public record OperationFeature(string LeftOperand, string Operation, object RightOperand) : IShaderAssemblyFeature
+{
+    public ushort AssemblyPriority { get; init; }
+}
+
+public record BodyFeature(string BodyName, ShaderObjectDefinition BodyDefinition, IShaderVariableDefinition[] Arguments, IList<IShaderAssemblyFeature> Children) : IShaderAssemblyFeature
+{
+    public ushort AssemblyPriority { get; init; }
 }

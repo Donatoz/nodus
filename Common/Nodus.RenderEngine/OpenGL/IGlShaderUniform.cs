@@ -1,10 +1,12 @@
-﻿using Silk.NET.OpenGL;
+﻿using System.Numerics;
+using Nodus.RenderEngine.Common;
+using Silk.NET.Maths;
+using Silk.NET.OpenGL;
 
 namespace Nodus.RenderEngine.OpenGL;
 
-public interface IGlShaderUniform
+public interface IGlShaderUniform : IShaderUniform
 {
-    string Name { get; }
     bool Optional { get; }
     
     void Apply(GL context, int location);
@@ -36,5 +38,30 @@ public record GlFloatUniform : GlUniformBase<float>
     public override void Apply(GL context, int location)
     {
         context.Uniform1(location, Getter.Invoke());
+    }
+}
+
+public record GlIntUniform : GlUniformBase<int>
+{
+    public GlIntUniform(string name, Func<int> getter, bool optional = false) : base(name, getter, optional)
+    {
+    }
+
+    public override void Apply(GL context, int location)
+    {
+        context.Uniform1(location, Getter.Invoke());
+    }
+}
+
+public record GlMatrix4Uniform : GlUniformBase<Matrix4X4<float>>
+{
+    public GlMatrix4Uniform(string name, Func<Matrix4X4<float>> getter, bool optional = false) : base(name, getter, optional)
+    {
+    }
+
+    public override unsafe void Apply(GL context, int location)
+    {
+        var mat = Getter.Invoke();
+        context.UniformMatrix4(location, 1, false, (float*)&mat);
     }
 }

@@ -15,4 +15,9 @@ public readonly struct TextureFileSource : ITextureSource
     }
 
     public byte[] FetchBytes() => File.ReadAllBytes(filePath);
+
+    public override string ToString()
+    {
+        return $"[Path={filePath}]";
+    }
 }

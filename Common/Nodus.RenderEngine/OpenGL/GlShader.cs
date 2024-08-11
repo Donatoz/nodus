@@ -3,8 +3,14 @@ using Silk.NET.OpenGL;
 
 namespace Nodus.RenderEngine.OpenGL;
 
+/// <summary>
+/// Represents an OpenGL shader object.
+/// </summary>
 public interface IGlShader : IUnmanagedHook
 {
+    /// <summary>
+    /// Compiles the shader.
+    /// </summary>
     void Compile();
 }
 
@@ -35,5 +41,10 @@ public class GlShader : GlObject, IGlShader
     public void Dispose()
     {
         Context.DeleteShader(Handle);
+    }
+
+    public override string? ToString()
+    {
+        return source.ToString();
     }
 }

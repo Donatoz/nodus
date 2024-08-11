@@ -3,7 +3,6 @@
 precision mediump float;
 
 in vec2 texCoord;
-in vec4 vertexPosition;
 
 uniform float time;
 
@@ -12,14 +11,18 @@ uniform sampler2D distortion;
 
 out vec4 FragColor;
 
+#define PI 3.14159
+
 void main()
 {
     vec2 uv = texCoord;
     
-    vec2 speed = vec2(time, time) * .005;
+    vec2 speed = vec2(time, time) * .1;
     vec4 distortionColor = texture(distortion, uv + speed);
     
-    float factor = sin(time / 6.) * .1;
+    float factor = sin(mod(time * 2., 2. * PI)) * .1;
     
-    FragColor = texture(mainTexture, mix(uv, distortionColor.xy, factor));
+    vec4 color = texture(mainTexture, mix(uv, distortionColor.xy, factor));
+    
+    FragColor = color;
 }

@@ -6,8 +6,8 @@ using Nodus.RenderEngine.Avalonia;
 using Nodus.RenderEngine.OpenGL;
 using ReactiveUI;
 using System;
-using System.Diagnostics;
 using System.Reactive.Disposables;
+using Nodus.RenderEngine.Common;
 
 namespace Nodus.RenderEditor.Views;
 
@@ -25,12 +25,20 @@ public partial class RenderPreview : ReactiveUserControl<RenderPreviewViewModel>
                 .Subscribe(x => renderSurface?.SwitchRendering(x))
                 .DisposeWith(d);
 
+            ViewModel?.ContextStream.Subscribe(OnRenderContextChanged)
+                .DisposeWith(d);
+
             this.Bind(ViewModel, vm => vm.Render.MutableValue, v => v.RenderSwitch.IsChecked)
                 .DisposeWith(d);
 
             this.BindCommand(ViewModel, vm => vm.UpdatePreview, v => v.UpdateButton)
                 .DisposeWith(d);
         });
+    }
+
+    private void OnRenderContextChanged(IRenderContext context)
+    {
+        //renderSurface?.ResetContext(context);
     }
 
     protected override void OnInitialized()
@@ -43,7 +51,7 @@ public partial class RenderPreview : ReactiveUserControl<RenderPreviewViewModel>
             RendererFactory = PrimitiveRenderers.QuadRenderer,
             VertexShaderSource = "avares://Nodus.RenderEngine.Avalonia/Assets/Shaders/example.vert",
             FragmentShaderSource = "avares://Nodus.RenderEngine.Avalonia/Assets/Shaders/example.frag",
-            Uniforms = UniformSets.TimerUniform.Concat(new []
+            Uniforms = UniformSets.GetTimerUniform().Concat(new []
             {
                 new GlFloatUniform("mainTexture", () => 0, true),
                 new GlFloatUniform("distortion", () => 1, true)

@@ -1,0 +1,23 @@
+﻿<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia">
+
+    <Style Selector="Rectangle.type-indicator">
+        <Setter Property="Fill" Value="#8f8f8f"/>
+        
+        <Style Selector="^.Single">
+            <Setter Property="Fill" Value="#46ab7f"/>
+        </Style>
+    </Style>
+    
+    <Style Selector="icons|MaterialIcon.type-icon">
+        <Setter Property="Foreground" Value="#8f8f8f"/>
+        
+        <Style Selector="^.class">
+            <Setter Property="Kind" Value="Cube"/>
+        </Style>
+        <Style Selector="^.struct">
+            <Setter Property="Kind" Value="TextureBox"/>
+        </Style>
+    </Style>
+</Styles>

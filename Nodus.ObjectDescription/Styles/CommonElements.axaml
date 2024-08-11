@@ -1,0 +1,23 @@
+﻿<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Design.PreviewWith>
+        <Border Padding="20">
+            <!-- Add Controls for Previewer Here -->
+        </Border>
+    </Design.PreviewWith>
+    
+    <Style Selector="Border.exposed-value-editor">
+        <Setter Property="BorderBrush" Value="{StaticResource BackgroundSemiLight}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Background" Value="{StaticResource BackgroundDark}"/>
+        
+        <Style Selector="^ .exposed-value-editor-container">
+            
+        </Style>
+    </Style>
+    
+    <Style Selector="TextBox.editor-textbox">
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+    </Style>
+</Styles>

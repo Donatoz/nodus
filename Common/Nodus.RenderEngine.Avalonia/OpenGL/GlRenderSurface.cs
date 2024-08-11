@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.Linq;
 using Avalonia;
 using Avalonia.OpenGL;
@@ -79,9 +80,11 @@ public class GlRenderSurface : OpenGlControlBase
         
         gl = GL.GetApi(gli.GetProcAddress);
         gl.IterateErrors();
+        gl.ClearColor(Color.Black);
+        gl.Enable(EnableCap.DepthTest);
         
         renderer = RendererFactory.Invoke();
-        renderer.Initialize(CreateContextForRenderer());
+        ResetContext(CreateContextForRenderer());
         
         UpdateShaders();
         
@@ -104,6 +107,7 @@ public class GlRenderSurface : OpenGlControlBase
         {
             gl!.Viewport(0, 0, (uint)Bounds.Width, (uint)Bounds.Height);
 
+            
             renderer?.RenderFrame();
         }
         
@@ -122,6 +126,11 @@ public class GlRenderSurface : OpenGlControlBase
     public void SwitchRendering(bool isEnabled)
     {
         IsRenderEnabled = isEnabled;
+    }
+
+    public void ResetContext(IRenderContext context)
+    {
+        renderer?.Initialize(context, new GlRenderBackendProvider(gl.NotNull()));
     }
     
     private IEnumerable<IGlTextureDefinition> PackTextures()
@@ -143,7 +152,8 @@ public class GlRenderSurface : OpenGlControlBase
     {
         return renderer switch
         {
-            GlGeometryPrimitiveRenderer => new GlPrimitiveContext(gl.NotNull(), Uniforms ?? Enumerable.Empty<IGlShaderUniform>(), PackTextures().ToArray()),
+            GlGeometryPrimitiveRenderer => new GlPrimitiveContext(Enumerable.Empty<IShaderDefinition>(), 
+                Uniforms?.ToArray() ?? Array.Empty<IGlShaderUniform>(), PackTextures().ToArray()),
             _ => throw new Exception($"This surface does not support the provided renderer ({renderer}).")
         };
     }

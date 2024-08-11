@@ -2,9 +2,19 @@
 
 namespace Nodus.RenderEngine.OpenGL;
 
+/// <summary>
+/// Represents a definition for an OpenGL texture.
+/// </summary>
 public interface IGlTextureDefinition
 {
+    /// <summary>
+    /// A texture source.
+    /// </summary>
     ITextureSource Source { get; }
+
+    /// <summary>
+    /// The specification for an OpenGL texture.
+    /// </summary>
     IGlTextureSpecification Specification { get; }
 }
 

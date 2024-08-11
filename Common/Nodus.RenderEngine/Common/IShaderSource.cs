@@ -44,12 +44,17 @@ public readonly struct ShaderStaticSource : IShaderSource
 
 public readonly struct ShaderFileSource : IShaderSource
 {
-    private readonly string source;
+    private readonly string filePath;
 
     public ShaderFileSource(string path)
     {
-        source = File.ReadAllText(path);
+        filePath = path;
     }
 
-    public string FetchSource() => source;
+    public string FetchSource() => File.ReadAllText(filePath);
+
+    public override string ToString()
+    {
+        return filePath;
+    }
 }

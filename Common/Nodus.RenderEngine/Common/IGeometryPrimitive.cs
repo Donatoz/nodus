@@ -6,7 +6,7 @@ public interface IGeometryPrimitive
     uint[] Indices { get; }
 }
 
-public readonly struct GeometryPrimitive : IGeometryPrimitive
+public class GeometryPrimitive : IGeometryPrimitive
 {
     public Vertex[] Vertices { get; }
     public uint[] Indices { get; }

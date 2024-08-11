@@ -4,15 +4,14 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:Nodus.RenderEditor.ViewModels"
              xmlns:ev="using:Nodus.NodeEditor.Views"
-             xmlns:cnv="using:Nodus.Core.Converters"
-             xmlns:meta="using:Nodus.RenderEditor.Meta"
+             xmlns:v="using:Nodus.RenderEditor.Views"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="Nodus.RenderEditor.Views.RenderInputPort"
              x:DataType="vm:RenderPortViewModel">
     
     <DockPanel Name="Container">
         <Border Name="Handler" ClipToBounds="False" Classes="port flow-port" />
-        <Border IsVisible="{Binding PortValueType.Value, Converter={cnv:ToStringEqualityConverter}, ConverterParameter={x:Type meta:IRenderMetadata}}"
+        <Border IsVisible="{Binding PortValueType.Value, Converter={v:IsRenderMetadataTypeConverter}}"
                 Margin="5 0" CornerRadius="10" Width="10" Height="10" VerticalAlignment="Center" 
                 Background="{Binding #Handler.BorderBrush}"/>
         <TextBlock Text="{Binding Label}" Foreground="White" Classes="h5" FontWeight="Light"

@@ -1,0 +1,13 @@
+﻿<c:ExposedValueEditorContent xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Nodus.ObjectDescriptor.ViewModels"
+             xmlns:c="using:Nodus.ObjectDescriptor.Controls"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Nodus.ObjectDescriptor.Controls.TextboxEditor"
+             x:DataType="vm:ExposedValueViewModel">
+    
+    <TextBox Classes="editor-textbox" Watermark="None" Name="Editor" TextAlignment="Right" VerticalContentAlignment="Center"/>
+    
+</c:ExposedValueEditorContent>

@@ -1,5 +1,6 @@
 ﻿<Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia">
     <Design.PreviewWith>
         <StackPanel Orientation="Horizontal">
             <Border Margin="5 0" Classes="panel" Padding="20"><TextBlock Text="Panel Default"/></Border>
@@ -108,6 +109,43 @@
         <Style Selector="^:pointerover">
             <Setter Property="Background" Value="{StaticResource BackgroundLight}"/>
             <Setter Property="BorderBrush" Value="{StaticResource AscentActiveHighlight}"/>
+        </Style>
+    </Style>
+    
+    <Style Selector="Button.transparent">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        
+        <Style Selector="^ icons|MaterialIcon">
+            <Setter Property="Foreground" Value="{StaticResource Highlight}"/>
+        </Style>
+        
+        <Style Selector="^ TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Highlight}"/>
+        </Style>
+        
+        <Style Selector="^:pointerover">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            
+            <Style Selector="^ icons|MaterialIcon">
+                <Setter Property="Foreground" Value="{StaticResource Shine}"/>
+            </Style>
+            
+            <Style Selector="^ TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource Shine}"/>
+            </Style>
+        </Style>
+        
+        <Style Selector="^:pressed">
+            <Style Selector="^ icons|MaterialIcon">
+                <Setter Property="Foreground" Value="{StaticResource Max}"/>
+            </Style>
+            
+            <Style Selector="^ TextBlock">
+                <Setter Property="Foreground" Value="{StaticResource Max}"/>
+            </Style>
         </Style>
     </Style>
     

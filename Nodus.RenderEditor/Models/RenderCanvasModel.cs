@@ -6,6 +6,7 @@ using Nodus.Core.Extensions;
 using Nodus.DI.Factories;
 using Nodus.NodeEditor.Meta;
 using Nodus.NodeEditor.Models;
+using Nodus.RenderEditor.Assembly;
 using Nodus.RenderEditor.Meta;
 
 namespace Nodus.RenderEditor.Models;
@@ -16,6 +17,7 @@ public interface IRenderCanvasModel : INodeCanvasModel
     IObservable<IChangeSet<IRenderCanvasVariableModel>> VariableStream { get; }
 
     void AddVariable(string name, Type type, object? initialVal = null);
+    RenderEngine.Common.IRenderContext CreateContextFrom(IRenderNodeModel root);
 }
 
 public class RenderCanvasModel : NodeCanvasModel, IRenderCanvasModel
@@ -24,12 +26,14 @@ public class RenderCanvasModel : NodeCanvasModel, IRenderCanvasModel
     public IObservable<IChangeSet<IRenderCanvasVariableModel>> VariableStream => variables.Connect();
 
     private readonly ISourceList<IRenderCanvasVariableModel> variables;
+    private readonly IRenderGraphAssembler assembler;
     
     public RenderCanvasModel(INodeContextProvider contextProvider, 
         IFactory<IGraphElementTemplate, IGraphElementModel> elementFactory, 
         IFactory<IGraphElementData, IGraphElementTemplate> templateFactory) : base(contextProvider, elementFactory, templateFactory)
     {
         variables = new SourceList<IRenderCanvasVariableModel>();
+        assembler = new GlRenderGraphAssembler();
     }
 
     public override NodeGraph SerializeToGraph()
@@ -37,6 +41,11 @@ public class RenderCanvasModel : NodeCanvasModel, IRenderCanvasModel
         var baseGraph = base.SerializeToGraph();
 
         return new RenderGraph(baseGraph, Variables.Select(x => x.Serialize()).ToArray());
+    }
+
+    public RenderEngine.Common.IRenderContext CreateContextFrom(IRenderNodeModel root)
+    {
+        return assembler.CreateRenderContext(root, Context);
     }
 
     public override void LoadGraph(NodeGraph graph)
