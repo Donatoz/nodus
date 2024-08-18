@@ -10,6 +10,6 @@ public class GlRenderObject : RenderedObject
     public GlRenderObject(IGeometryPrimitive geometry, ITransform transform, string materialId) : base(geometry, transform, materialId)
     {
         TransformUniform =
-            new GlMatrix4Uniform(UniformConvention.TransformUniformName, () => Transform.GetMatrix());
+            new GlMatrix4Uniform(UniformConvention.TransformUniformName, GetEffectiveTransform);
     }
 }

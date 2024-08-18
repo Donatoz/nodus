@@ -1,4 +1,5 @@
 ﻿using Nodus.Core.Extensions;
+using Nodus.RenderEngine.Common;
 using Silk.NET.OpenGL;
 
 namespace Nodus.RenderEngine.OpenGL;
@@ -41,10 +42,12 @@ public class GlMaterial : IGlMaterial
     private IGlMaterialDefinition definition = null!;
     
     private readonly GL gl;
+    private readonly IRenderTracer? tracer;
     
-    public GlMaterial(GL context, IGlMaterialDefinition definition)
+    public GlMaterial(GL context, IGlMaterialDefinition definition, IRenderTracer? tracer = null)
     {
         gl = context;
+        this.tracer = tracer;
         RenderPriority = definition.RenderPriority;
         
         UpdateDefinition(definition);
@@ -53,11 +56,9 @@ public class GlMaterial : IGlMaterial
     public void Use()
     {
         program!.Use();
-
+        
         definition.Textures.ForEach(x => x.TryBind());
         definition.Uniforms.OfType<IGlShaderUniform>().ForEach(program.ApplyUniform);
-        
-        gl.TryThrowNextError($"Failed to use material: {MaterialId}");
     }
 
     public void UpdateDefinition(IGlMaterialDefinition newDefinition)

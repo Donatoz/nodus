@@ -4,7 +4,7 @@ public class Program
 {
     public static void Main()
     {
-        var window = new GlWindow();
+        var window = new VkWindow();
         window.Run();
     }
 }

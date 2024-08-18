@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System.Diagnostics;
+using System.Drawing;
 using ImGuiNET;
 using Nodus.Core.Extensions;
 using Nodus.RenderEngine.Common;
@@ -17,6 +18,7 @@ public class GlWindow
 {
     private readonly IWindow window;
     private readonly GlSceneRenderer renderer;
+    private readonly Stopwatch timeWatch;
     
     private GL? gl;
     private IInputContext? input;
@@ -33,11 +35,18 @@ public class GlWindow
     private IGlMaterialDefinition? defaultMaterial;
 
     private float timeMultiplier = 1;
+    private float timeModulo = 100;
     private bool isOrthographic;
     private float fov = 45;
 
+    private double fps;
+    private uint frame;
+    private double refreshTime;
+
     public GlWindow()
     {
+        timeWatch = new Stopwatch();
+        
         var opt = WindowOptions.Default;
         opt.Size = new Vector2D<int>(800, 600);
         opt.Title = "Nodus Renderer (OpenGL)";
@@ -75,19 +84,19 @@ public class GlWindow
         geoFactory = new AssimpGeometryFactory();
         
         var cube = geoFactory.CreateFromFile(@"G:\CG\3D\Common\Cube.obj").First();
-
+        
         sceneObject = new GlRenderObject(cube, new Transform3D
         {
             Translation = Vector3D<float>.UnitX / 2,
             Scale = Vector3D<float>.One / 4,
-            Rotation = new Vector3D<float>(Scalar.DegreesToRadians(-20), Scalar.DegreesToRadians(30), 0)
+            Rotation = new Vector3D<float>(-Scalar.DegreesToRadians(20f), Scalar.DegreesToRadians(30f), 0)
         }, defaultMaterial.MaterialId);
         anotherObject = new GlRenderObject(cube, new Transform3D
         {
             Translation = Vector3D<float>.UnitX / -2 + Vector3D<float>.UnitZ * -3,
             Scale = Vector3D<float>.One / 2
         }, defaultMaterial.MaterialId);
-
+        
         viewer = new Viewer(new Vector2D<float>(window!.Size.X, window.Size.Y));
         viewer.Position = Vector3D<float>.UnitZ * -3;
         
@@ -99,7 +108,7 @@ public class GlWindow
         gl.ClearColor(Color.Black);
         gl.Enable(EnableCap.DepthTest);
         
-        renderer!.Initialize(new GlSceneRenderContext(Enumerable.Empty<IShaderDefinition>(), scene, new []{defaultMaterial}), new GlRenderBackendProvider(gl));
+        renderer.Initialize(new GlSceneRenderContext(Enumerable.Empty<IShaderDefinition>(), scene, new []{defaultMaterial}), new GlRenderBackendProvider(gl));
 
         gui = new ImGuiController(gl, window, input);
         
@@ -107,30 +116,51 @@ public class GlWindow
         {
             input.Keyboards[i].KeyDown += OnKeyDown;
         }
+        
+        timeWatch.Start();
     }
     
     private void OnUpdate(double delta)
     {
         if (input?.Keyboards[0] is { } k)
         {
-            if (renderer != null)
-            {
-                const float movementDelta = 0.01f;
-                
-                var leftFactor = (k.IsKeyPressed(Key.A) ? 1 : 0) * movementDelta * Vector3D<float>.UnitX;
-                var rightFactor = (k.IsKeyPressed(Key.D) ? 1 : 0) * movementDelta * -Vector3D<float>.UnitX;
-                var forwardFactor = (k.IsKeyPressed(Key.W) ? 1 : 0) * movementDelta * Vector3D<float>.UnitZ;
-                var backwardFactor = (k.IsKeyPressed(Key.S) ? 1 : 0) * movementDelta * -Vector3D<float>.UnitZ;
-                var upFactor = (k.IsKeyPressed(Key.E) ? 1 : 0) * movementDelta * Vector3D<float>.UnitY;
-                var downFactor = (k.IsKeyPressed(Key.Q) ? 1 : 0) * movementDelta * -Vector3D<float>.UnitY;
+            const float movementDelta = 0.01f;
+            
+            var leftFactor = (k.IsKeyPressed(Key.A) ? 1 : 0) * movementDelta * Vector3D<float>.UnitX;
+            var rightFactor = (k.IsKeyPressed(Key.D) ? 1 : 0) * movementDelta * -Vector3D<float>.UnitX;
+            var forwardFactor = (k.IsKeyPressed(Key.W) ? 1 : 0) * movementDelta * Vector3D<float>.UnitZ;
+            var backwardFactor = (k.IsKeyPressed(Key.S) ? 1 : 0) * movementDelta * -Vector3D<float>.UnitZ;
+            var upFactor = (k.IsKeyPressed(Key.E) ? 1 : 0) * movementDelta * Vector3D<float>.UnitY;
+            var downFactor = (k.IsKeyPressed(Key.Q) ? 1 : 0) * movementDelta * -Vector3D<float>.UnitY;
 
-                viewer!.Position += leftFactor + rightFactor + forwardFactor + backwardFactor + upFactor + downFactor;
+            viewer!.Position += leftFactor + rightFactor + forwardFactor + backwardFactor + upFactor + downFactor;
+            
+            if (anotherObject!.Transform is not Transform3D t) return;
+
+            var objLeftAxis = (k.IsKeyPressed(Key.Left) ? 1 : 0) * movementDelta * -Vector3D<float>.UnitX;
+            var objRightAxis = (k.IsKeyPressed(Key.Right) ? 1 : 0) * movementDelta * Vector3D<float>.UnitX;
+
+            var objVector = objLeftAxis + objRightAxis;
+
+            if (objVector.LengthSquared > 0.00001f)
+            {
+                t.Translation += objVector;
             }
         }
         
         gui?.Update((float)delta);
         viewer!.IsOrthographic = isOrthographic;
         viewer.FieldOfView = fov;
+
+        refreshTime += delta;
+
+        if (refreshTime > 1.0)
+        {
+            fps = frame / refreshTime;
+
+            frame = 0;
+            refreshTime = 0;
+        }
     }
     
     private void OnFrameBufferResize(Vector2D<int> size)
@@ -149,6 +179,7 @@ public class GlWindow
         
         PrepareGui();
         gui?.Render();
+        frame++;
     }
 
     private void PrepareGui()
@@ -158,8 +189,9 @@ public class GlWindow
         ImGui.SeparatorText("Info");
         
         ImGui.BeginGroup();
-        ImGui.Text($"FPS: {window?.FramesPerSecond}");
-        ImGui.Text($"Time: {window?.Time}");
+        
+        ImGui.Text($"FPS: {fps:0.00}");
+        ImGui.Text($"Time: {timeWatch.ElapsedMilliseconds / 1000f:0.00}");
         ImGui.EndGroup();
         
         ImGui.SeparatorText("Render");
@@ -169,6 +201,10 @@ public class GlWindow
         if (ImGui.Button("Reload Shaders"))
         {
             renderer?.InjectMaterial(defaultMaterial!);
+        }
+        if (ImGui.Button("Reset time"))
+        {
+            timeWatch.Restart();
         }
         ImGui.EndGroup();
         
@@ -186,7 +222,7 @@ public class GlWindow
     {
         var uniforms = new IGlShaderUniform[]
         {
-            new GlFloatUniform(UniformConvention.TimeUniformName, () => (float)(window?.Time ?? 0) * timeMultiplier, true),
+            new GlFloatUniform(UniformConvention.TimeUniformName, () => timeWatch.ElapsedMilliseconds / 1000f * timeMultiplier % timeModulo, true),
             new GlIntUniform("mainTexture", () => 0),
             new GlIntUniform("distortion", () => 1)
         };

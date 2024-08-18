@@ -10,7 +10,7 @@ namespace Nodus.RenderEngine.OpenGL;
 /// <summary>
 /// Represents an OpenGL texture.
 /// </summary>
-public interface IGlTexture : IUnmanagedHook
+public interface IGlTexture : IUnmanagedHook<uint>
 {
     /// <summary>
     /// Loads an OpenGL texture using the provided texture source.
@@ -105,7 +105,8 @@ public class GlTexture : GlObject, IGlTexture
     
     private ITextureSource? source;
 
-    public GlTexture(GL context, ITextureSource source, IGlTextureSpecification specification, IRenderDispatcher dispatcher) : base(context)
+    public GlTexture(GL context, ITextureSource source, IGlTextureSpecification specification, IRenderDispatcher dispatcher, IRenderTracer? tracer = null) 
+        : base(context, tracer)
     {
         this.dispatcher = dispatcher;
         dataProvider = specification.DataProvider;
@@ -161,7 +162,7 @@ public class GlTexture : GlObject, IGlTexture
                 }
             });
             
-            Context.TryThrowNextError($"Failed to process loaded texture: {source}");
+            TryThrowTracedGlError($"{GetType()}:ProcessLoadedTexture", $"Failed to process loaded texture: {source}");
             
             tex.Dispose();
             
@@ -188,7 +189,8 @@ public class GlTexture : GlObject, IGlTexture
         
         Context.ActiveTexture(unit);
         Context.BindTexture(target, Handle);
-        Context.TryThrowNextError($"Failed to bind texture: {source}");
+        
+        TryThrowTracedGlError($"{GetType()}:TryBind", $"Failed to bind texture: {source}");
     }
 
     /// <summary>

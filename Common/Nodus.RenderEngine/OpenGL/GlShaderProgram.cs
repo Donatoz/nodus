@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Text;
 using Nodus.Core.Extensions;
+using Nodus.RenderEngine.Common;
 using Silk.NET.OpenGL;
 
 namespace Nodus.RenderEngine.OpenGL;
@@ -13,7 +14,7 @@ public class GlShaderProgram : GlObject, IDisposable
     private readonly GL gl;
     private readonly string[] shaders;
     
-    public GlShaderProgram(GL gl, params IGlShader[] attachedShaders) : base(gl)
+    public GlShaderProgram(GL gl, IGlShader[] attachedShaders, IRenderTracer? tracer = null) : base(gl, tracer)
     {
         this.gl = gl;
         Handle = Context.CreateProgram();
@@ -33,7 +34,7 @@ public class GlShaderProgram : GlObject, IDisposable
         
         attachedShaders.ForEach(x => Context.DetachShader(Handle, x.Handle));
         
-        gl.TryThrowNextError($"Failed to create shader program.{Environment.NewLine}{GetShadersTraceList()}");
+        TryThrowTracedGlError($"{GetType()}:ctor", $"Failed to create shader program.{Environment.NewLine}{GetShadersTraceList()}");
     }
 
     /// <summary>
@@ -68,7 +69,6 @@ public class GlShaderProgram : GlObject, IDisposable
     public void Use()
     {
         Context.UseProgram(Handle);
-        gl.TryThrowNextError();
     }
 
     /// <summary>
@@ -88,7 +88,7 @@ public class GlShaderProgram : GlObject, IDisposable
         
         uniform.Apply(gl, location);
 
-        gl.TryThrowNextError($"Failed to apply uniform: {uniform}.{Environment.NewLine}{GetShadersTraceList()}");
+        TryThrowTracedGlError($"{GetType()}:ApplyUniform", $"Failed to apply uniform: {uniform}.{Environment.NewLine}{GetShadersTraceList()}");
     }
 
     private string GetShadersTraceList()

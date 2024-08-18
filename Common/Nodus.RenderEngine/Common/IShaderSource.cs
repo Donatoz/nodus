@@ -5,6 +5,11 @@ public interface IShaderSource
     string FetchSource();
 }
 
+public interface IShaderByteSource : IShaderSource
+{
+    byte[] FetchBytes();
+}
+
 public interface IShaderDefinition
 {
     IShaderSource Source { get; }
@@ -42,7 +47,7 @@ public readonly struct ShaderStaticSource : IShaderSource
     public string FetchSource() => source;
 }
 
-public readonly struct ShaderFileSource : IShaderSource
+public readonly struct ShaderFileSource : IShaderByteSource
 {
     private readonly string filePath;
 
@@ -52,6 +57,7 @@ public readonly struct ShaderFileSource : IShaderSource
     }
 
     public string FetchSource() => File.ReadAllText(filePath);
+    public byte[] FetchBytes() => File.ReadAllBytes(filePath);
 
     public override string ToString()
     {

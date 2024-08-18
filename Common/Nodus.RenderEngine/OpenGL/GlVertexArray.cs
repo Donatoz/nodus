@@ -6,7 +6,7 @@ namespace Nodus.RenderEngine.OpenGL;
 /// <summary>
 /// Represents an OpenGL vertex array object.
 /// </summary>
-public interface IGlVertexArray : IUnmanagedHook
+public interface IGlVertexArray : IUnmanagedHook<uint>
 {
     /// <summary>
     /// Binds the vertex array object for rendering.
@@ -26,7 +26,7 @@ public interface IGlVertexArray : IUnmanagedHook
 
 public class GlVertexArray<TVert> : GlObject, IGlVertexArray where TVert : unmanaged
 {
-    public GlVertexArray(GL gl) : base(gl)
+    public GlVertexArray(GL gl, IRenderTracer? tracer = null) : base(gl, tracer)
     {
         Handle = Context.GenVertexArray();
     }
@@ -36,7 +36,7 @@ public class GlVertexArray<TVert> : GlObject, IGlVertexArray where TVert : unman
         Context.VertexAttribPointer(index, byteCount, type, false, vertexSize * (uint) sizeof(TVert), (void*) (offSet * sizeof(TVert)));
         Context.EnableVertexAttribArray(index);
         
-        Context.TryThrowNextError($"Failed to set vertex attribute: Type={type}, Idx={index}");
+        TryThrowTracedGlError($"{GetType()}:SetVertexAttribute", $"Failed to set vertex attribute: Type={type}, Idx={index}");
     }
 
     public void Bind()

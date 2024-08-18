@@ -19,3 +19,8 @@ public interface IFactory<in TIn1, in TIn2, in TIn3, out TOut>
 {
     TOut Create(TIn1 arg1, TIn2 arg2, TIn3 arg3);
 }
+
+public interface IFactory<in TIn1, in TIn2, in TIn3, in TIn4, out TOut>
+{
+    TOut Create(TIn1 arg1, TIn2 arg2, TIn3 arg3, TIn4 arg4);
+}

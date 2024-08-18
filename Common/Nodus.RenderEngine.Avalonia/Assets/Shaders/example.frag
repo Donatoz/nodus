@@ -1,6 +1,6 @@
 ﻿#version 310 es
 
-precision mediump float;
+precision highp float;
 
 in vec2 texCoord;
 

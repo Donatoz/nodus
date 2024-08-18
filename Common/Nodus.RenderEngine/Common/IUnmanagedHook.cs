@@ -1,6 +1,14 @@
 ﻿namespace Nodus.RenderEngine.Common;
 
-public interface IUnmanagedHook : IDisposable
+/// <summary>
+/// Represents a managed wrapper for unmanaged resources.
+/// </summary>
+/// <typeparam name="T">The type of unmanaged resource.</typeparam>
+public interface IUnmanagedHook<out T> : IDisposable where T : unmanaged
 {
-    uint Handle { get; }
+    /// <summary>
+    /// Represents a handle to a resource.
+    /// </summary>
+    /// <typeparam name="T">The underlying type of the handle.</typeparam>
+    T Handle { get; }
 }

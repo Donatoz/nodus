@@ -13,14 +13,17 @@ public class GlGeometryBufferStack : IDisposable
     private readonly IGlBuffer<uint> ebo;
     private readonly GL gl;
 
-    public GlGeometryBufferStack(GL gl)
+    private readonly IRenderTracer? tracer;
+
+    public GlGeometryBufferStack(GL gl, IRenderTracer? tracer = null)
     {
         this.gl = gl;
-        vao = new GlVertexArray<float>(gl);
+        this.tracer = tracer;
+        vao = new GlVertexArray<float>(gl, tracer);
         vao.Bind();
         
-        vbo = new GlBuffer<Vertex>(gl, new Span<Vertex>(), BufferTargetARB.ArrayBuffer, false);
-        ebo = new GlBuffer<uint>(gl, new Span<uint>(), BufferTargetARB.ElementArrayBuffer, false);
+        vbo = new GlBuffer<Vertex>(gl, new Span<Vertex>(), BufferTargetARB.ArrayBuffer, false, tracer);
+        ebo = new GlBuffer<uint>(gl, new Span<uint>(), BufferTargetARB.ElementArrayBuffer, false, tracer);
         
         vao.ConformToStandardVertex();
         

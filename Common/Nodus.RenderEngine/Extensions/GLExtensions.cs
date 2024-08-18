@@ -19,14 +19,21 @@ public static class GLExtensions
         } while (error != GLEnum.NoError);
     }
 
-    public static void TryThrowNextError(this GL gl, string? message = null)
+    public static void TryThrowNextError(this GL gl, string? message = null, IRenderTracer? tracer = null)
     {
 #if DEBUG
         var error = gl.GetError();
 
         if (error != GLEnum.NoError)
         {
-            throw new OpenGlException($"{error.ToString()}. {message}");
+            var exception = new OpenGlException($"{error.ToString()}. {message}");
+            
+            if (tracer == null)
+            {
+                throw exception;
+            }
+            
+            tracer.Throw(exception);
         }
 #endif
     }

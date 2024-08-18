@@ -8,7 +8,7 @@ namespace Nodus.RenderEngine.OpenGL;
 /// Represents a generic OpenGL buffer for holding the data of a specific type.
 /// </summary>
 /// <typeparam name="T">The type of data stored in the buffer.</typeparam>
-public interface IGlBuffer<T> : IUnmanagedHook where T : unmanaged
+public interface IGlBuffer<T> : IUnmanagedHook<uint> where T : unmanaged
 {
     /// <summary>
     /// Bind the buffer.
@@ -26,7 +26,7 @@ public class GlBuffer<T> : GlObject, IGlBuffer<T> where T : unmanaged
 {
     private readonly BufferTargetARB bufferType;
 
-    public GlBuffer(GL gl, Span<T> data, BufferTargetARB bufferType, bool autoUnbind = true) : base(gl)
+    public GlBuffer(GL gl, Span<T> data, BufferTargetARB bufferType, bool autoUnbind = true, IRenderTracer? tracer = null) : base(gl, tracer)
     {
         this.bufferType = bufferType;
         
@@ -35,8 +35,6 @@ public class GlBuffer<T> : GlObject, IGlBuffer<T> where T : unmanaged
         
         UpdateData(data);
         
-        gl.TryThrowAllErrors();
-
         if (autoUnbind)
         {
             Context.BindBuffer(bufferType, 0);
@@ -55,7 +53,7 @@ public class GlBuffer<T> : GlObject, IGlBuffer<T> where T : unmanaged
             Context.BufferData(bufferType, (nuint) (data.Length * sizeof(T)), d, BufferUsageARB.StaticDraw);
         }
         
-        Context.TryThrowNextError($"Failed to update buffer data. {this}, Data={data.Length}");
+        TryThrowTracedGlError($"{GetType()}:UpdateData", $"Failed to update buffer data. {this}, Data={data.Length}");
     }
 
     public void Dispose()

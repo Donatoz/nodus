@@ -1,14 +1,17 @@
-﻿namespace Nodus.RenderEngine.Common;
+﻿using Silk.NET.Maths;
+
+namespace Nodus.RenderEngine.Common;
 
 public interface IRenderedObject
 {
     string ObjectId { get; }
-    IRenderedObject? Parent { get; }
-    
+    IRenderedObject? Parent { get; set; }
     bool IsRendered { get; set; }
     IGeometryPrimitive Mesh { get; set; }
     ITransform Transform { get; set; }
     string MaterialId { get; set; }
+
+    Matrix4X4<float> GetEffectiveTransform();
 }
 
 public interface IRenderScene
@@ -20,13 +23,13 @@ public interface IRenderScene
 public class RenderedObject : IRenderedObject
 {
     public string ObjectId { get; }
-    public IRenderedObject? Parent { get; }
+    public IRenderedObject? Parent { get; set; }
     
     public bool IsRendered { get; set; }
     public IGeometryPrimitive Mesh { get; set; }
     public ITransform Transform { get; set; }
     public string MaterialId { get; set; }
-    
+
     public RenderedObject(IGeometryPrimitive geometry, ITransform transform, string materialId)
     {
         ObjectId = Guid.NewGuid().ToString();
@@ -34,6 +37,13 @@ public class RenderedObject : IRenderedObject
         Mesh = geometry;
         MaterialId = materialId;
         Transform = transform;
+    }
+    
+    public Matrix4X4<float> GetEffectiveTransform()
+    {
+        return Parent != null
+            ? Parent.GetEffectiveTransform() * Transform.GetMatrix()
+            : Transform.GetMatrix();
     }
 }
 

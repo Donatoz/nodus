@@ -1,4 +1,5 @@
-﻿using Nodus.Core.Extensions;
+﻿using System.Reactive.Disposables;
+using Nodus.Core.Extensions;
 using Nodus.RenderEngine.Common;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -18,9 +19,6 @@ public record GlSceneRenderContext(
     IEnumerable<IMaterialDefinition> Materials) 
     : IGlSceneRenderContext;
 
-// TODO: Improvement
-// Create fallback materials.
-
 /// <summary>
 /// An OpenGL context renderer that renders a scene using predefined materials and lighting.
 /// </summary>
@@ -34,12 +32,19 @@ public class GlSceneRenderer : GlRendererBase, IDisposable
     
     private readonly IGlMaterialDefinition fallbackMaterialDefinition;
     private readonly IDictionary<string, IGlMaterial> materials;
+    private readonly IRenderTracer tracer;
+
+    private readonly CompositeDisposable disposables;
 
     public GlSceneRenderer(IGlMaterialDefinition fallbackMaterial)
     {
+        disposables = new CompositeDisposable();
         fallbackMaterialDefinition = fallbackMaterial;
         
         materials = new Dictionary<string, IGlMaterial>();
+        tracer = new StackedRenderTracer();
+
+        tracer.ExceptionStream.Subscribe(OnTraceException).DisposeWith(disposables);
     }
 
     #region Initialization
@@ -59,15 +64,15 @@ public class GlSceneRenderer : GlRendererBase, IDisposable
 
         gl = backendProvider.GetBackend<GL>();
 
-        buffers = new GlGeometryBufferStack(gl);
+        buffers = new GlGeometryBufferStack(gl, tracer);
         
         renderContext.Materials
             .OfType<IGlMaterialDefinition>()
-            .ForEach(x => materials[x.MaterialId] = new GlMaterial(gl, x));
+            .ForEach(x => materials[x.MaterialId] = new GlMaterial(gl, x, tracer));
 
-        fallbackMaterial ??= new GlMaterial(gl, fallbackMaterialDefinition);
+        fallbackMaterial ??= new GlMaterial(gl, fallbackMaterialDefinition, tracer);
 
-        uniformBuffer = new GlDivBuffer(gl, BufferTargetARB.UniformBuffer, (nuint) (2 * sizeof(Matrix4X4<float>)), false);
+        uniformBuffer = new GlDivBuffer(gl, BufferTargetARB.UniformBuffer, (nuint) (2 * sizeof(Matrix4X4<float>)), false, tracer);
         gl.BindBufferRange(GLEnum.UniformBuffer, 0, uniformBuffer.Handle, 0, (nuint) (2 * sizeof(Matrix4X4<float>)));
     }
     
@@ -111,15 +116,18 @@ public class GlSceneRenderer : GlRendererBase, IDisposable
         var matSize = (nuint) sizeof(Matrix4X4<float>);
         
         uniformBuffer!.UpdateData(0, matSize, (float*)&view);
-        uniformBuffer.UpdateData(matSize, matSize, (float*)&proj);
+        uniformBuffer.UpdateData((nint)matSize, matSize, (float*)&proj);
     }
 
     private unsafe void RenderMaterialGroup(IEnumerable<IRenderedObject> objects, IGlMaterial material)
     {
+        tracer.PutFrame(new RenderTraceFrame($"Material: {material.MaterialId}"));
+        
         material.Use();
         
         foreach (var obj in objects)
         {
+            tracer.PutFrame(new RenderTraceFrame($"RenderObject: {obj.ObjectId}"));
             if (obj is GlRenderObject o)
             {
                 material.ApplyUniform(o.TransformUniform);
@@ -129,7 +137,10 @@ public class GlSceneRenderer : GlRendererBase, IDisposable
             buffers.Bind();
             
             gl!.DrawElements(PrimitiveType.Triangles, (uint) obj.Mesh.Indices.Length, DrawElementsType.UnsignedInt, null);
+            tracer.TryWithdrawFrame();
         }
+        
+        tracer.TryWithdrawFrame();
     }
     
     #endregion
@@ -174,7 +185,11 @@ public class GlSceneRenderer : GlRendererBase, IDisposable
     }
     
     #endregion
-    
+
+    private void OnTraceException(RenderTraceException exception)
+    {
+        throw new Exception($"{exception}{Environment.NewLine}Inner exception: {exception.InnerException}");
+    }
 
     public void Dispose()
     {
@@ -182,5 +197,6 @@ public class GlSceneRenderer : GlRendererBase, IDisposable
         uniformBuffer?.Dispose();
         fallbackMaterial?.Dispose();
         materials.Values.DisposeAll();
+        disposables.Dispose();
     }
 }

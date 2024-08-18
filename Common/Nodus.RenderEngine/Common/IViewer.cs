@@ -13,7 +13,7 @@ public interface IViewer
     Vector3D<float> Position { get; set; }
 
     Matrix4X4<float> GetView();
-    Matrix4X4<float> GetProjection();
+    Matrix4X4<float> GetProjection(bool invertY = false);
 }
 
 public interface IScreenViewer : IViewer
@@ -48,11 +48,18 @@ public class Viewer : IScreenViewer
         return Matrix4X4.CreateTranslation(Position);
     }
 
-    public Matrix4X4<float> GetProjection()
+    public Matrix4X4<float> GetProjection(bool invertY = false)
     {
-        return IsOrthographic
+        var proj = IsOrthographic
             ? Matrix4X4.CreateOrthographic(ScreenSize.X, ScreenSize.Y, NearPlane, FarPlane)
             : Matrix4X4.CreatePerspectiveFieldOfView(Scalar.DegreesToRadians(FieldOfView), ScreenSize.X / ScreenSize.Y, NearPlane, FarPlane);
+
+        if (invertY)
+        {
+            proj.M22 *= -1;
+        }
+
+        return proj;
     }
 
 }

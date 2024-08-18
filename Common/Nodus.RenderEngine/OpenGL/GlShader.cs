@@ -6,7 +6,7 @@ namespace Nodus.RenderEngine.OpenGL;
 /// <summary>
 /// Represents an OpenGL shader object.
 /// </summary>
-public interface IGlShader : IUnmanagedHook
+public interface IGlShader : IUnmanagedHook<uint>
 {
     /// <summary>
     /// Compiles the shader.
