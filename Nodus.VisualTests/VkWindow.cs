@@ -2,7 +2,6 @@
 using System.Runtime.InteropServices;
 using DynamicData;
 using Nodus.RenderEngine.Common;
-using Nodus.RenderEngine.OpenGL;
 using Nodus.RenderEngine.Serialization;
 using Nodus.RenderEngine.Vulkan;
 using Nodus.RenderEngine.Vulkan.DI;
@@ -43,7 +42,7 @@ public unsafe class VkWindow
     private IVkKhrSurface? surface;
     private IVkSwapChain? swapChain;
     private IScreenViewer? viewer;
-    
+
     private VkLayerInfo? layerInfo;
     private VkExtensionsInfo? extensionsInfo;
     private VkContext? vkContext;
@@ -173,7 +172,7 @@ public unsafe class VkWindow
     {
         if (viewer != null && input?.Keyboards[0] is { } k)
         {
-            const float movementDelta = 0.01f;
+            const float movementDelta = 0.001f;
             
             var leftFactor = (k.IsKeyPressed(Key.A) ? 1 : 0) * movementDelta * Vector3D<float>.UnitX;
             var rightFactor = (k.IsKeyPressed(Key.D) ? 1 : 0) * movementDelta * -Vector3D<float>.UnitX;

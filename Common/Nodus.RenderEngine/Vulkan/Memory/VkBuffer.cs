@@ -1,10 +1,8 @@
-using System.Runtime.InteropServices;
 using Nodus.RenderEngine.Vulkan.Extensions;
-using Nodus.RenderEngine.Vulkan.Utility;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
-namespace Nodus.RenderEngine.Vulkan;
+namespace Nodus.RenderEngine.Vulkan.Memory;
 
 public interface IVkBufferContext
 {
@@ -22,14 +20,44 @@ public readonly struct VkBufferContext(uint size, BufferUsageFlags usage, Sharin
     public MemoryPropertyFlags MemoryProperties { get; } = memoryProperties;
 }
 
+/// <summary>
+/// Represents a wrapped Vulkan buffer for storing data of a specific type. This buffer needs a dedicated memory to
+/// be allocated on a device.
+/// </summary>
+/// <typeparam name="T">The type of data to be stored in the buffer.</typeparam>
 public interface IVkBuffer<T> : IVkUnmanagedHook where T : unmanaged
 {
     Buffer WrappedBuffer { get; }
 
+    /// <summary>
+    /// Map and update the data of the buffer with the specified data.
+    /// </summary>
+    /// <param name="data">The data to update.</param>
     void UpdateData(ReadOnlySpan<T> data);
+
+    /// <summary>
+    /// Allocate device memory for the buffer.
+    /// </summary>
     void Allocate();
+
+    /// <summary>
+    /// Copy the contents of this buffer to another buffer using a command buffer.
+    /// </summary>
+    /// <param name="another">The destination buffer to copy to.</param>
+    /// <param name="commandBuffer">The command buffer to record the copy command.</param>
+    /// <param name="queue">The queue where the copy command will be submitted.</param>
+    /// <param name="fence">Optional fence to synchronize the copy command completion.</param>
     void CmdCopyTo(IVkBuffer<T> another, CommandBuffer commandBuffer, Queue queue, Fence? fence = null);
-    void MapToHost(uint mapSize);
+
+    /// <summary>
+    /// Map the buffer to host memory.
+    /// </summary>
+    void MapToHost();
+
+    /// <summary>
+    /// Set the mapped data of the buffer to the specified data.
+    /// </summary>
+    /// <param name="data">The data to set.</param>
     void SetMappedData(ReadOnlySpan<T> data);
 }
 
@@ -106,7 +134,7 @@ public unsafe class VkBuffer<T> : VkObject, IVkBuffer<T> where T : unmanaged
         Context.Api.BindBufferMemory(device.WrappedDevice, WrappedBuffer, Memory.Value, 0);
     }
 
-    public void MapToHost(uint mapSize)
+    public void MapToHost()
     {
         if (Memory == null)
         {
@@ -156,6 +184,7 @@ public unsafe class VkBuffer<T> : VkObject, IVkBuffer<T> where T : unmanaged
         if (Memory != null)
         {
             Context.Api.FreeMemory(device.WrappedDevice, Memory.Value, null);
+            Memory = null;
         }
     }
 

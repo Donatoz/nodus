@@ -34,6 +34,16 @@ public static class ValidationExtensions
         return o;
     }
     
+    public static T NotNull<T>(this T? o, string? onFailure = null) where T : struct
+    {
+        if (o == null)
+        {
+            throw new Exception(onFailure);
+        }
+
+        return o.Value;
+    }
+    
     public static T NotDefault<T>(this T? o, string? onFailure = null)
     {
         if (o?.Equals(default) ?? true)
