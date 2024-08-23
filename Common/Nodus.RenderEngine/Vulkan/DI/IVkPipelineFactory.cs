@@ -121,7 +121,7 @@ public class VkPipelineFactory : IVkPipelineFactory
             PolygonMode = PolygonMode.Fill,
             LineWidth = 1,
             CullMode = CullModeFlags.BackBit,
-            FrontFace = FrontFace.Clockwise,
+            FrontFace = FrontFace.CounterClockwise,
             DepthBiasEnable = Vk.False
         };
     }

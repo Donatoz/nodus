@@ -1,8 +1,25 @@
+using Nodus.Common;
+using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Extensions;
+using Nodus.RenderEngine.Vulkan.Meta;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Nodus.RenderEngine.Vulkan;
+
+public interface IVkDescriptorPoolContext
+{
+    VkDescriptorInfo[] Descriptors { get; }
+    IVkDescriptorWriter DescriptorWriter { get; }
+    
+    IVkDescriptorSetFactory? DescriptorFactory { get; }
+}
+
+public record VkDescriptorPoolContext(
+    VkDescriptorInfo[] Descriptors,
+    IVkDescriptorWriter DescriptorWriter,
+    IVkDescriptorSetFactory? DescriptorFactory = null)
+    : IVkDescriptorPoolContext;
 
 public interface IVkDescriptorPool : IVkUnmanagedHook
 {
@@ -19,28 +36,28 @@ public class VkDescriptorPool : VkObject, IVkDescriptorPool
     protected DescriptorSet[] Sets { get; private set; } = null!;
 
     private readonly IVkLogicalDevice device;
+    private readonly IVkDescriptorPoolContext descriptorPoolContext;
     private readonly uint descriptorsCount;
     private readonly DescriptorSetLayout layout;
-    private readonly DescriptorType type;
     
-    public unsafe VkDescriptorPool(IVkContext vkContext, IVkLogicalDevice device, DescriptorType type, uint descriptorsCount, DescriptorSetLayout layout) : base(vkContext)
+    public unsafe VkDescriptorPool(IVkContext vkContext, IVkLogicalDevice device, IVkDescriptorPoolContext descriptorPoolContext, uint descriptorsCount, DescriptorSetLayout layout) : base(vkContext)
     {
         this.device = device;
-        this.type = type;
+        this.descriptorPoolContext = descriptorPoolContext;
         this.descriptorsCount = descriptorsCount;
         this.layout = layout;
 
-        var size = new DescriptorPoolSize
-        {
-            Type = type,
-            DescriptorCount = descriptorsCount
-        };
+        var descriptorFactory = descriptorPoolContext.DescriptorFactory ?? new VkDescriptorSetFactory();
+
+        using var sizes = descriptorFactory
+            .CreateSizes(descriptorPoolContext.Descriptors, this.descriptorsCount)
+            .ToFixedArray();
 
         var info = new DescriptorPoolCreateInfo
         {
             SType = StructureType.DescriptorPoolCreateInfo,
-            PoolSizeCount = 1,
-            PPoolSizes = &size,
+            PoolSizeCount = 2,
+            PPoolSizes = sizes.Data,
             MaxSets = descriptorsCount
         };
 
@@ -83,25 +100,12 @@ public class VkDescriptorPool : VkObject, IVkDescriptorPool
         
         for (var i = 0; i < descriptorsCount; i++)
         {
-            var bufferInfo = new DescriptorBufferInfo
-            {
-                Buffer = buffer,
-                Offset = offsets[i],
-                Range = bufferRegionSize
-            };
+            var writeSets = descriptorPoolContext.DescriptorWriter.CreateWriteSets(Sets[i], i);
 
-            var writeSet = new WriteDescriptorSet
+            fixed (WriteDescriptorSet* p = writeSets)
             {
-                SType = StructureType.WriteDescriptorSet,
-                DstSet = Sets[i],
-                DstBinding = binding,
-                DstArrayElement = arrayElement,
-                DescriptorType = type,
-                DescriptorCount = 1,
-                PBufferInfo = &bufferInfo
-            };
-            
-            Context.Api.UpdateDescriptorSets(device.WrappedDevice, 1, &writeSet, 0, null);
+                Context.Api.UpdateDescriptorSets(device.WrappedDevice, (uint)writeSets.Length, p, 0, null);
+            }
         }
     }
 

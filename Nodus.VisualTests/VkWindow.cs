@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Reactive.Linq;
 using System.Runtime.InteropServices;
 using DynamicData;
 using Nodus.RenderEngine.Common;
@@ -15,6 +16,7 @@ using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Silk.NET.Windowing;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace Nodus.VisualTests;
 
@@ -48,19 +50,8 @@ public unsafe class VkWindow
     private VkContext? vkContext;
     private IVkExtensionProvider? extensionProvider;
     private IInputContext? input;
-    
-    public static readonly Vertex[] QuadVertices =
-    {
-        new(new Vector3(-0.5f, -0.5f, 0.0f), Vector3.Zero, new Vector2(0, 1)),
-        new(new Vector3(0.5f, -0.5f, 0.0f), Vector3.Zero, new Vector2(1, 1)),
-        new(new Vector3(0.5f, 0.5f, 0.0f), Vector3.Zero, new Vector2(1, 0)),
-        new(new Vector3(-0.5f, 0.5f, 0.0f), Vector3.Zero, new Vector2(0, 0))
-    };
 
-    public static readonly uint[] QuadIndices =
-    {
-        0, 1, 2, 2, 3, 0
-    };
+    private bool isInitialized;
     
     private readonly VkGeometryPrimitiveRenderer renderer;
 
@@ -127,7 +118,7 @@ public unsafe class VkWindow
         
         swapChain = CreateSwapChain();
         
-        var pipelineContext = new VkPipelineContext(
+        var pipelineContext = new VkGraphicsPipelineContext(
             [DynamicState.Scissor ,DynamicState.Viewport], 
             new IShaderDefinition[]
             {
@@ -140,17 +131,25 @@ public unsafe class VkWindow
             }, 
             swapChain!, queueInfo);
 
-        var primitive = new GeometryPrimitive(QuadVertices, QuadIndices);
         viewer = new Viewer(new Vector2D<float>(swapChain.Extent.Width, swapChain.Extent.Height))
         {
             Position = Vector3D<float>.UnitZ * -5
         };
+
+        var textureSource =
+            new TextureFileSource(
+                @"C:\Users\Donatoz\RiderProjects\Nodus\Common\Nodus.RenderEngine.Avalonia\Assets\Textures\Noise_008.png");
+        var textureDataProvider = new TextureDataProvider<Rgba32>();
+
+        using var texture = textureDataProvider.FetchTexture(textureSource);
         
         renderer.Initialize(
             new VkGeometryPrimitiveRenderContext(cube, Enumerable.Empty<IShaderDefinition>(), logicalDevice, physicalDevice.Value, queueInfo, 
-                swapChain, surface, viewer, pipelineContext, 2), 
+                swapChain, surface, viewer, pipelineContext, texture, 2), 
             new VkRenderBackendProvider(vkContext)
         );
+                
+        isInitialized = true;
     }
 
     private void OnKeyDown(IKeyboard keyboard, Key key, int n)
@@ -163,7 +162,7 @@ public unsafe class VkWindow
 
     private void OnRender(double delta)
     {
-        if (window.FramebufferSize.X == 0 || window.FramebufferSize.Y == 0) return;
+        if (!isInitialized || window.FramebufferSize.X == 0 || window.FramebufferSize.Y == 0) return;
         
         renderer.RenderFrame();
     }
@@ -262,8 +261,9 @@ public unsafe class VkWindow
         var indices = VkQueueInfo.GetFromDevice(device, vk!, surface!);
 
         var extensionsSupported = CheckDeviceExtensions(device);
+        var features = vk!.GetPhysicalDeviceFeatures(device);
 
-        return indices.IsComplete() && extensionsSupported;
+        return indices.IsComplete() && extensionsSupported && features.SamplerAnisotropy;
     }
 
     private bool CheckDeviceExtensions(PhysicalDevice device)

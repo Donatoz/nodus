@@ -25,10 +25,8 @@ public readonly struct VkBufferContext(uint size, BufferUsageFlags usage, Sharin
 /// be allocated on a device.
 /// </summary>
 /// <typeparam name="T">The type of data to be stored in the buffer.</typeparam>
-public interface IVkBuffer<T> : IVkUnmanagedHook where T : unmanaged
+public interface IVkAllocatedBuffer<T> : IVkBuffer where T : unmanaged
 {
-    Buffer WrappedBuffer { get; }
-
     /// <summary>
     /// Map and update the data of the buffer with the specified data.
     /// </summary>
@@ -39,15 +37,6 @@ public interface IVkBuffer<T> : IVkUnmanagedHook where T : unmanaged
     /// Allocate device memory for the buffer.
     /// </summary>
     void Allocate();
-
-    /// <summary>
-    /// Copy the contents of this buffer to another buffer using a command buffer.
-    /// </summary>
-    /// <param name="another">The destination buffer to copy to.</param>
-    /// <param name="commandBuffer">The command buffer to record the copy command.</param>
-    /// <param name="queue">The queue where the copy command will be submitted.</param>
-    /// <param name="fence">Optional fence to synchronize the copy command completion.</param>
-    void CmdCopyTo(IVkBuffer<T> another, CommandBuffer commandBuffer, Queue queue, Fence? fence = null);
 
     /// <summary>
     /// Map the buffer to host memory.
@@ -61,9 +50,10 @@ public interface IVkBuffer<T> : IVkUnmanagedHook where T : unmanaged
     void SetMappedData(ReadOnlySpan<T> data);
 }
 
-public unsafe class VkBuffer<T> : VkObject, IVkBuffer<T> where T : unmanaged
+public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where T : unmanaged
 {
     public Buffer WrappedBuffer { get; }
+    public ulong Size => bufferContext.Size;
 
     protected DeviceMemory? Memory { get; private set; }
 
@@ -73,7 +63,7 @@ public unsafe class VkBuffer<T> : VkObject, IVkBuffer<T> where T : unmanaged
     // TODO: Map this to T*
     private void* mappedMemory;
 
-    public VkBuffer(IVkContext vkContext, IVkLogicalDevice device, PhysicalDevice physicalDevice, IVkBufferContext bufferContext) : base(vkContext)
+    public VkAllocatedBuffer(IVkContext vkContext, IVkLogicalDevice device, PhysicalDevice physicalDevice, IVkBufferContext bufferContext) : base(vkContext)
     {
         this.device = device;
         this.physicalDevice = physicalDevice;
@@ -170,15 +160,7 @@ public unsafe class VkBuffer<T> : VkObject, IVkBuffer<T> where T : unmanaged
         
         Context.Api.UnmapMemory(device.WrappedDevice, Memory.Value);
     }
-
-    public void CmdCopyTo(IVkBuffer<T> another, CommandBuffer commandBuffer, Queue queue, Fence? fence = null)
-    {
-        commandBuffer.SubmitCommandToQueue(() =>
-        {
-            Context.Api.CmdCopyBuffer(commandBuffer, WrappedBuffer, another.WrappedBuffer, 1, GetCopyContext());
-        }, Context, queue, fence);
-    }
-
+    
     protected void TryFreeAllocatedMemory()
     {
         if (Memory != null)

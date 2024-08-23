@@ -10,30 +10,37 @@ using Silk.NET.Vulkan;
 
 namespace Nodus.RenderEngine.Vulkan;
 
-public interface IVkPipelineContext
+public interface IVkGraphicsPipelineContext
 {
     DynamicState[] DynamicStates { get; }
     IEnumerable<IShaderDefinition> Shaders { get; }
     IVkSwapChain SwapChain { get; }
     VkQueueInfo QueueInfo { get; }
+    
     IVkPipelineFactory? PipelineFactory { get; }
+    IVkRenderPassFactory? RenderPassFactory { get; }
+    IVkDescriptorSetFactory? DescriptorFactory { get; }
 }
 
-public readonly struct VkPipelineContext(
+public readonly struct VkGraphicsPipelineContext(
     DynamicState[] dynamicStates, 
     IEnumerable<IShaderDefinition> shaders, 
     IVkSwapChain swapChain,
     VkQueueInfo queueInfo,
-    IVkPipelineFactory? pipelineFactory = null) : IVkPipelineContext
+    IVkPipelineFactory? pipelineFactory = null,
+    IVkRenderPassFactory? renderPassFactory = null,
+    IVkDescriptorSetFactory? descriptorFactory = null) : IVkGraphicsPipelineContext
 {
     public DynamicState[] DynamicStates { get; } = dynamicStates;
     public IEnumerable<IShaderDefinition> Shaders { get; } = shaders;
     public IVkSwapChain SwapChain { get; } = swapChain;
     public VkQueueInfo QueueInfo { get; } = queueInfo;
     public IVkPipelineFactory? PipelineFactory { get; } = pipelineFactory;
+    public IVkRenderPassFactory? RenderPassFactory { get; } = renderPassFactory;
+    public IVkDescriptorSetFactory? DescriptorFactory { get; } = descriptorFactory;
 }
 
-public interface IVkPipeline : IVkUnmanagedHook
+public interface IVkGraphicsPipeline : IVkUnmanagedHook
 {
     PipelineLayout Layout { get; }
     Pipeline WrappedPipeline { get; }
@@ -42,12 +49,12 @@ public interface IVkPipeline : IVkUnmanagedHook
     Rect2D Scissors { get; }
     DescriptorSetLayout DescriptorSetLayout { get; }
 
-    void Bind(CommandBuffer buffer, PipelineBindPoint bindPoint);
+    void CmdBind(CommandBuffer buffer, PipelineBindPoint bindPoint);
     void UpdateViewport();
     void UpdateScissors();
 }
 
-public class VkPipeline : VkObject, IVkPipeline
+public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
 {
     public PipelineLayout Layout { get; }
     public RenderPass RenderPass { get; }
@@ -55,32 +62,33 @@ public class VkPipeline : VkObject, IVkPipeline
     public Viewport Viewport { get; private set; }
     public Rect2D Scissors { get; private set; }
     public DescriptorSetLayout DescriptorSetLayout { get; }
-
-
-    protected IDictionary<ShaderSourceType, ShaderModule> Modules { get; }
+    
+    protected IDictionary<ShaderSourceType, IVkShader> Shaders { get; }
 
     private DescriptorSetLayout descriptorSetLayout;
     private readonly IVkLogicalDevice device;
-    private readonly IVkPipelineContext pipelineContext;
+    private readonly IVkGraphicsPipelineContext pipelineContext;
 
-    public unsafe VkPipeline(IVkContext vkContext, IVkLogicalDevice device, IVkPipelineContext pipelineContext) : base(vkContext)
+    public unsafe VkGraphicsPipeline(IVkContext vkContext, IVkLogicalDevice device, IVkGraphicsPipelineContext pipelineContext) : base(vkContext)
     {
         this.device = device;
         this.pipelineContext = pipelineContext;
 
         var factory = pipelineContext.PipelineFactory ?? new VkPipelineFactory();
+        var passFactory = pipelineContext.RenderPassFactory ?? new VkRenderPassFactory();
+        var descriptorFactory = pipelineContext.DescriptorFactory ?? new VkDescriptorSetFactory();
         
-        Modules = pipelineContext.Shaders.Select(x => new
+        Shaders = pipelineContext.Shaders.Select(x => new
         {
             Source = x,
-            Module = CreateModule(x.Source)
+            Module = new VkShader(Context, device, x) as IVkShader
         }).ToDictionary(x => x.Source.Type, x => x.Module);
 
-        var stages = Modules.Select(x => new PipelineShaderStageCreateInfo
+        var stages = Shaders.Select(x => new PipelineShaderStageCreateInfo
         {
             SType = StructureType.PipelineShaderStageCreateInfo,
             Stage = ShaderUtility.SourceTypeToStage(x.Key),
-            Module = x.Value,
+            Module = x.Value.WrappedModule,
             PName = (byte*)SilkMarshal.StringToPtr(ShaderConvention.EntryMethodName)
         }).ToArray();
         
@@ -124,7 +132,8 @@ public class VkPipeline : VkObject, IVkPipeline
         var colorBlend = factory.CreateColorBlend(&colorBlendAttachment);
 
 
-        var dscSetLayout = CreateDescriptorLayout();
+        var bindings = descriptorFactory.CreateLayoutBindings();
+        var dscSetLayout = CreateDescriptorLayout(bindings);
         
         var layoutInfo = new PipelineLayoutCreateInfo
         {
@@ -142,56 +151,35 @@ public class VkPipeline : VkObject, IVkPipeline
 
         Layout = layout;
 
-        var colorAttachment = new AttachmentDescription
-        {
-            Format = pipelineContext.SwapChain.SurfaceFormat.Format,
-            Samples = SampleCountFlags.Count1Bit,
-            LoadOp = AttachmentLoadOp.Clear,
-            StoreOp = AttachmentStoreOp.Store,
-            StencilLoadOp = AttachmentLoadOp.DontCare,
-            StencilStoreOp = AttachmentStoreOp.DontCare,
-            InitialLayout = ImageLayout.Undefined,
-            FinalLayout = ImageLayout.PresentSrcKhr
-        };
-
+        var attachments = passFactory.CreateAttachments(this.pipelineContext.SwapChain.SurfaceFormat.Format);
         var colorAttachmentRef = new AttachmentReference
         {
             Attachment = 0,
             Layout = ImageLayout.ColorAttachmentOptimal
         };
-
-        var subPass = new SubpassDescription
-        {
-            PipelineBindPoint = PipelineBindPoint.Graphics,
-            ColorAttachmentCount = 1,
-            PColorAttachments = &colorAttachmentRef
-        };
-
-        var subPassDependency = new SubpassDependency
-        {
-            SrcSubpass = Vk.SubpassExternal,
-            DstSubpass = 0,
-            SrcStageMask = PipelineStageFlags.ColorAttachmentOutputBit,
-            SrcAccessMask = 0,
-            DstStageMask = PipelineStageFlags.ColorAttachmentOutputBit,
-            DstAccessMask = AccessFlags.ColorAttachmentWriteBit
-        };
-
-        var renderPass = new RenderPassCreateInfo
-        {
-            SType = StructureType.RenderPassCreateInfo,
-            AttachmentCount = 1,
-            PAttachments = &colorAttachment,
-            SubpassCount = 1,
-            PSubpasses = &subPass,
-            DependencyCount = 1,
-            PDependencies = &subPassDependency
-        };
+        var subPasses = passFactory.CreateSubPasses([
+            new VkSubPassScheme(PipelineBindPoint.Graphics, 1, &colorAttachmentRef)
+        ]);
+        var dependencies = passFactory.CreateDependencies();
 
         RenderPass pass;
-        
-        Context.Api.CreateRenderPass(device.WrappedDevice, in renderPass, null, &pass)
-            .TryThrow("Failed to create render pass.");
+
+        fixed (void* pAttachments = attachments, pSubPasses = subPasses, pDeps = dependencies)
+        {
+            var renderPass = new RenderPassCreateInfo
+            {
+                SType = StructureType.RenderPassCreateInfo,
+                AttachmentCount = (uint)attachments.Length,
+                PAttachments = (AttachmentDescription*)pAttachments,
+                SubpassCount = (uint)subPasses.Length,
+                PSubpasses = (SubpassDescription*)pSubPasses,
+                DependencyCount = (uint)dependencies.Length,
+                PDependencies = (SubpassDependency*)pDeps
+            };
+            
+            Context.Api.CreateRenderPass(device.WrappedDevice, in renderPass, null, &pass)
+                .TryThrow("Failed to create render pass.");
+        }
 
         RenderPass = pass;
         
@@ -206,7 +194,7 @@ public class VkPipeline : VkObject, IVkPipeline
             var pipelineInfo = new GraphicsPipelineCreateInfo
             {
                 SType = StructureType.GraphicsPipelineCreateInfo,
-                StageCount = 2,
+                StageCount = (uint)stages.Length,
                 PStages = (PipelineShaderStageCreateInfo*)pStages,
                 PDynamicState = &dynamicState,
                 PVertexInputState = &vertexInput,
@@ -231,67 +219,27 @@ public class VkPipeline : VkObject, IVkPipeline
         stages.ForEach(x => SilkMarshal.Free((nint)x.PName));
     }
 
-    protected unsafe ShaderModule CreateModule(IShaderSource source)
+    private unsafe DescriptorSetLayout CreateDescriptorLayout(DescriptorSetLayoutBinding[] bindings)
     {
-        var content = FetchBytesFromSource(source);
-
-        var createInfo = new ShaderModuleCreateInfo
-        {
-            SType = StructureType.ShaderModuleCreateInfo,
-            CodeSize = (nuint)content.Length
-        };
-
-        ShaderModule module;
-
-        fixed (byte* p = content)
-        {
-            createInfo.PCode = (uint*)p;
-
-            if (Context.Api.CreateShaderModule(device.WrappedDevice, in createInfo, null, out module) != Result.Success)
-            {
-                throw new Exception($"Failed to create shader module from source: {source}");
-            }
-        }
-
-        return module;
-    }
-
-    protected virtual byte[] FetchBytesFromSource(IShaderSource source)
-    {
-        if (source is not IShaderByteSource s)
-        {
-            throw new Exception(
-                $"Failed to create shader module from source: {source}. Only byte-sources are supported.");
-        }
-
-        return s.FetchBytes();
-    }
-
-    private unsafe DescriptorSetLayout CreateDescriptorLayout()
-    {
-        var binding = new DescriptorSetLayoutBinding
-        {
-            Binding = 0,
-            DescriptorType = DescriptorType.UniformBuffer,
-            DescriptorCount = 1,
-            StageFlags = ShaderStageFlags.VertexBit
-        };
-
-        var createInfo = new DescriptorSetLayoutCreateInfo
-        {
-            SType = StructureType.DescriptorSetLayoutCreateInfo,
-            BindingCount = 1,
-            PBindings = &binding
-        };
-
         DescriptorSetLayout layout;
-        Context.Api.CreateDescriptorSetLayout(device.WrappedDevice, in createInfo, null, &layout)
-            .TryThrow("Failed to create descriptor set layout.");
+
+        fixed (DescriptorSetLayoutBinding* p = bindings)
+        {
+            var createInfo = new DescriptorSetLayoutCreateInfo
+            {
+                SType = StructureType.DescriptorSetLayoutCreateInfo,
+                BindingCount = (uint)bindings.Length,
+                PBindings = p
+            };
+
+            Context.Api.CreateDescriptorSetLayout(device.WrappedDevice, in createInfo, null, &layout)
+                .TryThrow("Failed to create descriptor set layout.");
+        }
 
         return layout;
     }
 
-    public void Bind(CommandBuffer buffer, PipelineBindPoint bindPoint)
+    public void CmdBind(CommandBuffer buffer, PipelineBindPoint bindPoint)
     {
         Context.Api.CmdBindPipeline(buffer, bindPoint, WrappedPipeline);
     }
@@ -322,7 +270,7 @@ public class VkPipeline : VkObject, IVkPipeline
     {
         if (IsDisposing)
         {
-            Modules.Values.ForEach(x => Context.Api.DestroyShaderModule(device.WrappedDevice, x, null));
+            Shaders.Values.DisposeAll();
             Context.Api.DestroyPipeline(device.WrappedDevice, WrappedPipeline, null);
             Context.Api.DestroyPipelineLayout(device.WrappedDevice, Layout,  null);
             Context.Api.DestroyRenderPass(device.WrappedDevice, RenderPass, null);

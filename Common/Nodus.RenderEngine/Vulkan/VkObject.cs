@@ -9,7 +9,6 @@ public class VkObject : RenderContextObject<IVkContext>, IVkUnmanagedHook
 {
     public bool IsPresent => !IsDisposing;
 
-    protected IVkContext VkContext { get; private set; } = null!;
     protected bool IsDisposing { get; private set; }
 
     private IDisposable contextDestructionContract = null!;
@@ -43,10 +42,10 @@ public class VkObject : RenderContextObject<IVkContext>, IVkUnmanagedHook
     public void Retarget(IVkContext newContext)
     {
         contextDestructionContract?.Dispose();
-        VkContext?.UnbindObject(this);
+        Context?.UnbindObject(this);
 
-        VkContext = newContext;
-        contextDestructionContract = VkContext.BindObject(this, OnContextDestruction);
+        UpdateContext(newContext);
+        contextDestructionContract = Context!.BindObject(this, OnContextDestruction);
         
         OnContextChanged();
     }
@@ -58,7 +57,7 @@ public class VkObject : RenderContextObject<IVkContext>, IVkUnmanagedHook
         if (!IsDisposing)
         {
             throw new Exception($"The context of {this} is being disposed prior to the bound object." +
-                                $"{Environment.NewLine}Bound objects:{Environment.NewLine}{VkContext.GetBoundObjectsTrace()}");
+                                $"{Environment.NewLine}Bound objects:{Environment.NewLine}{Context.GetBoundObjectsTrace()}");
         }
     }
 
@@ -67,7 +66,7 @@ public class VkObject : RenderContextObject<IVkContext>, IVkUnmanagedHook
         if (disposing)
         {
             contextDestructionContract.Dispose();
-            VkContext.UnbindObject(this);
+            Context.UnbindObject(this);
         }
     }
 

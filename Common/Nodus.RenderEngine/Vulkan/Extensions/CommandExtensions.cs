@@ -4,7 +4,16 @@ namespace Nodus.RenderEngine.Vulkan.Extensions;
 
 public static class CommandExtensions
 {
-    public static unsafe void SubmitCommandToQueue(this CommandBuffer buffer, Action cmdContext, IVkContext context, Queue queue, Fence? fence = null)
+    public static void SubmitCommandToQueue(this CommandBuffer buffer, Action cmdContext, IVkContext context, Queue queue, Fence? fence = null)
+    {
+        buffer.BeginBuffer(context);
+        
+        cmdContext.Invoke();
+
+        buffer.SubmitBuffer(context, queue, fence);
+    }
+
+    public static void BeginBuffer(this CommandBuffer buffer, IVkContext context)
     {
         var begin = new CommandBufferBeginInfo
         {
@@ -13,9 +22,10 @@ public static class CommandExtensions
         };
 
         context.Api.BeginCommandBuffer(buffer, in begin);
-        
-        cmdContext.Invoke();
+    }
 
+    public static unsafe void SubmitBuffer(this CommandBuffer buffer, IVkContext context, Queue queue, Fence? fence = null)
+    {
         context.Api.EndCommandBuffer(buffer);
 
         var submit = new SubmitInfo

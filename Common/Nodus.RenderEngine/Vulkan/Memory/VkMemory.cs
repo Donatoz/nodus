@@ -58,7 +58,7 @@ public class VkMemory : VkObject, IVkMemory
             }
         }
 
-        throw new Exception("Failed to find memory type for the buffer.");
+        throw new Exception("Failed to find memory type.");
     }
     
     private unsafe void TryFreeAllocatedMemory()

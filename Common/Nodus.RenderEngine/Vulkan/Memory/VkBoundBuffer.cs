@@ -23,10 +23,8 @@ public readonly struct VkBoundBufferContext(ulong size, BufferUsageFlags usage, 
     public ulong MemoryOffset { get; } = memoryOffset;
 }
 
-public interface IVkBoundBuffer : IVkUnmanagedHook
+public interface IVkBoundBuffer : IVkBuffer
 {
-    Buffer WrappedBuffer { get; }
-
     void BindToMemory();
     void UpdateData<T>(Span<T> data, ulong offset) where T : unmanaged;
 }
@@ -34,7 +32,8 @@ public interface IVkBoundBuffer : IVkUnmanagedHook
 public class VkBoundBuffer : VkObject, IVkBoundBuffer
 {
     public Buffer WrappedBuffer { get; }
-    
+    public ulong Size => bufferContext.Size;
+
     private readonly IVkLogicalDevice device;
     private readonly IVkBoundBufferContext bufferContext;
 

@@ -223,8 +223,8 @@ public class GlWindow
         var uniforms = new IGlShaderUniform[]
         {
             new GlFloatUniform(UniformConvention.TimeUniformName, () => timeWatch.ElapsedMilliseconds / 1000f * timeMultiplier % timeModulo, true),
-            new GlIntUniform("mainTexture", () => 0),
-            new GlIntUniform("distortion", () => 1)
+            new GlIntUniform("mainTexture", () => 0, true),
+            new GlIntUniform("distortion", () => 1, true)
         };
         
         var shaders = new IShaderDefinition[]

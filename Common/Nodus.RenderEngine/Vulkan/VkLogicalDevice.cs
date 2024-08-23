@@ -48,7 +48,10 @@ public unsafe class VkLogicalDevice : VkObject, IVkLogicalDevice
             };
         }
 
-        var features = new PhysicalDeviceFeatures();
+        var features = new PhysicalDeviceFeatures
+        {
+            SamplerAnisotropy = Vk.True
+        };
         var firstInfo = queueInfos[0];
 
         var createInfo = new DeviceCreateInfo

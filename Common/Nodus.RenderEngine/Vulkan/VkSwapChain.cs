@@ -230,8 +230,6 @@ public class VkSwapChain : VkObject, IVkSwapChain
             Height = Math.Clamp((uint)surfaceInfo.FrameBufferSize.Y, surfaceInfo.Capabilities.MinImageExtent.Height, surfaceInfo.Capabilities.MaxImageExtent.Height)
         };
         
-        Console.WriteLine($"Extent: {extent.Width}, {extent.Height}");
-
         return extent;
     }
 
