@@ -42,7 +42,7 @@ public class VkObject : RenderContextObject<IVkContext>, IVkUnmanagedHook
     public void Retarget(IVkContext newContext)
     {
         contextDestructionContract?.Dispose();
-        Context?.UnbindObject(this);
+        Context.UnbindObject(this);
 
         UpdateContext(newContext);
         contextDestructionContract = Context!.BindObject(this, OnContextDestruction);

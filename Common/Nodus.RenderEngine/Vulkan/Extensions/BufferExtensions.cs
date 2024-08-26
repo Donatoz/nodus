@@ -1,5 +1,6 @@
 using System.Numerics;
 using Nodus.RenderEngine.Vulkan.Memory;
+using Nodus.RenderEngine.Vulkan.Meta;
 using Silk.NET.Vulkan;
 
 namespace Nodus.RenderEngine.Vulkan.Extensions;
@@ -17,7 +18,7 @@ public static class BufferExtensions
         
         commandBuffer.SubmitCommandToQueue(() =>
         {
-            context.Api.CmdCopyBuffer(commandBuffer, buffer.WrappedBuffer, another.WrappedBuffer, 1, copyContext);
+            context.Api.CmdCopyBuffer(commandBuffer, buffer.WrappedBuffer, another.WrappedBuffer, 1, in copyContext);
         }, context, queue, fence);
     }
     

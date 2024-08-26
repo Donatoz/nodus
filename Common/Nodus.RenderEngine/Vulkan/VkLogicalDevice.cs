@@ -27,9 +27,9 @@ public unsafe class VkLogicalDevice : VkObject, IVkLogicalDevice
 
     private readonly Dictionary<uint, Queue> queues;
     
-    public VkLogicalDevice(IVkContext context, PhysicalDevice physicalDevice, IVkKhrSurface surface) : base(context)
+    public VkLogicalDevice(IVkContext context, IVkPhysicalDevice physicalDevice, IVkKhrSurface surface) : base(context)
     {
-        var queueInfo = VkQueueInfo.GetFromDevice(physicalDevice, Context.Api, surface);
+        var queueInfo = VkQueueInfo.GetFromDevice(physicalDevice.WrappedDevice, Context.Api, surface);
 
         queueInfo.ThrowIfIncomplete();
 
@@ -74,7 +74,7 @@ public unsafe class VkLogicalDevice : VkObject, IVkLogicalDevice
             createInfo.EnabledLayerCount = 0;
         }
 
-        if (Context.Api.CreateDevice(physicalDevice, &createInfo, null, out var device) != Result.Success)
+        if (Context.Api.CreateDevice(physicalDevice.WrappedDevice, &createInfo, null, out var device) != Result.Success)
         {
             throw new Exception("Failed to create logical device.");
         }

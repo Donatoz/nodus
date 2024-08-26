@@ -265,7 +265,7 @@ public class VkSwapChain : VkObject, IVkSwapChain
         
         var res = SwapChainExtension.AcquireNextImage(device.WrappedDevice, WrappedSwapChain, timeout, 
                 semaphore?.WrappedSemaphore ?? default, fence?.WrappedFence ?? default, &imgIndex);
-
+        
         imageIndex = imgIndex;
 
         return res;

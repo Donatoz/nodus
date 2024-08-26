@@ -25,7 +25,7 @@ public interface IVkDescriptorPool : IVkUnmanagedHook
 {
     DescriptorPool WrappedPool { get; }
     
-    void PopulateDescriptors(Buffer buffer, uint bufferRegionSize, ulong[] offsets, uint binding = 0, uint arrayElement = 0);
+    void PopulateDescriptors();
     DescriptorSet GetSet(int index);
 }
 
@@ -50,13 +50,13 @@ public class VkDescriptorPool : VkObject, IVkDescriptorPool
         var descriptorFactory = descriptorPoolContext.DescriptorFactory ?? new VkDescriptorSetFactory();
 
         using var sizes = descriptorFactory
-            .CreateSizes(descriptorPoolContext.Descriptors, this.descriptorsCount)
+            .CreateSizes(descriptorPoolContext.Descriptors, descriptorsCount)
             .ToFixedArray();
 
         var info = new DescriptorPoolCreateInfo
         {
             SType = StructureType.DescriptorPoolCreateInfo,
-            PoolSizeCount = 2,
+            PoolSizeCount = sizes.Length,
             PPoolSizes = sizes.Data,
             MaxSets = descriptorsCount
         };
@@ -90,14 +90,8 @@ public class VkDescriptorPool : VkObject, IVkDescriptorPool
         }
     }
 
-    public unsafe void PopulateDescriptors(Buffer buffer, uint bufferRegionSize, ulong[] offsets, uint binding = 0, uint arrayElement = 0)
+    public unsafe void PopulateDescriptors()
     {
-        if (offsets.Length < descriptorsCount)
-        {
-            throw new Exception(
-                "Failed to populate descriptor sets: each descriptors has to be supplied with a buffer offset.");
-        }
-        
         for (var i = 0; i < descriptorsCount; i++)
         {
             var writeSets = descriptorPoolContext.DescriptorWriter.CreateWriteSets(Sets[i], i);

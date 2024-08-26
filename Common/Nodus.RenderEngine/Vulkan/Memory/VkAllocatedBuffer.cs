@@ -1,4 +1,5 @@
 using Nodus.RenderEngine.Vulkan.Extensions;
+using Nodus.RenderEngine.Vulkan.Meta;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
@@ -48,6 +49,8 @@ public interface IVkAllocatedBuffer<T> : IVkBuffer where T : unmanaged
     /// </summary>
     /// <param name="data">The data to set.</param>
     void SetMappedData(ReadOnlySpan<T> data);
+    
+    Span<T> GetMappedData(uint length);
 }
 
 public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where T : unmanaged
@@ -58,12 +61,12 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
     protected DeviceMemory? Memory { get; private set; }
 
     private readonly IVkLogicalDevice device;
-    private readonly PhysicalDevice physicalDevice;
+    private readonly IVkPhysicalDevice physicalDevice;
     private readonly IVkBufferContext bufferContext;
     // TODO: Map this to T*
     private void* mappedMemory;
 
-    public VkAllocatedBuffer(IVkContext vkContext, IVkLogicalDevice device, PhysicalDevice physicalDevice, IVkBufferContext bufferContext) : base(vkContext)
+    public VkAllocatedBuffer(IVkContext vkContext, IVkLogicalDevice device, IVkPhysicalDevice physicalDevice, IVkBufferContext bufferContext) : base(vkContext)
     {
         this.device = device;
         this.physicalDevice = physicalDevice;
@@ -86,7 +89,7 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
 
     private uint FindMemoryType(uint typeFilter, MemoryPropertyFlags properties)
     {
-        Context.Api.GetPhysicalDeviceMemoryProperties(physicalDevice, out var props);
+        Context.Api.GetPhysicalDeviceMemoryProperties(physicalDevice.WrappedDevice, out var props);
 
         for (var i = 0; i < props.MemoryTypeCount; i++)
         {
@@ -131,17 +134,22 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
             throw new Exception("Failed to map buffer memory: buffer was not allocated.");
         }
         
-        void* mem;
+        void* memory;
         
-        Context.Api.MapMemory(device.WrappedDevice, Memory.Value, 0, bufferContext.Size, 0, &mem)
+        Context.Api.MapMemory(device.WrappedDevice, Memory.Value, 0, bufferContext.Size, 0, &memory)
             .TryThrow("Failed to map buffer memory.");
-
-        mappedMemory = mem;
+        
+        mappedMemory = memory;
     }
 
     public void SetMappedData(ReadOnlySpan<T> data)
     {
         data.CopyTo(new Span<T>(mappedMemory, data.Length));
+    }
+
+    public Span<T> GetMappedData(uint length)
+    {
+        return new Span<T>(mappedMemory, (int)length);
     }
 
     public void UpdateData(ReadOnlySpan<T> data)
@@ -168,11 +176,6 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
             Context.Api.FreeMemory(device.WrappedDevice, Memory.Value, null);
             Memory = null;
         }
-    }
-
-    protected virtual BufferCopy GetCopyContext()
-    {
-        return new BufferCopy { Size = bufferContext.Size };
     }
 
     protected override void Dispose(bool disposing)

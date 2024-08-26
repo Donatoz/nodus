@@ -59,29 +59,34 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
 
     public void BindToMemory()
     {
-        if (bufferContext.Memory.WrappedMemory == null)
-        {
-            throw new Exception("Failed to bind buffer: memory was not allocated.");
-        }
+        ValidateAllocationState();
         
-        Context.Api.BindBufferMemory(device.WrappedDevice, WrappedBuffer, bufferContext.Memory.WrappedMemory.Value, bufferContext.MemoryOffset);
+        Context.Api.BindBufferMemory(device.WrappedDevice, WrappedBuffer, bufferContext.Memory.WrappedMemory!.Value, bufferContext.MemoryOffset);
     }
 
     public unsafe void UpdateData<T>(Span<T> data, ulong offset) where T : unmanaged
     {
-        if (bufferContext.Memory.WrappedMemory == null)
+        if (!bufferContext.Memory.IsAllocated())
         {
             throw new Exception("Failed to update buffer data: memory was not allocated.");
         }
         
         void* bufferData;
         
-        Context.Api.MapMemory(device.WrappedDevice, bufferContext.Memory.WrappedMemory.Value, offset, (ulong)(sizeof(T) * data.Length), 0, &bufferData)
+        Context.Api.MapMemory(device.WrappedDevice, bufferContext.Memory.WrappedMemory!.Value, offset, (ulong)(sizeof(T) * data.Length), 0, &bufferData)
             .TryThrow("Failed to map buffer memory.");
         
         data.CopyTo(new Span<T>(bufferData, data.Length));
         
         Context.Api.UnmapMemory(device.WrappedDevice, bufferContext.Memory.WrappedMemory.Value);
+    }
+
+    private void ValidateAllocationState()
+    {
+        if (!bufferContext.Memory.IsAllocated())
+        {
+            throw new Exception("Failed to perform buffer operation: memory was not allocated.");
+        }
     }
 
     protected override unsafe void Dispose(bool disposing)

@@ -1,3 +1,5 @@
+using Nodus.RenderEngine.Vulkan.DI;
+using Nodus.RenderEngine.Vulkan.Extensions;
 using Nodus.RenderEngine.Vulkan.Memory;
 using Silk.NET.Vulkan;
 
@@ -15,6 +17,8 @@ public interface IVkImageSpecification
     ImageViewType ViewType { get; }
     ImageAspectFlags Aspect { get; }
     float MaxAnisotropy { get; }
+    
+    IVkImageTransitionResolver? TransitionResolver { get; }
 }
 
 public interface IVkImageContext : IVkImageSpecification
@@ -33,7 +37,8 @@ public record VkImageContext(
     ImageAspectFlags Aspect = ImageAspectFlags.ColorBit,
     SharingMode SharingMode = SharingMode.Exclusive,
     uint MipLevels = 1,
-    uint ArrayLayers = 1)
+    uint ArrayLayers = 1,
+    IVkImageTransitionResolver? TransitionResolver = null)
     : IVkImageContext;
 
 public interface IVkImage : IVkUnmanagedHook
@@ -42,8 +47,9 @@ public interface IVkImage : IVkUnmanagedHook
     ImageView? View { get; }
     IVkImageSpecification Specification { get; }
     Sampler Sampler { get; }
-
-    void CmdTransitionLayout(CommandBuffer buffer, ImageLayout oldLayout, ImageLayout newLayout);
+    ImageLayout CurrentLayout { get; }
+    
+    void CmdTransitionLayout(CommandBuffer buffer, ImageLayout newLayout);
     void BindToMemory();
     void CreateView();
 }
@@ -53,16 +59,20 @@ public class VkImage : VkObject, IVkImage
     public Image WrappedImage { get; }
     public ImageView? View { get; private set; }
     public Sampler Sampler { get; private set; }
-    
+    public ImageLayout CurrentLayout { get; private set; }
+
     public IVkImageSpecification Specification => imageContext;
 
     private readonly IVkLogicalDevice device;
     private readonly IVkImageContext imageContext;
+    private readonly IVkImageTransitionResolver transitionResolver;
 
     public unsafe VkImage(IVkContext vkContext, IVkLogicalDevice device, IVkImageContext imageContext) : base(vkContext)
     {
         this.device = device;
         this.imageContext = imageContext;
+        transitionResolver = imageContext.TransitionResolver ?? new VkImageTransitionResolver();
+        CurrentLayout = ImageLayout.Undefined;
 
         var createInfo = new ImageCreateInfo
         {
@@ -137,12 +147,12 @@ public class VkImage : VkObject, IVkImage
         Sampler = sampler;
     }
 
-    public unsafe void CmdTransitionLayout(CommandBuffer buffer, ImageLayout oldLayout, ImageLayout newLayout)
+    public unsafe void CmdTransitionLayout(CommandBuffer buffer, ImageLayout newLayout)
     {
         var barrier = new ImageMemoryBarrier
         {
             SType = StructureType.ImageMemoryBarrier,
-            OldLayout = oldLayout,
+            OldLayout = CurrentLayout,
             NewLayout = newLayout,
             SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
             DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
@@ -157,28 +167,11 @@ public class VkImage : VkObject, IVkImage
             }
         };
 
-        PipelineStageFlags srcStage;
-        PipelineStageFlags dstStage;
+        var srcStage = PipelineStageFlags.None;
+        var dstStage = PipelineStageFlags.None;
 
-        switch (oldLayout)
-        {
-            case ImageLayout.Undefined when newLayout == ImageLayout.TransferDstOptimal:
-                barrier.SrcAccessMask = 0;
-                barrier.DstAccessMask = AccessFlags.TransferWriteBit;
-
-                srcStage = PipelineStageFlags.TopOfPipeBit;
-                dstStage = PipelineStageFlags.TransferBit;
-                break;
-            case ImageLayout.TransferDstOptimal when newLayout == ImageLayout.ShaderReadOnlyOptimal:
-                barrier.SrcAccessMask = AccessFlags.TransferWriteBit;
-                barrier.DstAccessMask = AccessFlags.ShaderReadBit;
-
-                srcStage = PipelineStageFlags.TransferBit;
-                dstStage = PipelineStageFlags.FragmentShaderBit;
-                break;
-            default:
-                throw new Exception($"Transition from ({oldLayout}) to ({newLayout}) is not supported.");
-        }
+        transitionResolver.ResolveOldLayout(CurrentLayout, ref srcStage, ref barrier);
+        transitionResolver.ResolveNewLayout(newLayout, ref dstStage, ref barrier);
         
         Context.Api.CmdPipelineBarrier(buffer, srcStage, dstStage, 0, 0, 
             null, 0, null, 1, &barrier);
@@ -186,12 +179,12 @@ public class VkImage : VkObject, IVkImage
 
     public void BindToMemory()
     {
-        if (imageContext.Memory.WrappedMemory == null)
+        if (!imageContext.Memory.IsAllocated())
         {
             throw new Exception("Failed to bind image: memory was not allocated.");
         }
 
-        Context.Api.BindImageMemory(device.WrappedDevice, WrappedImage, imageContext.Memory.WrappedMemory.Value, 0);
+        Context.Api.BindImageMemory(device.WrappedDevice, WrappedImage, imageContext.Memory.WrappedMemory!.Value, 0);
     }
 
     protected override unsafe void Dispose(bool disposing)

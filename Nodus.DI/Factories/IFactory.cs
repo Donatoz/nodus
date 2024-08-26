@@ -5,6 +5,18 @@ public interface IFactory<out TOut>
     TOut Create();
 }
 
+public readonly struct AnonymousFactory<TOut> : IFactory<TOut>
+{
+    private readonly Func<TOut> factory;
+
+    public AnonymousFactory(Func<TOut> factory)
+    {
+        this.factory = factory;
+    }
+
+    public TOut Create() => factory.Invoke();
+}
+
 public interface IFactory<in TIn, out TOut>
 {
     TOut Create(TIn arg1);

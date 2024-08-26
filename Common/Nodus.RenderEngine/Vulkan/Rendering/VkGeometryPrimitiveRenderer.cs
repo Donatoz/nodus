@@ -10,19 +10,20 @@ using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace Nodus.RenderEngine.Vulkan.Renderers;
+namespace Nodus.RenderEngine.Vulkan.Rendering;
 
 public interface IVkGeometryPrimitiveRenderContext : IRenderContext
 {
     IGeometryPrimitive Primitive { get; }
     IVkLogicalDevice LogicalDevice { get; }
-    PhysicalDevice PhysicalDevice { get; }
+    IVkPhysicalDevice PhysicalDevice { get; }
     VkQueueInfo QueueInfo { get; }
-    IVkSwapChain SwapChain { get; }
-    IVkKhrSurface Surface { get; }
+    IVkRenderPass RenderPass { get; }
     IVkGraphicsPipelineContext PipelineContext { get; }
     IScreenViewer Viewer { get; }
     ITexture<Rgba32> Texture { get; }
+    IVkRenderPresenter Presenter { get; }
+    IVkRenderSupplier Supplier { get; }
     
     int ConcurrentRenderedFrames { get; }
 }
@@ -31,30 +32,32 @@ public record VkGeometryPrimitiveRenderContext(
     IGeometryPrimitive Primitive,
     IEnumerable<IShaderDefinition> CoreShaders,
     IVkLogicalDevice LogicalDevice,
-    PhysicalDevice PhysicalDevice,
+    IVkPhysicalDevice PhysicalDevice,
     VkQueueInfo QueueInfo,
-    IVkSwapChain SwapChain,
-    IVkKhrSurface Surface,
+    IVkRenderPass RenderPass,
     IScreenViewer Viewer,
     IVkGraphicsPipelineContext PipelineContext,
     ITexture<Rgba32> Texture,
+    IVkRenderPresenter Presenter,
+    IVkRenderSupplier Supplier,
     int ConcurrentRenderedFrames)
     : IVkGeometryPrimitiveRenderContext;
 
 public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
 {
     private IVkContext? vkContext;
-    private IVkSwapChain? swapChain;
+    private IVkRenderPass? renderPass;
     private IVkLogicalDevice? device;
-    private IVkKhrSurface? surface;
     private IGeometryPrimitive? primitive;
     private IScreenViewer? viewer;
+    private IVkRenderPresenter? presenter;
+    private IVkRenderSupplier? supplier;
     
     private IVkCommandPool? commandPool;
     private IVkCommandPool? transientPool;
     private IVkGraphicsPipeline? pipeline;
     private VkQueueInfo? queueInfo;
-    private PhysicalDevice? physicalDevice;
+    private IVkPhysicalDevice? physicalDevice;
     private PhysicalDeviceProperties? deviceFeatures;
     private IVkDescriptorPool? descriptorPool;
 
@@ -66,7 +69,6 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
 
     private IVkSemaphore[]? imageAvailabilitySemaphores;
     private IVkSemaphore[]? renderFinishedSemaphores;
-    private IVkFence[]? inFlightFences;
 
     private bool isInitialized;
     private int maxConcurrentFrames;
@@ -84,21 +86,27 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         var primitiveContext = context.MustBe<IVkGeometryPrimitiveRenderContext>();
         vkContext = backendProvider.GetBackend<IVkContext>();
         
-        swapChain = primitiveContext.SwapChain;
         queueInfo = primitiveContext.QueueInfo;
+        renderPass = primitiveContext.RenderPass;
         device = primitiveContext.LogicalDevice;
-        surface = primitiveContext.Surface;
         maxConcurrentFrames = primitiveContext.ConcurrentRenderedFrames;
         primitive = primitiveContext.Primitive;
         physicalDevice = primitiveContext.PhysicalDevice;
         viewer = primitiveContext.Viewer;
-        deviceFeatures = vkContext.Api.GetPhysicalDeviceProperties(physicalDevice.Value);
+        deviceFeatures = vkContext.Api.GetPhysicalDeviceProperties(physicalDevice.WrappedDevice);
+        presenter = primitiveContext.Presenter;
+        supplier = primitiveContext.Supplier;
         
         // Create pipeline
         pipeline = new VkGraphicsPipeline(vkContext, device, primitiveContext.PipelineContext);
-        
-        // Create framebuffers according to the render pass
-        swapChain.CreateFrameBuffers(pipeline.RenderPass);
+        presenter.EventStream.Subscribe(x =>
+        {
+            if (x == RenderPresentEvent.PresenterUpdated)
+            {
+                pipeline.UpdateViewport();
+                pipeline.UpdateScissors();
+            }
+        });
         
         // Create pools
         commandPool = new VkCommandPool(vkContext, device, queueInfo.Value, (uint)maxConcurrentFrames, CommandPoolCreateFlags.ResetCommandBufferBit);
@@ -109,13 +117,15 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         // Primitive buffer layout:
         // Primitive Vertices <...> Primitive Indices <...> Minimally each 64 bytes : Uniform Buffers
         
-        primitiveMemory = new VkMemory(vkContext, device, physicalDevice.Value,
+        primitiveMemory = new VkMemory(vkContext, device, physicalDevice,
             MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
         
         var primitiveVertSize = (uint)(sizeof(Vertex) * primitive.Vertices.Length);
         var indicesSize = (uint)(sizeof(uint) * primitive.Indices.Length);
         var uniformSize = (uint)sizeof(UniformBufferObject);
-
+        
+        // The uniform objects are needed to be placed with an offset that is multiple of 64.
+        // Hence, we calculate the next nearest valid offset for each frame (since we render to multiple images concurrently).
         var uniformBufferBaseOffset = primitiveVertSize + indicesSize;
         uniformBufferOffsets = new ulong[maxConcurrentFrames];
 
@@ -132,7 +142,7 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
                 SharingMode.Exclusive,
                 primitiveMemory));
         
-        primitiveMemory.AllocateForBuffer(vkContext, primitiveBuffer.WrappedBuffer, device);
+        primitiveMemory.AllocateForBuffer(vkContext, primitiveBuffer, device);
         primitiveBuffer.BindToMemory();
         
         primitiveBuffer.UpdateData(primitive.Vertices.AsSpan(), 0);
@@ -141,13 +151,11 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         // Create sync objects
         imageAvailabilitySemaphores = new IVkSemaphore[maxConcurrentFrames];
         renderFinishedSemaphores = new IVkSemaphore[maxConcurrentFrames];
-        inFlightFences = new IVkFence[maxConcurrentFrames];
-
+        
         for (var i = 0; i < maxConcurrentFrames; i++)
         {
             imageAvailabilitySemaphores[i] = new VkSemaphore(vkContext, device);
             renderFinishedSemaphores[i] = new VkSemaphore(vkContext, device);
-            inFlightFences[i] = new VkFence(vkContext, device, true);
         }
         
         // Create images
@@ -174,13 +182,13 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         texture.ManagedImage.CopyPixelDataTo(textureData);
 
-        using var stagingBuffer = new VkAllocatedBuffer<byte>(vkContext!, device!, physicalDevice!.Value,
+        using var stagingBuffer = new VkAllocatedBuffer<byte>(vkContext!, device!, physicalDevice!,
             new VkBufferContext(textureSize, BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit));
         stagingBuffer.Allocate();
         stagingBuffer.UpdateData(textureData);
         
-        imageMemory = new VkMemory(vkContext!, device!, physicalDevice.Value, MemoryPropertyFlags.DeviceLocalBit);
+        imageMemory = new VkMemory(vkContext!, device!, physicalDevice!, MemoryPropertyFlags.DeviceLocalBit);
         
         textureImage = new VkImage(vkContext!, device!, new VkImageContext(imageMemory, ImageType.Type2D,
             new Extent3D((uint)texture.Width, (uint)texture.Height, 1), Format.R8G8B8A8Srgb,
@@ -194,9 +202,9 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         cmdBuffer.BeginBuffer(vkContext!);
         
-        textureImage.CmdTransitionLayout(cmdBuffer, ImageLayout.Undefined, ImageLayout.TransferDstOptimal);
+        textureImage.CmdTransitionLayout(cmdBuffer, ImageLayout.TransferDstOptimal);
         stagingBuffer.CmdCopyToImage(vkContext!, cmdBuffer, textureImage);
-        textureImage.CmdTransitionLayout(cmdBuffer, ImageLayout.TransferDstOptimal, ImageLayout.ShaderReadOnlyOptimal);
+        textureImage.CmdTransitionLayout(cmdBuffer, ImageLayout.ShaderReadOnlyOptimal);
         
         cmdBuffer.SubmitBuffer(vkContext!, device!.TryGetGraphicsQueue(queueInfo!.Value)!.Value);
     }
@@ -219,7 +227,7 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         descriptorPool = new VkDescriptorPool(vkContext!, device!, descPoolContext, (uint)maxConcurrentFrames,
             pipeline!.DescriptorSetLayout);
         
-        descriptorPool.PopulateDescriptors(primitiveBuffer.WrappedBuffer, (uint)sizeof(UniformBufferObject), uniformBufferOffsets!);
+        descriptorPool.PopulateDescriptors();
         descriptorWriteTokens.OfType<IDisposable>().DisposeAll();
     }
     
@@ -227,36 +235,32 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
 
     #region Render Loop
     
+    // TODO: Synchronization must not depend on the presenter.
     public void RenderFrame()
     {
         ValidateRenderState();
 
-        var fence = inFlightFences![frameIndex];
-        
+        var fence = presenter!.GetPresentationFence((uint)frameIndex);
         fence.Await();
+        
         commandPool!.Reset(frameIndex, CommandBufferResetFlags.None);
 
-        var acquireResult = swapChain!.AcquireNextImage(out var imgIndex, imageAvailabilitySemaphores![frameIndex]);
-
-        if (acquireResult == Result.ErrorOutOfDateKhr)
+        if (!presenter.TryPrepareNewFrame(imageAvailabilitySemaphores![frameIndex], (uint)frameIndex))
         {
-            RecreateSwapChain();
             return;
         }
-        if (acquireResult != Result.Success && acquireResult != Result.SuboptimalKhr)
-        {
-            throw new Exception("Failed to acquire next swapchain image.");
-        }
+
+        var framebuffer = presenter.GetAvailableFramebuffer();
         
         UpdateUniforms();
         
         fence.Reset();
-        
-        RecordCommands(imgIndex, frameIndex);
+
+        RecordCommands(framebuffer, frameIndex);
         
         var waitSemaphores = stackalloc [] { imageAvailabilitySemaphores[frameIndex].WrappedSemaphore };
         var signalSemaphores = stackalloc [] { renderFinishedSemaphores![frameIndex].WrappedSemaphore };
-        var waitStages = stackalloc[] { PipelineStageFlags.ColorAttachmentOutputBit };
+        var waitStages = stackalloc [] { PipelineStageFlags.ColorAttachmentOutputBit };
         var cmdBuffer = commandPool.GetBuffer(frameIndex);
 
         var submitInfo = new SubmitInfo
@@ -274,77 +278,50 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         var queue = device!.Queues[queueInfo!.Value.GraphicsFamily!.Value];
 
         vkContext!.Api.QueueSubmit(queue, 1, in submitInfo, fence.WrappedFence);
-
-        var swapChainKhr = swapChain.WrappedSwapChain;
-
-        var presentInfo = new PresentInfoKHR
-        {
-            SType = StructureType.PresentInfoKhr,
-            WaitSemaphoreCount = 1,
-            PWaitSemaphores = signalSemaphores,
-            SwapchainCount = 1,
-            PSwapchains = &swapChainKhr,
-            PImageIndices = &imgIndex
-        };
-
-        swapChain.SwapChainExtension.QueuePresent(queue, in presentInfo);
+        
+        presenter!.ProcessRenderQueue(queue, renderFinishedSemaphores![frameIndex], fence);
 
         frameIndex = (frameIndex + 1) % maxConcurrentFrames;
     }
     
-    private void RecordCommands(uint imageIndex, int bufferIndex)
+    private void RecordCommands(Framebuffer framebuffer, int bufferIndex)
     {
         commandPool!.Begin(bufferIndex);
 
         var buffer = commandPool.GetBuffer(bufferIndex);
         
-        RecordCommandsToBuffer(imageIndex, buffer);
+        RecordCommandsToBuffer(framebuffer, buffer);
         
         commandPool.End(bufferIndex);
     }
 
-    protected virtual void RecordCommandsToBuffer(uint imageIndex, CommandBuffer buffer)
+    protected virtual void RecordCommandsToBuffer(Framebuffer frameBuffer, CommandBuffer commandBuffer)
     {
-        var clearValue = new ClearValue(new ClearColorValue(0, 0, 0, 0));
+        var clearValue = new ClearValue(new ClearColorValue(0, 0, 0, 1.0f));
 
-        var beginInfo = CreateRenderPassBeginInfo(imageIndex, &clearValue);
+        var beginInfo = CreateRenderPassBeginInfo(frameBuffer, &clearValue);
         
-        vkContext!.Api.CmdBeginRenderPass(buffer, in beginInfo, SubpassContents.Inline);
+        vkContext!.Api.CmdBeginRenderPass(commandBuffer, in beginInfo, SubpassContents.Inline);
         
-        pipeline!.CmdBind(buffer, PipelineBindPoint.Graphics);
+        vkContext.Api.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, pipeline!.WrappedPipeline);
 
         var dataBuffer = primitiveBuffer!.WrappedBuffer;
         var vertOffsets = stackalloc[] {0ul};
         
-        vkContext.Api.CmdBindVertexBuffers(buffer, 0, 1, &dataBuffer, vertOffsets);
-        vkContext.Api.CmdBindIndexBuffer(buffer, dataBuffer, (ulong)(sizeof(Vertex) * primitive!.Vertices.Length), IndexType.Uint32);
+        vkContext.Api.CmdBindVertexBuffers(commandBuffer, 0, 1, &dataBuffer, vertOffsets);
+        vkContext.Api.CmdBindIndexBuffer(commandBuffer, dataBuffer, (ulong)(sizeof(Vertex) * primitive!.Vertices.Length), IndexType.Uint32);
         
-        vkContext.Api.CmdSetViewport(buffer, 0, 1, pipeline.Viewport);
-        vkContext.Api.CmdSetScissor(buffer, 0, 1, pipeline.Scissors);
+        vkContext.Api.CmdSetViewport(commandBuffer, 0, 1, pipeline.Viewport);
+        vkContext.Api.CmdSetScissor(commandBuffer, 0, 1, pipeline.Scissors);
 
         var descriptorSet = descriptorPool!.GetSet(frameIndex);
         
-        vkContext.Api.CmdBindDescriptorSets(buffer, PipelineBindPoint.Graphics, pipeline.Layout, 0, 
+        vkContext.Api.CmdBindDescriptorSets(commandBuffer, PipelineBindPoint.Graphics, pipeline.Layout, 0, 
             1, &descriptorSet, 0, null);
         
-        vkContext.Api.CmdDrawIndexed(buffer, (uint)primitive!.Indices.Length, 1, 0, 0, 0);
+        vkContext.Api.CmdDrawIndexed(commandBuffer, (uint)primitive!.Indices.Length, 1, 0, 0, 0);
         
-        vkContext.Api.CmdEndRenderPass(buffer);
-    }
-
-    protected void RecreateSwapChain()
-    {
-        inFlightFences!
-            .Where(x => x != inFlightFences![frameIndex])
-            .ForEach(x => x.Await());
-        
-        swapChain!.DiscardCurrentState();
-        surface!.Update();
-        swapChain.RecreateState();
-        swapChain.CreateFrameBuffers(pipeline!.RenderPass);
-        
-        pipeline!.UpdateViewport();
-        pipeline!.UpdateScissors();
+        vkContext.Api.CmdEndRenderPass(commandBuffer);
     }
 
     protected void UpdateUniforms()
@@ -369,17 +346,17 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         }
     }
 
-    private RenderPassBeginInfo CreateRenderPassBeginInfo(uint image, ClearValue* clearColor)
+    private RenderPassBeginInfo CreateRenderPassBeginInfo(Framebuffer framebuffer, ClearValue* clearColor)
     {
         return new RenderPassBeginInfo
         {
             SType = StructureType.RenderPassBeginInfo,
-            RenderPass = pipeline!.RenderPass,
-            Framebuffer = swapChain!.FrameBuffers![image],
+            RenderPass = renderPass!.WrappedPass,
+            Framebuffer = framebuffer,
             RenderArea = new Rect2D
             {
                 Offset = new Offset2D(0, 0),
-                Extent = swapChain!.Extent
+                Extent = supplier!.CurrentRenderExtent
             },
             ClearValueCount = 1,
             PClearValues = clearColor
@@ -409,7 +386,6 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         imageAvailabilitySemaphores?.DisposeAll();
         renderFinishedSemaphores?.DisposeAll();
-        inFlightFences?.DisposeAll();
         
         primitiveBuffer?.Dispose();
         textureImage?.Dispose();

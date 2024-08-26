@@ -1,13 +1,12 @@
-﻿using System.Numerics;
-using System.Reactive.Linq;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using DynamicData;
 using Nodus.RenderEngine.Common;
 using Nodus.RenderEngine.Serialization;
 using Nodus.RenderEngine.Vulkan;
+using Nodus.RenderEngine.Vulkan.Computing;
 using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Meta;
-using Nodus.RenderEngine.Vulkan.Renderers;
+using Nodus.RenderEngine.Vulkan.Rendering;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
 using Silk.NET.Input;
@@ -39,11 +38,14 @@ public unsafe class VkWindow
     private VkInstance? instance;
     private ExtDebugUtils? debugUtils;
     private DebugUtilsMessengerEXT debugMessenger;
-    private PhysicalDevice? physicalDevice;
+    private IVkPhysicalDevice? physicalDevice;
     private IVkLogicalDevice? logicalDevice;
     private IVkKhrSurface? surface;
     private IVkSwapChain? swapChain;
+    private IVkRenderPass? renderPass;
     private IScreenViewer? viewer;
+    private IVkRenderPresenter? presenter;
+    private VkComputeDispatcher? computeDispatcher;
 
     private VkLayerInfo? layerInfo;
     private VkExtensionsInfo? extensionsInfo;
@@ -107,9 +109,9 @@ public unsafe class VkWindow
         surface = CreateSurface();
         
         physicalDevice = GetFirstSuitablePhysicalDevice();
-        logicalDevice = CreateLogicalDevice(physicalDevice.Value);
+        logicalDevice = CreateLogicalDevice(physicalDevice);
 
-        var queueInfo = VkQueueInfo.GetFromDevice(physicalDevice.Value, vk, surface);
+        var queueInfo = VkQueueInfo.GetFromDevice(physicalDevice.WrappedDevice, vk, surface);
         var geoFactory = new AssimpGeometryFactory();
 
         var cube = geoFactory.CreateFromFile(@"G:\CG\3D\Common\Cube.obj").First();
@@ -117,7 +119,11 @@ public unsafe class VkWindow
         extensionProvider = new VkExtensionProvider(vkContext, instance, logicalDevice);
         
         swapChain = CreateSwapChain();
+        renderPass = new VkRenderPass(vkContext, logicalDevice, new VkRenderPassContext(swapChain.SurfaceFormat.Format));
         
+        swapChain.CreateFrameBuffers(renderPass.WrappedPass);
+        var rendererSupplier = new VkRenderSupplier(() => swapChain.Extent);
+
         var pipelineContext = new VkGraphicsPipelineContext(
             [DynamicState.Scissor ,DynamicState.Viewport], 
             new IShaderDefinition[]
@@ -129,7 +135,7 @@ public unsafe class VkWindow
                     new ShaderFileSource(@"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\solid.spv"),
                     ShaderSourceType.Fragment)
             }, 
-            swapChain!, queueInfo);
+            renderPass, rendererSupplier);
 
         viewer = new Viewer(new Vector2D<float>(swapChain.Extent.Width, swapChain.Extent.Height))
         {
@@ -142,14 +148,27 @@ public unsafe class VkWindow
         var textureDataProvider = new TextureDataProvider<Rgba32>();
 
         using var texture = textureDataProvider.FetchTexture(textureSource);
+        //presenter = new VkImagePresenter(vkContext, logicalDevice, physicalDevice, rendererSupplier, renderPass, queueInfo, 2);
+        presenter = new VkSwapchainRenderPresenter(vkContext, logicalDevice, swapChain, surface, renderPass, 2);
         
+        /*
         renderer.Initialize(
-            new VkGeometryPrimitiveRenderContext(cube, Enumerable.Empty<IShaderDefinition>(), logicalDevice, physicalDevice.Value, queueInfo, 
-                swapChain, surface, viewer, pipelineContext, texture, 2), 
+            new VkGeometryPrimitiveRenderContext(cube, Enumerable.Empty<IShaderDefinition>(), logicalDevice, physicalDevice, queueInfo, 
+                renderPass, viewer, pipelineContext, texture, presenter, rendererSupplier, 2),
             new VkRenderBackendProvider(vkContext)
         );
-                
+        */
+
+        computeDispatcher = new VkComputeDispatcher(vkContext, logicalDevice,
+            new VkComputeDispatcherContext(
+                new ShaderDefinition(
+                    new ShaderFileSource(
+                        @"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\test.spv"),
+                    ShaderSourceType.Compute), physicalDevice, queueInfo));
+        
         isInitialized = true;
+        
+        computeDispatcher.Dispatch();
     }
 
     private void OnKeyDown(IKeyboard keyboard, Key key, int n)
@@ -164,7 +183,7 @@ public unsafe class VkWindow
     {
         if (!isInitialized || window.FramebufferSize.X == 0 || window.FramebufferSize.Y == 0) return;
         
-        renderer.RenderFrame();
+        //renderer.RenderFrame();
     }
     
     private void OnUpdate(double delta)
@@ -230,7 +249,7 @@ public unsafe class VkWindow
         return valLayers.All(availableLayerNames.Contains);
     }
 
-    private PhysicalDevice GetFirstSuitablePhysicalDevice()
+    private IVkPhysicalDevice GetFirstSuitablePhysicalDevice()
     {
         var devices = vk!.GetPhysicalDevices(instance!);
 
@@ -253,7 +272,7 @@ public unsafe class VkWindow
         Console.WriteLine($"Picked device: [{devices.IndexOf(device)}]");
         Console.ResetColor();
         
-        return device;
+        return new VkPhysicalDevice(vkContext!, device);
     }
     
     private bool IsDeviceSuitable(PhysicalDevice device)
@@ -307,16 +326,16 @@ public unsafe class VkWindow
         return new VkKhrSurface(vkContext!, instance!, () => window.VkSurface!);
     }
 
-    private IVkLogicalDevice CreateLogicalDevice(PhysicalDevice device)
+    private IVkLogicalDevice CreateLogicalDevice(IVkPhysicalDevice physicalDevice)
     {
-        return new VkLogicalDevice(vkContext!, device, surface!);
+        return new VkLogicalDevice(vkContext!, physicalDevice, surface!);
     }
 
     private IVkSwapChain CreateSwapChain()
     {
         var supplier = new VkSwapChainContextSupplier(
-            () => new VkSurfaceInfo(window.FramebufferSize, physicalDevice!.Value, surface!),
-            () => VkQueueInfo.GetFromDevice(physicalDevice!.Value, vk!, surface!));
+            () => new VkSurfaceInfo(window.FramebufferSize, physicalDevice!.WrappedDevice, surface!),
+            () => VkQueueInfo.GetFromDevice(physicalDevice!.WrappedDevice, vk!, surface!));
 
         var sc = new VkSwapChain(vkContext!,
             new VkSwapChainContext(logicalDevice!, surface!,
@@ -343,7 +362,10 @@ public unsafe class VkWindow
         }
         
         renderer.Dispose();
+        presenter?.Dispose();
+        computeDispatcher?.Dispose();
         
+        renderPass?.Dispose();
         swapChain?.Dispose();
         logicalDevice?.Dispose();
         surface?.Dispose();

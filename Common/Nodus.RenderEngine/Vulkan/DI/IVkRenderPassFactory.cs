@@ -6,7 +6,7 @@ namespace Nodus.RenderEngine.Vulkan.DI;
 public interface IVkRenderPassFactory
 {
     AttachmentDescription[] CreateAttachments(Format format);
-    SubpassDescription[] CreateSubPasses(IVkSubPassScheme[] subPassSchemes);
+    SubpassDescription[] CreateSubPasses(IVkSubPassScheme[] schemes);
     SubpassDependency[] CreateDependencies();
 }
 
@@ -48,18 +48,18 @@ public class VkRenderPassFactory : IVkRenderPassFactory
         ];
     }
 
-    public unsafe SubpassDescription[] CreateSubPasses(IVkSubPassScheme[] subPassSchemes)
+    public unsafe SubpassDescription[] CreateSubPasses(IVkSubPassScheme[] schemes)
     {
         if (SubPassesFactory != null)
         {
-            return SubPassesFactory.Create(subPassSchemes);
+            return SubPassesFactory.Create(schemes);
         }
         
-        var descs = new SubpassDescription[subPassSchemes.Length];
+        var descs = new SubpassDescription[schemes.Length];
 
         for (var i = 0; i < descs.Length; i++)
         {
-            var scheme = subPassSchemes[i];
+            var scheme = schemes[i];
 
             descs[i] = new SubpassDescription
             {

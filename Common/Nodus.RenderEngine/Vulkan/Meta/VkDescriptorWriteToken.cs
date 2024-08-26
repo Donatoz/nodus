@@ -126,3 +126,31 @@ public unsafe class VkImageSamplerWriteToken : VkBufferWriteTokenBase, IDisposab
         imageInfo.Dispose();
     }
 }
+
+public unsafe class VkStorageBufferWriteToken : VkBufferWriteTokenBase, IDisposable
+{
+    private readonly UnmanagedContainer<DescriptorBufferInfo> bufferInfo;
+    
+    public VkStorageBufferWriteToken(uint binding, uint arrayElement, Buffer buffer, ulong offset, ulong range) : base(binding, arrayElement)
+    {
+        bufferInfo = new UnmanagedContainer<DescriptorBufferInfo>();
+
+        bufferInfo.Data->Buffer = buffer;
+        bufferInfo.Data->Offset = offset;
+        bufferInfo.Data->Range = range;
+    }
+
+    public override void PopulateWriteSet(ref WriteDescriptorSet set, int setIndex)
+    {
+        base.PopulateWriteSet(ref set, setIndex);
+
+        set.DescriptorType = DescriptorType.StorageBuffer;
+        set.DescriptorCount = 1;
+        set.PBufferInfo = bufferInfo.Data;
+    }
+
+    public void Dispose()
+    {
+        bufferInfo.Dispose();
+    }
+}

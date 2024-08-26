@@ -3,53 +3,43 @@ using Nodus.RenderEngine.Common;
 using Nodus.RenderEngine.Vulkan.Convention;
 using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Extensions;
-using Nodus.RenderEngine.Vulkan.Meta;
 using Nodus.RenderEngine.Vulkan.Utility;
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 
-namespace Nodus.RenderEngine.Vulkan;
+namespace Nodus.RenderEngine.Vulkan.Rendering;
 
 public interface IVkGraphicsPipelineContext
 {
     DynamicState[] DynamicStates { get; }
     IEnumerable<IShaderDefinition> Shaders { get; }
-    IVkSwapChain SwapChain { get; }
-    VkQueueInfo QueueInfo { get; }
-    
+    IVkRenderSupplier Supplier { get; }
+    IVkRenderPass RenderPass { get; }
     IVkPipelineFactory? PipelineFactory { get; }
-    IVkRenderPassFactory? RenderPassFactory { get; }
     IVkDescriptorSetFactory? DescriptorFactory { get; }
 }
 
 public readonly struct VkGraphicsPipelineContext(
     DynamicState[] dynamicStates, 
     IEnumerable<IShaderDefinition> shaders, 
-    IVkSwapChain swapChain,
-    VkQueueInfo queueInfo,
+    IVkRenderPass renderPass,
+    IVkRenderSupplier supplier,
     IVkPipelineFactory? pipelineFactory = null,
-    IVkRenderPassFactory? renderPassFactory = null,
     IVkDescriptorSetFactory? descriptorFactory = null) : IVkGraphicsPipelineContext
 {
     public DynamicState[] DynamicStates { get; } = dynamicStates;
     public IEnumerable<IShaderDefinition> Shaders { get; } = shaders;
-    public IVkSwapChain SwapChain { get; } = swapChain;
-    public VkQueueInfo QueueInfo { get; } = queueInfo;
+    public IVkRenderSupplier Supplier { get; } = supplier;
+    public IVkRenderPass RenderPass { get; } = renderPass;
     public IVkPipelineFactory? PipelineFactory { get; } = pipelineFactory;
-    public IVkRenderPassFactory? RenderPassFactory { get; } = renderPassFactory;
     public IVkDescriptorSetFactory? DescriptorFactory { get; } = descriptorFactory;
 }
 
-public interface IVkGraphicsPipeline : IVkUnmanagedHook
+public interface IVkGraphicsPipeline : IVkPipeline
 {
-    PipelineLayout Layout { get; }
-    Pipeline WrappedPipeline { get; }
-    RenderPass RenderPass { get; }
     Viewport Viewport { get; }
     Rect2D Scissors { get; }
-    DescriptorSetLayout DescriptorSetLayout { get; }
 
-    void CmdBind(CommandBuffer buffer, PipelineBindPoint bindPoint);
     void UpdateViewport();
     void UpdateScissors();
 }
@@ -57,7 +47,6 @@ public interface IVkGraphicsPipeline : IVkUnmanagedHook
 public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
 {
     public PipelineLayout Layout { get; }
-    public RenderPass RenderPass { get; }
     public Pipeline WrappedPipeline { get; }
     public Viewport Viewport { get; private set; }
     public Rect2D Scissors { get; private set; }
@@ -75,7 +64,6 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
         this.pipelineContext = pipelineContext;
 
         var factory = pipelineContext.PipelineFactory ?? new VkPipelineFactory();
-        var passFactory = pipelineContext.RenderPassFactory ?? new VkRenderPassFactory();
         var descriptorFactory = pipelineContext.DescriptorFactory ?? new VkDescriptorSetFactory();
         
         Shaders = pipelineContext.Shaders.Select(x => new
@@ -103,8 +91,8 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
         {
             X = 0,
             Y = 0,
-            Width = pipelineContext.SwapChain.Extent.Width,
-            Height = pipelineContext.SwapChain.Extent.Height,
+            Width = pipelineContext.Supplier.CurrentRenderExtent.Width,
+            Height = pipelineContext.Supplier.CurrentRenderExtent.Height,
             MinDepth = 0,
             MaxDepth = 1
         };
@@ -112,7 +100,7 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
         var scissors = new Rect2D
         {
             Offset = new Offset2D(0, 0),
-            Extent = pipelineContext.SwapChain.Extent
+            Extent = pipelineContext.Supplier.CurrentRenderExtent
         };
         
         Viewport = viewPort;
@@ -150,38 +138,6 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
         DescriptorSetLayout = descriptorSetLayout;
 
         Layout = layout;
-
-        var attachments = passFactory.CreateAttachments(this.pipelineContext.SwapChain.SurfaceFormat.Format);
-        var colorAttachmentRef = new AttachmentReference
-        {
-            Attachment = 0,
-            Layout = ImageLayout.ColorAttachmentOptimal
-        };
-        var subPasses = passFactory.CreateSubPasses([
-            new VkSubPassScheme(PipelineBindPoint.Graphics, 1, &colorAttachmentRef)
-        ]);
-        var dependencies = passFactory.CreateDependencies();
-
-        RenderPass pass;
-
-        fixed (void* pAttachments = attachments, pSubPasses = subPasses, pDeps = dependencies)
-        {
-            var renderPass = new RenderPassCreateInfo
-            {
-                SType = StructureType.RenderPassCreateInfo,
-                AttachmentCount = (uint)attachments.Length,
-                PAttachments = (AttachmentDescription*)pAttachments,
-                SubpassCount = (uint)subPasses.Length,
-                PSubpasses = (SubpassDescription*)pSubPasses,
-                DependencyCount = (uint)dependencies.Length,
-                PDependencies = (SubpassDependency*)pDeps
-            };
-            
-            Context.Api.CreateRenderPass(device.WrappedDevice, in renderPass, null, &pass)
-                .TryThrow("Failed to create render pass.");
-        }
-
-        RenderPass = pass;
         
         var vertexBinding = VertexUtility.GetVertexBindingDescription();
         var vertexAttribs = VertexUtility.GetVertexAttributeDescriptions();
@@ -204,7 +160,7 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
                 PMultisampleState = &multisampling,
                 PColorBlendState = &colorBlend,
                 Layout = Layout,
-                RenderPass = RenderPass,
+                RenderPass = pipelineContext.RenderPass.WrappedPass,
                 Subpass = 0
             };
 
@@ -239,19 +195,14 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
         return layout;
     }
 
-    public void CmdBind(CommandBuffer buffer, PipelineBindPoint bindPoint)
-    {
-        Context.Api.CmdBindPipeline(buffer, bindPoint, WrappedPipeline);
-    }
-
     public void UpdateViewport()
     {
         Viewport = new Viewport
         {
             X = 0,
             Y = 0,
-            Width = pipelineContext.SwapChain.Extent.Width,
-            Height = pipelineContext.SwapChain.Extent.Height,
+            Width = pipelineContext.Supplier.CurrentRenderExtent.Width,
+            Height = pipelineContext.Supplier.CurrentRenderExtent.Height,
             MinDepth = 0,
             MaxDepth = 1
         };
@@ -262,7 +213,7 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
         Scissors = new Rect2D
         {
             Offset = new Offset2D(0, 0),
-            Extent = pipelineContext.SwapChain.Extent
+            Extent = pipelineContext.Supplier.CurrentRenderExtent
         };
     }
 
@@ -273,7 +224,6 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
             Shaders.Values.DisposeAll();
             Context.Api.DestroyPipeline(device.WrappedDevice, WrappedPipeline, null);
             Context.Api.DestroyPipelineLayout(device.WrappedDevice, Layout,  null);
-            Context.Api.DestroyRenderPass(device.WrappedDevice, RenderPass, null);
             Context.Api.DestroyDescriptorSetLayout(device.WrappedDevice, descriptorSetLayout, null);
         }
         

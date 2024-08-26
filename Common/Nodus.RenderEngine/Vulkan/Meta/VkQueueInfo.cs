@@ -16,6 +16,8 @@ public struct VkQueueInfo
     /// Present queue family index.
     /// </summary>
     public uint? PresentFamily { get; private set; }
+    
+    public uint? ComputeFamily { get; private set; }
 
     /// <summary>
     /// Check whether the Vulkan queue family information is complete.
@@ -25,7 +27,7 @@ public struct VkQueueInfo
     /// </returns>
     public bool IsComplete()
     {
-        return GraphicsFamily != null && PresentFamily != null;
+        return GraphicsFamily != null && PresentFamily != null && ComputeFamily != null;
     }
 
     /// <summary>
@@ -56,6 +58,11 @@ public struct VkQueueInfo
                 indices.GraphicsFamily = i;
             }
 
+            if (queueFamily.QueueFlags.HasFlag(QueueFlags.ComputeBit))
+            {
+                indices.ComputeFamily = i;
+            }
+
             surface.Extension.GetPhysicalDeviceSurfaceSupport(device, i, surface.SurfaceKhr, out var isPresentSupported);
 
             if (isPresentSupported)
@@ -84,6 +91,11 @@ public struct VkQueueInfo
         if (PresentFamily != null)
         {
             yield return PresentFamily.Value;
+        }
+
+        if (ComputeFamily != null)
+        {
+            yield return ComputeFamily.Value;
         }
     }
 }
