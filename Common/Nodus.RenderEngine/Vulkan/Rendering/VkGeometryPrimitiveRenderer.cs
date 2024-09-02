@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Nodus.Core.Extensions;
 using Nodus.RenderEngine.Common;
 using Nodus.RenderEngine.Vulkan.DI;
@@ -75,7 +76,14 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
     private int frameIndex;
     private ulong[]? uniformBufferOffsets;
 
+    private readonly ConcurrentQueue<Action> workerQueue;
+
     #region Initialization
+    
+    public VkGeometryPrimitiveRenderer()
+    {
+        workerQueue = new ConcurrentQueue<Action>();
+    }
 
     public void Initialize(IRenderContext context, IRenderBackendProvider backendProvider)
     {
@@ -142,7 +150,7 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
                 SharingMode.Exclusive,
                 primitiveMemory));
         
-        primitiveMemory.AllocateForBuffer(vkContext, primitiveBuffer, device);
+        primitiveMemory.AllocateForBuffer(vkContext, primitiveBuffer.WrappedBuffer, device);
         primitiveBuffer.BindToMemory();
         
         primitiveBuffer.UpdateData(primitive.Vertices.AsSpan(), 0);
@@ -227,7 +235,7 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         descriptorPool = new VkDescriptorPool(vkContext!, device!, descPoolContext, (uint)maxConcurrentFrames,
             pipeline!.DescriptorSetLayout);
         
-        descriptorPool.PopulateDescriptors();
+        descriptorPool.UpdateSets();
         descriptorWriteTokens.OfType<IDisposable>().DisposeAll();
     }
     
@@ -238,11 +246,12 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
     // TODO: Synchronization must not depend on the presenter.
     public void RenderFrame()
     {
-        ValidateRenderState();
-
         var fence = presenter!.GetPresentationFence((uint)frameIndex);
         fence.Await();
         
+        ExecuteRenderWorkerQueue();
+        ValidateRenderState();
+
         commandPool!.Reset(frameIndex, CommandBufferResetFlags.None);
 
         if (!presenter.TryPrepareNewFrame(imageAvailabilitySemaphores![frameIndex], (uint)frameIndex))
@@ -331,11 +340,22 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         primitiveBuffer!.UpdateData(new Span<UniformBufferObject>(ref ubo), uniformBufferOffsets![frameIndex]);
     }
     
+    private void ExecuteRenderWorkerQueue()
+    {
+        while (!workerQueue.IsEmpty)
+        {
+            if (workerQueue.TryDequeue(out var action))
+            {
+                action.Invoke();
+            }
+        }
+    }
+    
     #endregion
     
     public void Enqueue(Action workItem)
     {
-        throw new NotImplementedException();
+        workerQueue.Enqueue(workItem);
     }
     
     private void ValidateRenderState()

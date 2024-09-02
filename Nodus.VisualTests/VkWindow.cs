@@ -4,7 +4,9 @@ using Nodus.RenderEngine.Common;
 using Nodus.RenderEngine.Serialization;
 using Nodus.RenderEngine.Vulkan;
 using Nodus.RenderEngine.Vulkan.Computing;
+using Nodus.RenderEngine.Vulkan.Convention;
 using Nodus.RenderEngine.Vulkan.DI;
+using Nodus.RenderEngine.Vulkan.Memory;
 using Nodus.RenderEngine.Vulkan.Meta;
 using Nodus.RenderEngine.Vulkan.Rendering;
 using Silk.NET.Core;
@@ -46,6 +48,7 @@ public unsafe class VkWindow
     private IScreenViewer? viewer;
     private IVkRenderPresenter? presenter;
     private VkComputeDispatcher? computeDispatcher;
+    private IVkMemoryLessor? memoryLessor;
 
     private VkLayerInfo? layerInfo;
     private VkExtensionsInfo? extensionsInfo;
@@ -110,6 +113,20 @@ public unsafe class VkWindow
         
         physicalDevice = GetFirstSuitablePhysicalDevice();
         logicalDevice = CreateLogicalDevice(physicalDevice);
+        
+        memoryLessor = new VkMemoryHeapLessor(vkContext, logicalDevice, physicalDevice, [
+            new VkMemoryHeapInfo(MemoryGroups.GeneralImageMemory, 
+                1024 * 1024 * 128, 
+                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
+                BufferUsageFlags.StorageBufferBit)
+        ]);
+
+        var serviceContainer = new VkServiceContainer
+        {
+            MemoryLessor = memoryLessor
+        };
+        
+        vkContext.BindServices(serviceContainer);
 
         var queueInfo = VkQueueInfo.GetFromDevice(physicalDevice.WrappedDevice, vk, surface);
         var geoFactory = new AssimpGeometryFactory();
@@ -151,14 +168,12 @@ public unsafe class VkWindow
         //presenter = new VkImagePresenter(vkContext, logicalDevice, physicalDevice, rendererSupplier, renderPass, queueInfo, 2);
         presenter = new VkSwapchainRenderPresenter(vkContext, logicalDevice, swapChain, surface, renderPass, 2);
         
-        /*
         renderer.Initialize(
             new VkGeometryPrimitiveRenderContext(cube, Enumerable.Empty<IShaderDefinition>(), logicalDevice, physicalDevice, queueInfo, 
                 renderPass, viewer, pipelineContext, texture, presenter, rendererSupplier, 2),
             new VkRenderBackendProvider(vkContext)
         );
-        */
-
+        
         computeDispatcher = new VkComputeDispatcher(vkContext, logicalDevice,
             new VkComputeDispatcherContext(
                 new ShaderDefinition(
@@ -167,8 +182,8 @@ public unsafe class VkWindow
                     ShaderSourceType.Compute), physicalDevice, queueInfo));
         
         isInitialized = true;
-        
-        computeDispatcher.Dispatch();
+
+        //computeDispatcher.Dispatch();
     }
 
     private void OnKeyDown(IKeyboard keyboard, Key key, int n)
@@ -183,7 +198,7 @@ public unsafe class VkWindow
     {
         if (!isInitialized || window.FramebufferSize.X == 0 || window.FramebufferSize.Y == 0) return;
         
-        //renderer.RenderFrame();
+        renderer.RenderFrame();
     }
     
     private void OnUpdate(double delta)
@@ -367,12 +382,13 @@ public unsafe class VkWindow
         
         renderPass?.Dispose();
         swapChain?.Dispose();
-        logicalDevice?.Dispose();
         surface?.Dispose();
         
-        instance?.Dispose();
-        
         layerInfo?.Dispose();
+        memoryLessor?.Dispose();
+        logicalDevice?.Dispose();
+        
+        instance?.Dispose();
         vkContext?.Dispose();
 
         vk!.Dispose();

@@ -1,12 +1,13 @@
 ﻿using System.Reactive.Linq;
 using System.Reactive.Subjects;
+using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Meta;
 using Silk.NET.Vulkan;
 
 namespace Nodus.RenderEngine.Vulkan;
 
 /// <summary>
-/// Represents a Vulkan rendering context.
+/// Represents a Vulkan context.
 /// </summary>
 public interface IVkContext : IDisposable
 {
@@ -24,6 +25,7 @@ public interface IVkContext : IDisposable
     /// The extensions' information.
     /// </summary>
     VkExtensionsInfo ExtensionsInfo { get; }
+    IVkServiceContainer ServiceContainer { get; }
 
     /// <summary>
     /// A collection of bound Vulkan objects in a Vulkan context.
@@ -55,8 +57,23 @@ public class VkContext : IVkContext
     public VkExtensionsInfo ExtensionsInfo { get; }
     public IReadOnlyCollection<VkObject> BoundObjects => boundObjects;
 
+    public IVkServiceContainer ServiceContainer
+    {
+        get
+        {
+            if (serviceContainer == null)
+            {
+                throw new Exception("Vulkan service container was not initialized.");
+            }
+
+            return serviceContainer;
+        }
+    }
+
+
     private readonly Subject<bool> lifetimeSubject;
     private readonly HashSet<VkObject> boundObjects;
+    private IVkServiceContainer? serviceContainer;
 
     public VkContext(Vk api, VkExtensionsInfo extensionsInfo, VkLayerInfo? layerInfo = null)
     {
@@ -66,6 +83,11 @@ public class VkContext : IVkContext
         Api = api;
         ExtensionsInfo = extensionsInfo;
         LayerInfo = layerInfo;
+    }
+
+    public void BindServices(IVkServiceContainer container)
+    {
+        serviceContainer = container;
     }
     
     public IDisposable BindObject(VkObject vkObject, Action onContextDestruction)

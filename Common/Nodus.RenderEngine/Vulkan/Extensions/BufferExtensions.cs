@@ -42,4 +42,14 @@ public static class BufferExtensions
         
         context.Api.CmdCopyBufferToImage(commandBuffer, allocatedBuffer.WrappedBuffer, image.WrappedImage, ImageLayout.TransferDstOptimal, 1, &imageCopy);
     }
+
+    public static CommandBufferSubmitInfo CreateSubmitInfo(this CommandBuffer buffer)
+    {
+        return new CommandBufferSubmitInfo
+        {
+            SType = StructureType.CommandBufferSubmitInfo,
+            CommandBuffer = buffer,
+            DeviceMask = 0
+        };
+    }
 }

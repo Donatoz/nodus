@@ -118,8 +118,7 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
         var rasterizer = factory.CreateRasterization();
         var multisampling = factory.CreateMultisampling();
         var colorBlend = factory.CreateColorBlend(&colorBlendAttachment);
-
-
+        
         var bindings = descriptorFactory.CreateLayoutBindings();
         var dscSetLayout = CreateDescriptorLayout(bindings);
         

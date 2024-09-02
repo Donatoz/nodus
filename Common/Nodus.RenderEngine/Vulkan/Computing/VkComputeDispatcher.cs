@@ -77,7 +77,7 @@ public class VkComputeDispatcher : IDisposable
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit));
         outputBuffer.Allocate();
         
-        storageBufferMemory.AllocateForBuffer(context, storageBuffer, device);
+        storageBufferMemory.AllocateForBuffer(context, storageBuffer.WrappedBuffer, device);
         storageBuffer.BindToMemory();
 
         using var stagingBuffer = new VkAllocatedBuffer<float>(context, device, dispatcherContext.PhysicalDevice,
@@ -100,7 +100,7 @@ public class VkComputeDispatcher : IDisposable
             [new VkDescriptorInfo { Type = DescriptorType.StorageBuffer }],
             new VkDescriptorWriter(writeTokens)), 1, computePipeline.DescriptorSetLayout);
         
-        descriptorPool.PopulateDescriptors();
+        descriptorPool.UpdateSets();
         writeTokens.OfType<IDisposable>().DisposeAll();
     }
 

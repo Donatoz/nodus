@@ -6,9 +6,9 @@ namespace Nodus.RenderEngine.Vulkan.Extensions;
 
 public static class MemoryExtensions
 {
-    public static void AllocateForBuffer(this IVkMemory memory, IVkContext context, IVkBuffer buffer, IVkLogicalDevice device)
+    public static void AllocateForBuffer(this IVkMemory memory, IVkContext context, Buffer buffer, IVkLogicalDevice device)
     {
-        context.Api.GetBufferMemoryRequirements(device.WrappedDevice, buffer.WrappedBuffer, out var requirements);
+        context.Api.GetBufferMemoryRequirements(device.WrappedDevice, buffer, out var requirements);
         
         memory.Allocate(requirements.Size, requirements.MemoryTypeBits);
     }

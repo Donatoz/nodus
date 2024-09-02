@@ -30,6 +30,7 @@ public interface IVkPhysicalDevice
     PhysicalDevice WrappedDevice { get; } 
     VkPhysicalDeviceProperties Properties { get; } 
     VkPhysicalDeviceFeatures Features { get; }
+    PhysicalDeviceMemoryProperties MemoryProperties { get; }
 }
 
 public record VkPhysicalDevice : IVkPhysicalDevice
@@ -37,6 +38,7 @@ public record VkPhysicalDevice : IVkPhysicalDevice
     public PhysicalDevice WrappedDevice { get; }
     public VkPhysicalDeviceProperties Properties { get; }
     public VkPhysicalDeviceFeatures Features { get; }
+    public PhysicalDeviceMemoryProperties MemoryProperties { get; }
 
     public unsafe VkPhysicalDevice(IVkContext context, PhysicalDevice physicalDevice)
     {
@@ -44,6 +46,9 @@ public record VkPhysicalDevice : IVkPhysicalDevice
 
         context.Api.GetPhysicalDeviceFeatures(WrappedDevice, out var features);
         context.Api.GetPhysicalDeviceProperties(WrappedDevice, out var props);
+        context.Api.GetPhysicalDeviceMemoryProperties(WrappedDevice, out var memoryProperties);
+        
+        MemoryProperties = memoryProperties;
         
         Features = new VkPhysicalDeviceFeatures
         {

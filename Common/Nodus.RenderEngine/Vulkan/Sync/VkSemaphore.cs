@@ -7,6 +7,8 @@ namespace Nodus.RenderEngine.Vulkan.Sync;
 public interface IVkSemaphore : IVkUnmanagedHook
 {
     Semaphore WrappedSemaphore { get; }
+
+    SemaphoreSubmitInfo CreateSubmitInfo(PipelineStageFlags2 stageMask);
 }
 
 public class VkSemaphore : VkObject, IVkSemaphore
@@ -28,6 +30,18 @@ public class VkSemaphore : VkObject, IVkSemaphore
             .TryThrow("Failed to create semaphore.");
 
         WrappedSemaphore = semaphore;
+    }
+
+    public SemaphoreSubmitInfo CreateSubmitInfo(PipelineStageFlags2 stageMask)
+    {
+        return new SemaphoreSubmitInfo
+        {
+            SType = StructureType.SemaphoreSubmitInfo,
+            StageMask = stageMask,
+            Semaphore = WrappedSemaphore,
+            DeviceIndex = 0,
+            Value = 1
+        };
     }
 
     protected override unsafe void Dispose(bool disposing)

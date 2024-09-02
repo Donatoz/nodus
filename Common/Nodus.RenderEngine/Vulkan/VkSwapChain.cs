@@ -105,7 +105,6 @@ public class VkSwapChain : VkObject, IVkSwapChain
         SwapChainExtension = swapChainExt;
         device = swapChainContext.LogicalDevice;
         SwapChainContext = swapChainContext;
-        
 
         UpdateState();
     }
