@@ -63,7 +63,7 @@ public class VkMemory : VkObject, IVkMemory
 
         return result;
     }
-    
+
     private uint FindMemoryType(MemoryPropertyFlags properties, uint? typeFilter = null)
     {
         var memoryProperties = PhysicalDevice.MemoryProperties;

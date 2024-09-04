@@ -1,6 +1,7 @@
 using Nodus.Core.Extensions;
 using Nodus.DI.Factories;
 using Nodus.RenderEngine.Common;
+using Nodus.RenderEngine.Vulkan.Convention;
 using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Extensions;
 using Nodus.RenderEngine.Vulkan.Memory;
@@ -32,7 +33,7 @@ public class VkComputeDispatcher : IDisposable
     private readonly IVkContext context;
     private readonly IVkLogicalDevice device;
     private readonly IVkComputePipeline computePipeline;
-    private readonly IVkMemory storageBufferMemory;
+    private readonly IVkMemoryLease storageBufferMemory;
     private readonly IVkBoundBuffer storageBuffer;
     private readonly IVkAllocatedBuffer<float> outputBuffer;
     private readonly IVkShader shader;
@@ -65,8 +66,8 @@ public class VkComputeDispatcher : IDisposable
         }
         
         storageBufferSize = (ulong)(sizeof(float) * inputData.Length);
-        storageBufferMemory = new VkMemory(context, device, dispatcherContext.PhysicalDevice,
-            MemoryPropertyFlags.DeviceLocalBit);
+        storageBufferMemory =
+            context.ServiceContainer.MemoryLessor.LeaseMemory(MemoryGroups.ComputeStorageMemory, storageBufferSize);
         
         storageBuffer = new VkBoundBuffer(context, device, new VkBoundBufferContext(
             storageBufferSize,
@@ -77,7 +78,6 @@ public class VkComputeDispatcher : IDisposable
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit));
         outputBuffer.Allocate();
         
-        storageBufferMemory.AllocateForBuffer(context, storageBuffer.WrappedBuffer, device);
         storageBuffer.BindToMemory();
 
         using var stagingBuffer = new VkAllocatedBuffer<float>(context, device, dispatcherContext.PhysicalDevice,

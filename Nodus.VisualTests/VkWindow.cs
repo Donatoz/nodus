@@ -1,5 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using DynamicData;
+using Nodus.Core.Extensions;
 using Nodus.RenderEngine.Common;
 using Nodus.RenderEngine.Serialization;
 using Nodus.RenderEngine.Vulkan;
@@ -8,7 +9,9 @@ using Nodus.RenderEngine.Vulkan.Convention;
 using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Memory;
 using Nodus.RenderEngine.Vulkan.Meta;
+using Nodus.RenderEngine.Vulkan.Presentation;
 using Nodus.RenderEngine.Vulkan.Rendering;
+using Nodus.RenderEngine.Vulkan.Utility;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
 using Silk.NET.Input;
@@ -65,7 +68,7 @@ public unsafe class VkWindow
         this.useValidationLayers = useValidationLayers;
         var options = WindowOptions.DefaultVulkan with
         {
-            Size = new Vector2D<int>(800, 600),
+            Size = new Vector2D<int>(1440, 810),
             Title = "Nodus Renderer (Vulkan)"
         };
         
@@ -113,17 +116,40 @@ public unsafe class VkWindow
         
         physicalDevice = GetFirstSuitablePhysicalDevice();
         logicalDevice = CreateLogicalDevice(physicalDevice);
+
+        var bufferHeapAllocator = new BufferHeapMemoryAllocator(vkContext, logicalDevice);
+        
+        var depthFormat = ImageUtility.GetSupportedFormat(
+            [Format.D32Sfloat, Format.D32SfloatS8Uint, Format.D24UnormS8Uint],
+            physicalDevice!, ImageTiling.Optimal, FormatFeatureFlags.DepthStencilAttachmentBit);
         
         memoryLessor = new VkMemoryHeapLessor(vkContext, logicalDevice, physicalDevice, [
-            new VkMemoryHeapInfo(MemoryGroups.GeneralImageMemory, 
-                1024 * 1024 * 128, 
+            
+            new VkMemoryHeapInfo(MemoryGroups.RgbaSampledImageMemory, 
+                1024 * 1024 * 64, 
+                MemoryPropertyFlags.DeviceLocalBit,
+                new ImageHeapMemoryAllocator(vkContext, logicalDevice, Format.R8G8B8A8Srgb, ImageUsageFlags.SampledBit)),
+            
+            new VkMemoryHeapInfo(MemoryGroups.DepthImageMemory, 
+                1024 * 1024 * 16, 
+                MemoryPropertyFlags.DeviceLocalBit,
+                new ImageHeapMemoryAllocator(vkContext, logicalDevice, depthFormat, ImageUsageFlags.DepthStencilAttachmentBit)),
+            
+            new VkMemoryHeapInfo(MemoryGroups.ObjectBufferMemory, 
+                1024 * 1024 * 16,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
-                BufferUsageFlags.StorageBufferBit)
+                bufferHeapAllocator),
+            
+            new VkMemoryHeapInfo(MemoryGroups.ComputeStorageMemory, 
+                1024 * 1024 * 16,
+                MemoryPropertyFlags.DeviceLocalBit,
+                bufferHeapAllocator)
         ]);
 
         var serviceContainer = new VkServiceContainer
         {
-            MemoryLessor = memoryLessor
+            MemoryLessor = memoryLessor,
+            Devices = new VkDeviceContainer(logicalDevice, physicalDevice)
         };
         
         vkContext.BindServices(serviceContainer);
@@ -136,7 +162,7 @@ public unsafe class VkWindow
         extensionProvider = new VkExtensionProvider(vkContext, instance, logicalDevice);
         
         swapChain = CreateSwapChain();
-        renderPass = new VkRenderPass(vkContext, logicalDevice, new VkRenderPassContext(swapChain.SurfaceFormat.Format));
+        renderPass = new VkRenderPass(vkContext, logicalDevice, new VkRenderPassContext(swapChain.SurfaceFormat.Format, swapChain.DepthFormat));
         
         swapChain.CreateFrameBuffers(renderPass.WrappedPass);
         var rendererSupplier = new VkRenderSupplier(() => swapChain.Extent);
@@ -146,10 +172,10 @@ public unsafe class VkWindow
             new IShaderDefinition[]
             {
                 new ShaderDefinition(
-                    new ShaderFileSource(@"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\standard2.spv"),
+                    new ShaderFileSource(@"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\standard2.vert.spv"),
                     ShaderSourceType.Vertex),
                 new ShaderDefinition(
-                    new ShaderFileSource(@"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\solid.spv"),
+                    new ShaderFileSource(@"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\solid.frag.spv"),
                     ShaderSourceType.Fragment)
             }, 
             renderPass, rendererSupplier);
@@ -169,7 +195,7 @@ public unsafe class VkWindow
         presenter = new VkSwapchainRenderPresenter(vkContext, logicalDevice, swapChain, surface, renderPass, 2);
         
         renderer.Initialize(
-            new VkGeometryPrimitiveRenderContext(cube, Enumerable.Empty<IShaderDefinition>(), logicalDevice, physicalDevice, queueInfo, 
+            new VkGeometryPrimitiveRenderContext(cube, logicalDevice, physicalDevice, queueInfo, 
                 renderPass, viewer, pipelineContext, texture, presenter, rendererSupplier, 2),
             new VkRenderBackendProvider(vkContext)
         );
@@ -178,7 +204,7 @@ public unsafe class VkWindow
             new VkComputeDispatcherContext(
                 new ShaderDefinition(
                     new ShaderFileSource(
-                        @"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\test.spv"),
+                        @"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\test.comp.spv"),
                     ShaderSourceType.Compute), physicalDevice, queueInfo));
         
         isInitialized = true;
@@ -186,11 +212,52 @@ public unsafe class VkWindow
         //computeDispatcher.Dispatch();
     }
 
+    private List<IVkMemoryLease> debugLeases = new List<IVkMemoryLease>();
+
     private void OnKeyDown(IKeyboard keyboard, Key key, int n)
     {
         if (key == Key.Escape)
         {
-            window.Close();
+            Exit();
+        }
+
+        if (key == Key.F)
+        {
+            memoryLessor!.AllocatedHeaps
+                .OfType<VkFixedMemoryHeap>()
+                .First(x => x.Meta.HeapId == MemoryGroups.ComputeStorageMemory)
+                .Defragment();
+        }
+
+        if (key == Key.L)
+        {
+            debugLeases.Add(memoryLessor!.LeaseMemory(MemoryGroups.ComputeStorageMemory, (ulong)Random.Shared.Next(2000) * 1024));
+        }
+
+        if (key == Key.O)
+        {
+            debugLeases[Random.Shared.Next(debugLeases.Count)].Dispose();
+        }
+
+        if (key == Key.F1)
+        {
+            memoryLessor!.AllocatedHeaps
+                .OfType<VkFixedMemoryHeap>()
+                .First(x => x.Meta.HeapId == MemoryGroups.ComputeStorageMemory)
+                .DebugMemory();
+        }
+
+        if (key == Key.T)
+        {
+            Console.WriteLine(memoryLessor!.AllocatedHeaps
+                .OfType<VkFixedMemoryHeap>()
+                .First(x => x.Meta.HeapId == MemoryGroups.ComputeStorageMemory)
+                .GetCurrentFragmentation());
+        }
+
+        if (key == Key.H)
+        {
+            HeapVisualizer.Visualize(memoryLessor!.AllocatedHeaps.ToArray(), @"J:\heaps.png");
         }
     }
 
@@ -287,7 +354,7 @@ public unsafe class VkWindow
         Console.WriteLine($"Picked device: [{devices.IndexOf(device)}]");
         Console.ResetColor();
         
-        return new VkPhysicalDevice(vkContext!, device);
+        return new VkPhysicalDevice(vkContext!, device, surface);
     }
     
     private bool IsDeviceSuitable(PhysicalDevice device)
@@ -341,9 +408,9 @@ public unsafe class VkWindow
         return new VkKhrSurface(vkContext!, instance!, () => window.VkSurface!);
     }
 
-    private IVkLogicalDevice CreateLogicalDevice(IVkPhysicalDevice physicalDevice)
+    private IVkLogicalDevice CreateLogicalDevice(IVkPhysicalDevice device)
     {
-        return new VkLogicalDevice(vkContext!, physicalDevice, surface!);
+        return new VkLogicalDevice(vkContext!, device, surface!);
     }
 
     private IVkSwapChain CreateSwapChain()

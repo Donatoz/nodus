@@ -22,7 +22,8 @@ public static class BufferExtensions
         }, context, queue, fence);
     }
     
-    public static unsafe void CmdCopyToImage(this IVkAllocatedBuffer<byte> allocatedBuffer, IVkContext context, CommandBuffer commandBuffer, IVkImage image)
+    public static unsafe void CmdCopyToImage(this IVkAllocatedBuffer<byte> allocatedBuffer, IVkContext context, CommandBuffer commandBuffer, IVkImage image, 
+        ImageAspectFlags aspectFlags = ImageAspectFlags.ColorBit)
     {
         var imageCopy = new BufferImageCopy
         {
@@ -31,7 +32,7 @@ public static class BufferExtensions
             BufferImageHeight = 0,
             ImageSubresource = new ImageSubresourceLayers
             {
-                AspectMask = ImageAspectFlags.ColorBit,
+                AspectMask = aspectFlags,
                 MipLevel = 0,
                 BaseArrayLayer = 0,
                 LayerCount = image.Specification.ArrayLayers

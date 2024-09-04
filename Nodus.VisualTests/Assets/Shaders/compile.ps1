@@ -13,7 +13,7 @@ foreach ($shaderFile in $shaderFiles) {
     $tempfile = [System.IO.Path]::ChangeExtension($shaderFile.FullName, $tempSuffix + [System.IO.Path]::GetExtension($shaderFile.FullName))
     Get-Content $shaderFile.FullName | Set-Content -Path $tempFile -Encoding utf8
 
-    $outputFile = Join-Path $outputDir ([System.IO.Path]::GetFileNameWithoutExtension($shaderFile.FullName) + ".spv")
+    $outputFile = Join-Path $outputDir ([System.IO.Path]::GetFileName($shaderFile.FullName) + ".spv")
 
     glslc $tempFile -o $outputFile
 

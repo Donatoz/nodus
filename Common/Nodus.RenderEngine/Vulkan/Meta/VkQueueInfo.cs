@@ -36,7 +36,7 @@ public struct VkQueueInfo
     /// <param name="device">The physical device to get the queue family information from.</param>
     /// <param name="vk">The Vulkan API provider.</param>
     /// <param name="surface">The Vulkan surface.</param>
-    public static unsafe VkQueueInfo GetFromDevice(PhysicalDevice device, Vk vk, IVkKhrSurface surface)
+    public static unsafe VkQueueInfo GetFromDevice(PhysicalDevice device, Vk vk, IVkKhrSurface? surface = null)
     {
         var indices = new VkQueueInfo();
 
@@ -63,11 +63,14 @@ public struct VkQueueInfo
                 indices.ComputeFamily = i;
             }
 
-            surface.Extension.GetPhysicalDeviceSurfaceSupport(device, i, surface.SurfaceKhr, out var isPresentSupported);
-
-            if (isPresentSupported)
+            if (surface != null)
             {
-                indices.PresentFamily = i;
+                surface.Extension.GetPhysicalDeviceSurfaceSupport(device, i, surface.SurfaceKhr, out var isPresentSupported);
+
+                if (isPresentSupported)
+                {
+                    indices.PresentFamily = i;
+                }
             }
 
             if (indices.IsComplete())

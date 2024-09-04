@@ -25,9 +25,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Content Include="Assets\Shaders\compiled\solid.spv" />
-      <Content Include="Assets\Shaders\compiled\standard2.spv" />
-      <Content Include="Assets\Shaders\compiled\triangle.spv" />
+      <Folder Include="Assets\Shaders\compiled\" />
     </ItemGroup>
 
 </Project>

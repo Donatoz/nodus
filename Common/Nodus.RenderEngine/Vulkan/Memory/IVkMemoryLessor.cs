@@ -1,3 +1,5 @@
+using Silk.NET.Vulkan;
+
 namespace Nodus.RenderEngine.Vulkan.Memory;
 
 /// <summary>
@@ -9,8 +11,27 @@ public interface IVkMemoryLease : IDisposable
     /// Lease container.
     /// </summary>
     IVkMemory Memory { get; }
+    DeviceMemory WrappedMemory => Memory.WrappedMemory!.Value;
     
     VkMemoryRegion Region { get; }
+    ulong Alignment { get; }
+
+    /// <summary>
+    /// Represents a stream of mutations for a memory lease.
+    /// </summary>
+    /// <remarks>
+    /// The property provides a stream of new lease mutations that represent the current lase state within a memory allocation.
+    /// The stream emits the updated state value every time the lease bound memory or region changes (for example, after defragmentation).
+    /// </remarks>
+    IObservable<IVkMemoryLease> MutationStream { get; }
+}
+
+/// <summary>
+/// Represents a tracked memory lease bound to a specific object, which lifetime is trackable.
+/// </summary>
+public interface IVkTrackedMemoryLease : IVkMemoryLease
+{
+    IVkUnmanagedHook HookedObject { get; }
 }
 
 /// <summary>
@@ -18,6 +39,8 @@ public interface IVkMemoryLease : IDisposable
 /// </summary>
 public interface IVkMemoryLessor : IDisposable
 {
+    IEnumerable<IVkMemoryHeap> AllocatedHeaps { get; }
+    
     IVkMemoryLease LeaseMemory(string groupId, ulong size, uint alignment = 1);
 }
 

@@ -152,8 +152,8 @@ public class GlRenderSurface : OpenGlControlBase
     {
         return renderer switch
         {
-            GlGeometryPrimitiveRenderer => new GlPrimitiveContext(Enumerable.Empty<IShaderDefinition>(), 
-                Uniforms?.ToArray() ?? Array.Empty<IGlShaderUniform>(), PackTextures().ToArray()),
+            GlGeometryPrimitiveRenderer => new GlPrimitiveContext(Uniforms?.ToArray() ?? Array.Empty<IGlShaderUniform>(), 
+                PackTextures().ToArray()),
             _ => throw new Exception($"This surface does not support the provided renderer ({renderer}).")
         };
     }

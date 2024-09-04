@@ -21,13 +21,7 @@ public interface IVkImageSpecification
     IVkImageTransitionResolver? TransitionResolver { get; }
 }
 
-public interface IVkImageContext : IVkImageSpecification
-{
-    IVkMemory Memory { get; }
-}
-
-public record VkImageContext(
-    IVkMemory Memory,
+public record VkImageSpecification(
     ImageType Type,
     Extent3D Size,
     Format Format,
@@ -39,61 +33,59 @@ public record VkImageContext(
     uint MipLevels = 1,
     uint ArrayLayers = 1,
     IVkImageTransitionResolver? TransitionResolver = null)
-    : IVkImageContext;
+    : IVkImageSpecification;
 
 public interface IVkImage : IVkUnmanagedHook
 {
     Image WrappedImage { get; }
     ImageView? View { get; }
     IVkImageSpecification Specification { get; }
-    Sampler Sampler { get; }
+    Sampler? Sampler { get; }
     ImageLayout CurrentLayout { get; }
     
     void CmdTransitionLayout(CommandBuffer buffer, ImageLayout newLayout);
-    void BindToMemory();
+    void BindToMemory(IVkMemory memory);
     void CreateView();
+    void CreateSampler();
 }
 
 public class VkImage : VkObject, IVkImage
 {
     public Image WrappedImage { get; }
     public ImageView? View { get; private set; }
-    public Sampler Sampler { get; private set; }
+    public Sampler? Sampler { get; private set; }
     public ImageLayout CurrentLayout { get; private set; }
 
-    public IVkImageSpecification Specification => imageContext;
+    public IVkImageSpecification Specification { get; }
 
     private readonly IVkLogicalDevice device;
-    private readonly IVkImageContext imageContext;
     private readonly IVkImageTransitionResolver transitionResolver;
 
-    public unsafe VkImage(IVkContext vkContext, IVkLogicalDevice device, IVkImageContext imageContext) : base(vkContext)
+    public unsafe VkImage(IVkContext vkContext, IVkLogicalDevice device, IVkImageSpecification specification) : base(vkContext)
     {
         this.device = device;
-        this.imageContext = imageContext;
-        transitionResolver = imageContext.TransitionResolver ?? new VkImageTransitionResolver();
+        Specification = specification;
+        transitionResolver = Specification.TransitionResolver ?? new VkImageTransitionResolver();
         CurrentLayout = ImageLayout.Undefined;
 
         var createInfo = new ImageCreateInfo
         {
             SType = StructureType.ImageCreateInfo,
-            ImageType = imageContext.Type,
-            Extent = imageContext.Size,
-            MipLevels = imageContext.MipLevels,
-            ArrayLayers = imageContext.ArrayLayers,
-            Format = imageContext.Format,
+            ImageType = Specification.Type,
+            Extent = Specification.Size,
+            MipLevels = Specification.MipLevels,
+            ArrayLayers = Specification.ArrayLayers,
+            Format = Specification.Format,
             Tiling = ImageTiling.Optimal,
             InitialLayout = ImageLayout.Undefined,
-            Usage = imageContext.Usage,
-            SharingMode = imageContext.SharingMode,
+            Usage = Specification.Usage,
+            SharingMode = Specification.SharingMode,
             Samples = SampleCountFlags.Count1Bit
         };
 
         Context.Api.CreateImage(device.WrappedDevice, &createInfo, null, out var image);
 
         WrappedImage = image;
-        
-        CreateSampler();
     }
 
     public unsafe void CreateView()
@@ -102,15 +94,15 @@ public class VkImage : VkObject, IVkImage
         {
             SType = StructureType.ImageViewCreateInfo,
             Image = WrappedImage,
-            ViewType = imageContext.ViewType,
-            Format = imageContext.Format,
+            ViewType = Specification.ViewType,
+            Format = Specification.Format,
             SubresourceRange = new ImageSubresourceRange
             {
-                AspectMask = imageContext.Aspect,
+                AspectMask = Specification.Aspect,
                 BaseMipLevel = 0,
-                LevelCount = imageContext.MipLevels,
+                LevelCount = Specification.MipLevels,
                 BaseArrayLayer = 0,
-                LayerCount = imageContext.ArrayLayers
+                LayerCount = Specification.ArrayLayers
             }
         };
 
@@ -120,7 +112,7 @@ public class VkImage : VkObject, IVkImage
     }
 
     // TODO: To separate vk type
-    private unsafe void CreateSampler()
+    public unsafe void CreateSampler()
     {
         var samplerInfo = new SamplerCreateInfo
         {
@@ -131,7 +123,7 @@ public class VkImage : VkObject, IVkImage
             AddressModeV = SamplerAddressMode.Repeat,
             AddressModeW = SamplerAddressMode.Repeat,
             AnisotropyEnable = Vk.True,
-            MaxAnisotropy = imageContext.MaxAnisotropy,
+            MaxAnisotropy = Specification.MaxAnisotropy,
             BorderColor = BorderColor.FloatOpaqueBlack,
             UnnormalizedCoordinates = Vk.False,
             CompareEnable = Vk.False,
@@ -159,11 +151,11 @@ public class VkImage : VkObject, IVkImage
             Image = WrappedImage,
             SubresourceRange = new ImageSubresourceRange
             {
-                AspectMask = imageContext.Aspect,
+                AspectMask = Specification.Aspect,
                 BaseMipLevel = 0,
-                LevelCount = imageContext.MipLevels,
+                LevelCount = Specification.MipLevels,
                 BaseArrayLayer = 0,
-                LayerCount = imageContext.ArrayLayers
+                LayerCount = Specification.ArrayLayers
             }
         };
 
@@ -177,21 +169,24 @@ public class VkImage : VkObject, IVkImage
             null, 0, null, 1, &barrier);
     }
 
-    public void BindToMemory()
+    public void BindToMemory(IVkMemory memory)
     {
-        if (!imageContext.Memory.IsAllocated())
+        if (!memory.IsAllocated())
         {
             throw new Exception("Failed to bind image: memory was not allocated.");
         }
 
-        Context.Api.BindImageMemory(device.WrappedDevice, WrappedImage, imageContext.Memory.WrappedMemory!.Value, 0);
+        Context.Api.BindImageMemory(device.WrappedDevice, WrappedImage, memory.WrappedMemory!.Value, 0);
     }
 
     protected override unsafe void Dispose(bool disposing)
     {
         if (IsDisposing)
         {
-            Context.Api.DestroySampler(device.WrappedDevice, Sampler, null);
+            if (Sampler != null)
+            {
+                Context.Api.DestroySampler(device.WrappedDevice, Sampler.Value, null);
+            }
             if (View != null)
             {
                 Context.Api.DestroyImageView(device.WrappedDevice, View.Value, null);

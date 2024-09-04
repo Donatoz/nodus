@@ -26,8 +26,6 @@ public class GlRenderGraphAssembler : IRenderGraphAssembler
         
         var descriptor = masterContext.GetDescriptor(graph);
         
-        return new GlPrimitiveContext(descriptor.CoreShaders, 
-            Array.Empty<IGlShaderUniform>(), 
-            Array.Empty<IGlTextureDefinition>());
+        return new GlPrimitiveContext(Array.Empty<IGlShaderUniform>(), Array.Empty<IGlTextureDefinition>());
     }
 }

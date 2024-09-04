@@ -5,9 +5,9 @@ namespace Nodus.RenderEngine.Vulkan.Memory;
 
 public class VkMemoryHeapLessor : VkObject, IVkMemoryLessor
 {
-    // TODO: Minor fix
-    // To private
-    public readonly IDictionary<string, IVkMemoryHeap> heaps;
+    public IEnumerable<IVkMemoryHeap> AllocatedHeaps => heaps.Values;
+
+    private readonly IDictionary<string, IVkMemoryHeap> heaps;
     private readonly IVkLogicalDevice device;
     private readonly IVkPhysicalDevice physicalDevice;
     
@@ -31,6 +31,7 @@ public class VkMemoryHeapLessor : VkObject, IVkMemoryLessor
         }
     }
 
+
     public IVkMemoryLease LeaseMemory(string groupId, ulong size, uint alignment = 1)
     {
         if (!heaps.TryGetValue(groupId, out var heap))
@@ -40,6 +41,15 @@ public class VkMemoryHeapLessor : VkObject, IVkMemoryLessor
 
         return heap.LeaseMemory(size, alignment);
     }
+
+#if DEBUG
+
+    public void DebugHeaps()
+    {
+        heaps.Values.ForEach(x => (x as VkFixedMemoryHeap)?.DebugMemory());
+    }
+    
+#endif
 
     protected override void Dispose(bool disposing)
     {

@@ -1,12 +1,15 @@
 using System.Collections.Concurrent;
 using Nodus.Core.Extensions;
 using Nodus.RenderEngine.Common;
+using Nodus.RenderEngine.Vulkan.Convention;
 using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Extensions;
 using Nodus.RenderEngine.Vulkan.Memory;
 using Nodus.RenderEngine.Vulkan.Meta;
+using Nodus.RenderEngine.Vulkan.Presentation;
 using Nodus.RenderEngine.Vulkan.Primitives;
 using Nodus.RenderEngine.Vulkan.Sync;
+using Nodus.RenderEngine.Vulkan.Utility;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using SixLabors.ImageSharp.PixelFormats;
@@ -31,7 +34,6 @@ public interface IVkGeometryPrimitiveRenderContext : IRenderContext
 
 public record VkGeometryPrimitiveRenderContext(
     IGeometryPrimitive Primitive,
-    IEnumerable<IShaderDefinition> CoreShaders,
     IVkLogicalDevice LogicalDevice,
     IVkPhysicalDevice PhysicalDevice,
     VkQueueInfo QueueInfo,
@@ -62,7 +64,7 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
     private PhysicalDeviceProperties? deviceFeatures;
     private IVkDescriptorPool? descriptorPool;
 
-    private IVkMemory? primitiveMemory;
+    private IVkMemoryLease? primitiveMemory;
     private IVkBoundBuffer? primitiveBuffer;
 
     private IVkMemory? imageMemory;
@@ -123,17 +125,14 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         // Allocate memory & buffers
 
         // Primitive buffer layout:
-        // Primitive Vertices <...> Primitive Indices <...> Minimally each 64 bytes : Uniform Buffers
-        
-        primitiveMemory = new VkMemory(vkContext, device, physicalDevice,
-            MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+        // Primitive Vertices <---> Primitive Indices <---> Minimally each 64 bytes: Uniform Buffers
         
         var primitiveVertSize = (uint)(sizeof(Vertex) * primitive.Vertices.Length);
         var indicesSize = (uint)(sizeof(uint) * primitive.Indices.Length);
         var uniformSize = (uint)sizeof(UniformBufferObject);
         
-        // The uniform objects are needed to be placed with an offset that is multiple of 64.
-        // Hence, we calculate the next nearest valid offset for each frame (since we render to multiple images concurrently).
+        // The uniform objects are necessary to be placed with an offset that is multiple of 64.
+        // Hence, we calculate the next nearest valid offset for each frame (since we render multiple images concurrently).
         var uniformBufferBaseOffset = primitiveVertSize + indicesSize;
         uniformBufferOffsets = new ulong[maxConcurrentFrames];
 
@@ -143,14 +142,14 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         }
 
         var primitiveBufferSize = uniformBufferOffsets.Max() + uniformSize;
-        
+        primitiveMemory = vkContext.ServiceContainer.MemoryLessor.LeaseMemory(MemoryGroups.ObjectBufferMemory, primitiveBufferSize);
+
         primitiveBuffer = new VkBoundBuffer(vkContext, device,
             new VkBoundBufferContext(primitiveBufferSize,
                 BufferUsageFlags.VertexBufferBit | BufferUsageFlags.IndexBufferBit | BufferUsageFlags.UniformBufferBit, 
                 SharingMode.Exclusive,
                 primitiveMemory));
         
-        primitiveMemory.AllocateForBuffer(vkContext, primitiveBuffer.WrappedBuffer, device);
         primitiveBuffer.BindToMemory();
         
         primitiveBuffer.UpdateData(primitive.Vertices.AsSpan(), 0);
@@ -168,7 +167,7 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         // Create images
         
-        CreateImages(primitiveContext.Texture);
+        CreateTextureImages(primitiveContext.Texture);
         
         // Populate descriptors
         
@@ -183,7 +182,7 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         isInitialized = true;
     }
 
-    private void CreateImages(ITexture<Rgba32> texture)
+    private void CreateTextureImages(ITexture<Rgba32> texture)
     {
         var textureSize = (uint)(texture.Width * texture.Height * 4);
         var textureData = new byte[textureSize];
@@ -198,12 +197,13 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         imageMemory = new VkMemory(vkContext!, device!, physicalDevice!, MemoryPropertyFlags.DeviceLocalBit);
         
-        textureImage = new VkImage(vkContext!, device!, new VkImageContext(imageMemory, ImageType.Type2D,
+        textureImage = new VkImage(vkContext!, device!, new VkImageSpecification(ImageType.Type2D,
             new Extent3D((uint)texture.Width, (uint)texture.Height, 1), Format.R8G8B8A8Srgb,
             ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit, ImageViewType.Type2D, deviceFeatures!.Value.Limits.MaxSamplerAnisotropy));
 
         imageMemory.AllocateForImage(vkContext!, textureImage.WrappedImage, device!);
-        textureImage.BindToMemory();
+        textureImage.BindToMemory(imageMemory);
+        textureImage.CreateSampler();
         textureImage.CreateView();
 
         var cmdBuffer = commandPool!.GetBuffer(0);
@@ -223,7 +223,7 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         {
             new VkUniformBufferWriteToken(0, 0, primitiveBuffer!.WrappedBuffer, uniformBufferOffsets!,
                 (uint)sizeof(UniformBufferObject)),
-            new VkImageSamplerWriteToken(1, 0, textureImage!.View!.Value, textureImage.Sampler)
+            new VkImageSamplerWriteToken(1, 0, textureImage!.View!.Value, textureImage.Sampler!.Value)
         };
         
         var descPoolContext = new VkDescriptorPoolContext(
@@ -251,13 +251,13 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         ExecuteRenderWorkerQueue();
         ValidateRenderState();
-
-        commandPool!.Reset(frameIndex, CommandBufferResetFlags.None);
-
+        
         if (!presenter.TryPrepareNewFrame(imageAvailabilitySemaphores![frameIndex], (uint)frameIndex))
         {
             return;
         }
+        
+        commandPool!.Reset(frameIndex, CommandBufferResetFlags.None);
 
         var framebuffer = presenter.GetAvailableFramebuffer();
         
@@ -306,9 +306,25 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
 
     protected virtual void RecordCommandsToBuffer(Framebuffer frameBuffer, CommandBuffer commandBuffer)
     {
-        var clearValue = new ClearValue(new ClearColorValue(0, 0, 0, 1.0f));
+        var clearValues = stackalloc[]
+        {
+            new ClearValue(new ClearColorValue(0, 0, 0, 1.0f)),
+            new ClearValue(depthStencil: new ClearDepthStencilValue(1.0f, 0))
+        };
 
-        var beginInfo = CreateRenderPassBeginInfo(frameBuffer, &clearValue);
+        var beginInfo = new RenderPassBeginInfo
+        {
+            SType = StructureType.RenderPassBeginInfo,
+            RenderPass = renderPass!.WrappedPass,
+            Framebuffer = frameBuffer,
+            RenderArea = new Rect2D
+            {
+                Offset = new Offset2D(0, 0),
+                Extent = supplier!.CurrentRenderExtent
+            },
+            ClearValueCount = 2,
+            PClearValues = clearValues
+        };
         
         vkContext!.Api.CmdBeginRenderPass(commandBuffer, in beginInfo, SubpassContents.Inline);
         
@@ -364,23 +380,6 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         {
             throw new Exception("Render state is invalid: renderer was not initialized.");
         }
-    }
-
-    private RenderPassBeginInfo CreateRenderPassBeginInfo(Framebuffer framebuffer, ClearValue* clearColor)
-    {
-        return new RenderPassBeginInfo
-        {
-            SType = StructureType.RenderPassBeginInfo,
-            RenderPass = renderPass!.WrappedPass,
-            Framebuffer = framebuffer,
-            RenderArea = new Rect2D
-            {
-                Offset = new Offset2D(0, 0),
-                Extent = supplier!.CurrentRenderExtent
-            },
-            ClearValueCount = 1,
-            PClearValues = clearColor
-        };
     }
 
     private UniformBufferObject CreateUbo()

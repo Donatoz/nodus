@@ -118,6 +118,7 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
         var rasterizer = factory.CreateRasterization();
         var multisampling = factory.CreateMultisampling();
         var colorBlend = factory.CreateColorBlend(&colorBlendAttachment);
+        var depthStencil = factory.CreateDepthStencil();
         
         var bindings = descriptorFactory.CreateLayoutBindings();
         var dscSetLayout = CreateDescriptorLayout(bindings);
@@ -158,6 +159,7 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
                 PRasterizationState = &rasterizer,
                 PMultisampleState = &multisampling,
                 PColorBlendState = &colorBlend,
+                PDepthStencilState = &depthStencil,
                 Layout = Layout,
                 RenderPass = pipelineContext.RenderPass.WrappedPass,
                 Subpass = 0

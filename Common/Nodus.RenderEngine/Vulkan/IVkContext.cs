@@ -1,5 +1,6 @@
 ﻿using System.Reactive.Linq;
 using System.Reactive.Subjects;
+using Nodus.Core.Extensions;
 using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Meta;
 using Silk.NET.Vulkan;
@@ -56,20 +57,7 @@ public class VkContext : IVkContext
     public VkLayerInfo? LayerInfo { get; }
     public VkExtensionsInfo ExtensionsInfo { get; }
     public IReadOnlyCollection<VkObject> BoundObjects => boundObjects;
-
-    public IVkServiceContainer ServiceContainer
-    {
-        get
-        {
-            if (serviceContainer == null)
-            {
-                throw new Exception("Vulkan service container was not initialized.");
-            }
-
-            return serviceContainer;
-        }
-    }
-
+    public IVkServiceContainer ServiceContainer => serviceContainer.NotNull("Vulkan service container was not initialized.");
 
     private readonly Subject<bool> lifetimeSubject;
     private readonly HashSet<VkObject> boundObjects;

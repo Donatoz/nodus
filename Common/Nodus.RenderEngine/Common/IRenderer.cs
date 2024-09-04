@@ -4,7 +4,6 @@ namespace Nodus.RenderEngine.Common;
 
 public interface IRenderContext
 {
-    IEnumerable<IShaderDefinition> CoreShaders { get; }
 }
 
 /// <summary>
