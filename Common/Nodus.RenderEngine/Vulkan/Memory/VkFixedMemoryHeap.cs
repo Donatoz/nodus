@@ -222,9 +222,14 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
         
         // TODO: Optimization
         // Optimize the regions lookup.
-        leases.Values.ForEach(x =>
+
+        var leaseValues = leases.Values.ToArray();
+        leases.Clear();
+
+        leaseValues.ForEach(x =>
         {
             x.UpdateRegion(realignedLeaseRegions.First(r => r.Size == x.Region.Size));
+            leases[x.Region.Offset] = x;
             leaseMutationSubject.OnNext(x);
         });
 
