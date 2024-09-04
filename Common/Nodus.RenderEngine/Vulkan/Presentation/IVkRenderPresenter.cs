@@ -1,9 +1,10 @@
 using System.Reactive.Subjects;
 using Nodus.Core.Extensions;
+using Nodus.RenderEngine.Vulkan.Rendering;
 using Nodus.RenderEngine.Vulkan.Sync;
 using Silk.NET.Vulkan;
 
-namespace Nodus.RenderEngine.Vulkan.Rendering;
+namespace Nodus.RenderEngine.Vulkan.Presentation;
 
 public interface IVkRenderPresenter : IDisposable
 {

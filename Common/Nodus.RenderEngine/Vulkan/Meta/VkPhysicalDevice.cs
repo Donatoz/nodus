@@ -1,3 +1,4 @@
+using Silk.NET.Core.Contexts;
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 
@@ -30,6 +31,10 @@ public interface IVkPhysicalDevice
     PhysicalDevice WrappedDevice { get; } 
     VkPhysicalDeviceProperties Properties { get; } 
     VkPhysicalDeviceFeatures Features { get; }
+    PhysicalDeviceMemoryProperties MemoryProperties { get; }
+    VkQueueInfo QueueInfo { get; }
+    
+    FormatProperties GetFormatProperties(Format format);
 }
 
 public record VkPhysicalDevice : IVkPhysicalDevice
@@ -37,13 +42,23 @@ public record VkPhysicalDevice : IVkPhysicalDevice
     public PhysicalDevice WrappedDevice { get; }
     public VkPhysicalDeviceProperties Properties { get; }
     public VkPhysicalDeviceFeatures Features { get; }
+    public PhysicalDeviceMemoryProperties MemoryProperties { get; }
+    public VkQueueInfo QueueInfo { get; }
+    
+    private readonly IVkContext context;
 
-    public unsafe VkPhysicalDevice(IVkContext context, PhysicalDevice physicalDevice)
+    public unsafe VkPhysicalDevice(IVkContext context, PhysicalDevice physicalDevice, IVkKhrSurface? surface = null)
     {
+        this.context = context;
         WrappedDevice = physicalDevice;
 
         context.Api.GetPhysicalDeviceFeatures(WrappedDevice, out var features);
         context.Api.GetPhysicalDeviceProperties(WrappedDevice, out var props);
+        context.Api.GetPhysicalDeviceMemoryProperties(WrappedDevice, out var memoryProperties);
+        
+        QueueInfo = VkQueueInfo.GetFromDevice(WrappedDevice, context.Api, surface);
+        
+        MemoryProperties = memoryProperties;
         
         Features = new VkPhysicalDeviceFeatures
         {
@@ -64,5 +79,11 @@ public record VkPhysicalDevice : IVkPhysicalDevice
                 MaxSamplerAnisotropy = props.Limits.MaxSamplerAnisotropy
             }
         };
+    }
+    
+    public FormatProperties GetFormatProperties(Format format)
+    {
+        context.Api.GetPhysicalDeviceFormatProperties(WrappedDevice, format, out var formatProperties);
+        return formatProperties;
     }
 }

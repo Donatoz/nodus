@@ -3,7 +3,6 @@ using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Extensions;
 using Nodus.RenderEngine.Vulkan.Meta;
 using Silk.NET.Vulkan;
-using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Nodus.RenderEngine.Vulkan;
 
@@ -25,7 +24,7 @@ public interface IVkDescriptorPool : IVkUnmanagedHook
 {
     DescriptorPool WrappedPool { get; }
     
-    void PopulateDescriptors();
+    void UpdateSets();
     DescriptorSet GetSet(int index);
 }
 
@@ -40,7 +39,8 @@ public class VkDescriptorPool : VkObject, IVkDescriptorPool
     private readonly uint descriptorsCount;
     private readonly DescriptorSetLayout layout;
     
-    public unsafe VkDescriptorPool(IVkContext vkContext, IVkLogicalDevice device, IVkDescriptorPoolContext descriptorPoolContext, uint descriptorsCount, DescriptorSetLayout layout) : base(vkContext)
+    public unsafe VkDescriptorPool(IVkContext vkContext, IVkLogicalDevice device, IVkDescriptorPoolContext descriptorPoolContext, 
+        uint descriptorsCount, DescriptorSetLayout layout) : base(vkContext)
     {
         this.device = device;
         this.descriptorPoolContext = descriptorPoolContext;
@@ -90,7 +90,7 @@ public class VkDescriptorPool : VkObject, IVkDescriptorPool
         }
     }
 
-    public unsafe void PopulateDescriptors()
+    public unsafe void UpdateSets()
     {
         for (var i = 0; i < descriptorsCount; i++)
         {

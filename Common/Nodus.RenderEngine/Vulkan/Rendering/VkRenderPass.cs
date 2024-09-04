@@ -1,3 +1,4 @@
+using Nodus.Common;
 using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Extensions;
 using Silk.NET.Vulkan;
@@ -6,14 +7,16 @@ namespace Nodus.RenderEngine.Vulkan.Rendering;
 
 public interface IVkRenderPassContext
 {
-    Format Format { get; }
+    Format ColorFormat { get; }
+    Format DepthFormat { get; }
     
     IVkRenderPassFactory? Factory { get; }
 }
 
-public readonly struct VkRenderPassContext(Format format, IVkRenderPassFactory? factory = null) : IVkRenderPassContext
+public readonly struct VkRenderPassContext(Format format, Format depthFormat, IVkRenderPassFactory? factory = null) : IVkRenderPassContext
 {
-    public Format Format { get; } = format;
+    public Format ColorFormat { get; } = format;
+    public Format DepthFormat { get; } = depthFormat;
     public IVkRenderPassFactory? Factory { get; } = factory;
 }
 
@@ -33,14 +36,11 @@ public class VkRenderPass : VkObject, IVkRenderPass
         this.device = device;
         var passFactory = context.Factory ?? new VkRenderPassFactory();
         
-        var attachments = passFactory.CreateAttachments(context.Format);
-        var colorAttachmentRef = new AttachmentReference
-        {
-            Attachment = 0,
-            Layout = ImageLayout.ColorAttachmentOptimal
-        };
+        var attachments = passFactory.CreateAttachments(context.ColorFormat, context.DepthFormat);
+        using var attachmentRefs = passFactory.CreateAttachmentReferences().ToFixedArray();
+        
         var subPasses = passFactory.CreateSubPasses([
-            new VkSubPassScheme(PipelineBindPoint.Graphics, 1, &colorAttachmentRef)
+            new VkSubPassScheme(PipelineBindPoint.Graphics, attachmentRefs)
         ]);
         var dependencies = passFactory.CreateDependencies();
 

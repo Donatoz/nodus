@@ -12,7 +12,7 @@ public class VkImageTransitionResolver : IVkImageTransitionResolver
 {
     public void ResolveOldLayout(ImageLayout oldLayout, ref PipelineStageFlags srcStage, ref ImageMemoryBarrier barrier)
     {
-        if(oldLayout == ImageLayout.Undefined)
+        if (oldLayout == ImageLayout.Undefined)
         {
             barrier.SrcAccessMask = 0;
             srcStage = PipelineStageFlags.TopOfPipeBit;
@@ -64,6 +64,12 @@ public class VkImageTransitionResolver : IVkImageTransitionResolver
         {
             barrier.DstAccessMask = AccessFlags.ShaderReadBit;
             dstStage = PipelineStageFlags.ComputeShaderBit;
+        }
+        else if (newLayout == ImageLayout.DepthStencilAttachmentOptimal)
+        {
+            barrier.DstAccessMask =
+                AccessFlags.DepthStencilAttachmentReadBit | AccessFlags.DepthStencilAttachmentWriteBit;
+            dstStage = PipelineStageFlags.EarlyFragmentTestsBit;
         }
         else
         {

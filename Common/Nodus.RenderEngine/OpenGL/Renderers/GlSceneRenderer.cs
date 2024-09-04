@@ -14,7 +14,6 @@ public interface IGlSceneRenderContext : IRenderContext
 }
 
 public record GlSceneRenderContext(
-    IEnumerable<IShaderDefinition> CoreShaders, 
     IRenderScene Scene, 
     IEnumerable<IMaterialDefinition> Materials) 
     : IGlSceneRenderContext;

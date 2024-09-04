@@ -4,13 +4,14 @@ using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Extensions;
 using Nodus.RenderEngine.Vulkan.Memory;
 using Nodus.RenderEngine.Vulkan.Meta;
+using Nodus.RenderEngine.Vulkan.Rendering;
 using Nodus.RenderEngine.Vulkan.Sync;
 using Silk.NET.Vulkan;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Image = SixLabors.ImageSharp.Image;
 
-namespace Nodus.RenderEngine.Vulkan.Rendering;
+namespace Nodus.RenderEngine.Vulkan.Presentation;
 
 public class VkImagePresenter : IVkRenderPresenter
 {
@@ -44,12 +45,12 @@ public class VkImagePresenter : IVkRenderPresenter
         imageMemory = new VkMemory(context, device, physicalDevice, MemoryPropertyFlags.DeviceLocalBit);
         
         var deviceProps = context.Api.GetPhysicalDeviceProperties(physicalDevice.WrappedDevice);
-        bufferImage = new VkImage(context, device, new VkImageContext(imageMemory, ImageType.Type2D, 
+        bufferImage = new VkImage(context, device, new VkImageSpecification(ImageType.Type2D, 
             renderSupplier.CurrentRenderExtent.CastUp(), Format.B8G8R8A8Srgb, ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.TransferSrcBit,
             ImageViewType.Type2D, deviceProps.Limits.MaxSamplerAnisotropy));
         
         imageMemory.AllocateForImage(context, bufferImage.WrappedImage, device);
-        bufferImage.BindToMemory();
+        bufferImage.BindToMemory(imageMemory);
         bufferImage.CreateView();
 
         inFlightFences = new IVkFence[maxConcurrentFrames];

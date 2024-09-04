@@ -12,10 +12,9 @@ public interface IGlPrimitiveRenderContext : IGlRenderContext
 }
 
 public record GlPrimitiveContext(
-    IEnumerable<IShaderDefinition> CoreShaders,
     IReadOnlyCollection<IGlShaderUniform> Uniforms,
     IReadOnlyCollection<IGlTextureDefinition> Textures)
-    : GlContext(CoreShaders), IGlPrimitiveRenderContext;
+    : GlContext, IGlPrimitiveRenderContext;
 
 /// <summary>
 /// An OpenGL context renderer that renders a geometry primitives using provided shaders, uniforms and textures.
@@ -29,7 +28,6 @@ public class GlGeometryPrimitiveRenderer : GlRendererBase, IDisposable
     private GL? gl;
     private IEnumerable<IGlShaderUniform>? uniforms;
     private IEnumerable<IGlTexture>? textures;
-    private IEnumerable<IShaderDefinition>? coreShaders;
     
     private IGeometryPrimitive primitive;
     private readonly ITransform transform;
@@ -56,7 +54,6 @@ public class GlGeometryPrimitiveRenderer : GlRendererBase, IDisposable
         
         gl = backendProvider.GetBackend<GL>();
         uniforms = primitiveContext.Uniforms;
-        coreShaders = primitiveContext.CoreShaders;
 
         vao = new GlVertexArray<float>(gl);
         vao.Bind();
@@ -67,11 +64,6 @@ public class GlGeometryPrimitiveRenderer : GlRendererBase, IDisposable
         vao.ConformToStandardVertex();
 
         textures = primitiveContext.Textures.Select(x => new GlTexture(gl, x.Source, x.Specification, this)).ToArray();
-
-        if (coreShaders.Any())
-        {
-            UpdateShaders(Enumerable.Empty<IShaderDefinition>());
-        }
         
         gl.TryThrowAllErrors();
         gl.BindVertexArray(0);
@@ -127,9 +119,7 @@ public class GlGeometryPrimitiveRenderer : GlRendererBase, IDisposable
         
         program?.Dispose();
         
-        var shaders = definitions
-            .Concat(coreShaders ?? Enumerable.Empty<IShaderDefinition>())
-            .Select(x => new GlShader(gl, x.Source, x.Type.ToShaderType())).ToArray();
+        var shaders = definitions.Select(x => new GlShader(gl, x.Source, x.Type.ToShaderType())).ToArray();
 
         program = new GlShaderProgram(gl, shaders);
         

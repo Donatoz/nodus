@@ -8,7 +8,7 @@ public interface IVkMemory : IVkUnmanagedHook
 {
     DeviceMemory? WrappedMemory { get; }
     
-    void Allocate(ulong allocationSize, uint type);
+    void Allocate(ulong allocationSize, uint? type = null);
     T[] GetSnapshot<T>(uint size) where T : unmanaged;
 }
 
@@ -27,7 +27,7 @@ public class VkMemory : VkObject, IVkMemory
         Properties = properties;
     }
 
-    public unsafe void Allocate(ulong allocationSize, uint type)
+    public unsafe void Allocate(ulong allocationSize, uint? type = null)
     {
         TryFreeAllocatedMemory();
         
@@ -35,7 +35,7 @@ public class VkMemory : VkObject, IVkMemory
         {
             SType = StructureType.MemoryAllocateInfo,
             AllocationSize = allocationSize,
-            MemoryTypeIndex = FindMemoryType(type, Properties)
+            MemoryTypeIndex = FindMemoryType(Properties, type)
         };
 
         DeviceMemory memory;
@@ -63,15 +63,15 @@ public class VkMemory : VkObject, IVkMemory
 
         return result;
     }
-    
-    private uint FindMemoryType(uint typeFilter, MemoryPropertyFlags properties)
-    {
-        Context.Api.GetPhysicalDeviceMemoryProperties(PhysicalDevice.WrappedDevice, out var props);
 
-        for (var i = 0; i < props.MemoryTypeCount; i++)
+    private uint FindMemoryType(MemoryPropertyFlags properties, uint? typeFilter = null)
+    {
+        var memoryProperties = PhysicalDevice.MemoryProperties;
+        
+        for (var i = 0; i < memoryProperties.MemoryTypeCount; i++)
         {
-            var isFilterMatched = (typeFilter & (1 << i)) > 0;
-            var arePropsAligned = (props.MemoryTypes[i].PropertyFlags & properties) == properties;
+            var isFilterMatched = typeFilter == null || (typeFilter & (1 << i)) > 0;
+            var arePropsAligned = (memoryProperties.MemoryTypes[i].PropertyFlags & properties) == properties;
             
             if (isFilterMatched && arePropsAligned)
             {

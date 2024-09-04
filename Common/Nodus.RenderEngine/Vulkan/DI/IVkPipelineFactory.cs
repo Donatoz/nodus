@@ -24,12 +24,12 @@ public interface IVkPipelineFactory
         uint attribDescCount, VertexInputAttributeDescription* attributeDescriptions);
 
     /// <summary>
-    /// Create a Vulkan input assembly state info.
+    /// Create Vulkan input assembly state info.
     /// </summary>
     PipelineInputAssemblyStateCreateInfo CreateInputAssembly();
 
     /// <summary>
-    /// Create a viewport state info.
+    /// Create viewport state info.
     /// </summary>
     /// <param name="viewport">A pointer to the desired viewport state.</param>
     /// <param name="scissors">A pointer to the desired scissors state.</param>
@@ -49,10 +49,12 @@ public interface IVkPipelineFactory
     PipelineMultisampleStateCreateInfo CreateMultisampling();
 
     /// <summary>
-    /// Create a color blend state info with the specified attachments.
+    /// Create color blend state info with the specified attachments.
     /// </summary>
     /// <param name="attachments">A pointer to the array of color blend attachment states.</param>
     unsafe PipelineColorBlendStateCreateInfo CreateColorBlend(PipelineColorBlendAttachmentState* attachments);
+
+    PipelineDepthStencilStateCreateInfo CreateDepthStencil();
 }
 
 public class VkPipelineFactory : IVkPipelineFactory
@@ -64,6 +66,7 @@ public class VkPipelineFactory : IVkPipelineFactory
     public IFactory<PipelineRasterizationStateCreateInfo>? RasterizationFactory { get; set; }
     public IFactory<PipelineMultisampleStateCreateInfo>? MultisamplingFactory { get; set; }
     public IFactory<nint, PipelineColorBlendStateCreateInfo>? ColorBlendFactory { get; set; }
+    public IFactory<PipelineDepthStencilStateCreateInfo>? DepthStencilFactory { get; set; }
     
     public unsafe PipelineDynamicStateCreateInfo CreateDynamicState(uint stateCount, DynamicState* states)
     {
@@ -144,6 +147,19 @@ public class VkPipelineFactory : IVkPipelineFactory
             LogicOpEnable = Vk.False,
             AttachmentCount = 1,
             PAttachments = attachments
+        };
+    }
+
+    public PipelineDepthStencilStateCreateInfo CreateDepthStencil()
+    {
+        return DepthStencilFactory?.Create() ?? new PipelineDepthStencilStateCreateInfo
+        {
+            SType = StructureType.PipelineDepthStencilStateCreateInfo,
+            DepthTestEnable = Vk.True,
+            DepthWriteEnable = Vk.True,
+            DepthCompareOp = CompareOp.Less,
+            DepthBoundsTestEnable = Vk.False,
+            StencilTestEnable = Vk.False
         };
     }
 }

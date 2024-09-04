@@ -108,7 +108,7 @@ public class GlWindow
         gl.ClearColor(Color.Black);
         gl.Enable(EnableCap.DepthTest);
         
-        renderer.Initialize(new GlSceneRenderContext(Enumerable.Empty<IShaderDefinition>(), scene, new []{defaultMaterial}), new GlRenderBackendProvider(gl));
+        renderer.Initialize(new GlSceneRenderContext(scene, [defaultMaterial]), new GlRenderBackendProvider(gl));
 
         gui = new ImGuiController(gl, window, input);
         
