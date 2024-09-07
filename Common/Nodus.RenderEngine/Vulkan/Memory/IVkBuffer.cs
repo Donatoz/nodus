@@ -6,4 +6,7 @@ public interface IVkBuffer : IVkUnmanagedHook
 {
     Buffer WrappedBuffer { get; }
     ulong Size { get; }
+
+    void MapToHost();
+    void Unmap();
 }

@@ -1,3 +1,4 @@
+using Nodus.RenderEngine.Vulkan.Convention;
 using Nodus.RenderEngine.Vulkan.Memory;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
@@ -23,5 +24,14 @@ public static class MemoryExtensions
     public static bool IsAllocated(this IVkMemory memory)
     {
         return memory.WrappedMemory != null;
+    }
+
+    public static IVkMemoryLease LeaseImageMemory(this IVkImage image, IVkContext context, string memoryGroup = MemoryGroups.RgbaSampledImageMemory)
+    {
+        var device = context.ServiceContainer.Devices.LogicalDevice;
+        
+        context.Api.GetImageMemoryRequirements(device.WrappedDevice, image.WrappedImage, out var requirements);
+
+        return context.ServiceContainer.MemoryLessor.LeaseMemory(memoryGroup, requirements.Size);
     }
 }

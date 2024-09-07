@@ -16,26 +16,28 @@ public class VkFrameBuffer : VkObject, IVkFrameBuffer
 
     private readonly IVkLogicalDevice device;
     
-    public unsafe VkFrameBuffer(IVkContext vkContext, IVkLogicalDevice device, IVkRenderPass renderPass, ImageView view, IVkRenderSupplier renderSupplier) : base(vkContext)
+    public unsafe VkFrameBuffer(IVkContext vkContext, IVkLogicalDevice device, IVkRenderPass renderPass, ImageView[] attachments, IVkRenderSupplier renderSupplier) : base(vkContext)
     {
         this.device = device;
-        var attachedView = view;
 
-        var bufferCreateInfo = new FramebufferCreateInfo
+        fixed (ImageView* pAttachments = attachments)
         {
-            SType = StructureType.FramebufferCreateInfo,
-            RenderPass = renderPass.WrappedPass,
-            AttachmentCount = 1,
-            PAttachments = &attachedView,
-            Width = renderSupplier.CurrentRenderExtent.Width,
-            Height = renderSupplier.CurrentRenderExtent.Height,
-            Layers = 1
-        };
+            var bufferCreateInfo = new FramebufferCreateInfo
+            {
+                SType = StructureType.FramebufferCreateInfo,
+                RenderPass = renderPass.WrappedPass,
+                AttachmentCount = (uint)attachments.Length,
+                PAttachments = pAttachments,
+                Width = renderSupplier.CurrentRenderExtent.Width,
+                Height = renderSupplier.CurrentRenderExtent.Height,
+                Layers = 1
+            };
 
-        Context.Api.CreateFramebuffer(device.WrappedDevice, &bufferCreateInfo, null, out var buffer)
-            .TryThrow("Failed to create framebuffer.");
+            Context.Api.CreateFramebuffer(device.WrappedDevice, &bufferCreateInfo, null, out var buffer)
+                .TryThrow("Failed to create framebuffer.");
 
-        WrappedBuffer = buffer;
+            WrappedBuffer = buffer;
+        }
     }
 
     protected override unsafe void Dispose(bool disposing)

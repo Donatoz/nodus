@@ -11,6 +11,10 @@ public static partial class MemoryGroups
     /// </summary>
     public const string ComputeStorageMemory = nameof(ComputeStorageMemory);
     /// <summary>
+    /// A memory group specified for storing staging buffer data.
+    /// </summary>
+    public const string StagingStorageMemory = nameof(StagingStorageMemory);
+    /// <summary>
     /// A memory group specified for storing sampled images.
     /// </summary>
     public const string RgbaSampledImageMemory = nameof(RgbaSampledImageMemory);

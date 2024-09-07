@@ -13,6 +13,8 @@ public interface IVkDescriptorWriter
 
 public class VkDescriptorWriter : IVkDescriptorWriter
 {
+    public static VkDescriptorWriter Empty { get; } = new([]);
+    
     private readonly IVkDescriptorWriteToken[] writeTokens;
 
     public VkDescriptorWriter(IVkDescriptorWriteToken[] writeTokens)

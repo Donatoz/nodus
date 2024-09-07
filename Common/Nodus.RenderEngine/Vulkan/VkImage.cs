@@ -167,6 +167,8 @@ public class VkImage : VkObject, IVkImage
         
         Context.Api.CmdPipelineBarrier(buffer, srcStage, dstStage, 0, 0, 
             null, 0, null, 1, &barrier);
+
+        CurrentLayout = newLayout;
     }
 
     public void BindToMemory(IVkMemory memory)

@@ -48,6 +48,7 @@ public interface IVkPipelineFactory
     /// </summary>
     PipelineMultisampleStateCreateInfo CreateMultisampling();
 
+    PipelineColorBlendAttachmentState CreateColorBlendAttachment();
     /// <summary>
     /// Create color blend state info with the specified attachments.
     /// </summary>
@@ -55,22 +56,39 @@ public interface IVkPipelineFactory
     unsafe PipelineColorBlendStateCreateInfo CreateColorBlend(PipelineColorBlendAttachmentState* attachments);
 
     PipelineDepthStencilStateCreateInfo CreateDepthStencil();
+
+    VertexInputBindingDescription[] CreateVertexInputDescriptions();
+    VertexInputAttributeDescription[] CreateVertexInputAttributeDescriptions();
 }
 
 public class VkPipelineFactory : IVkPipelineFactory
 {
-    public IFactory<uint, nint, PipelineDynamicStateCreateInfo>? DynamicStateFactory { get; set; }
-    public IFactory<uint, nint, uint, nint, PipelineVertexInputStateCreateInfo>? VertexInputFactory { get; set; }
-    public IFactory<PipelineInputAssemblyStateCreateInfo>? InputAssemblyFactory { get; set; }
-    public IFactory<nint, nint, PipelineViewportStateCreateInfo>? ViewportFactory { get; set; }
-    public IFactory<PipelineRasterizationStateCreateInfo>? RasterizationFactory { get; set; }
-    public IFactory<PipelineMultisampleStateCreateInfo>? MultisamplingFactory { get; set; }
-    public IFactory<nint, PipelineColorBlendStateCreateInfo>? ColorBlendFactory { get; set; }
-    public IFactory<PipelineDepthStencilStateCreateInfo>? DepthStencilFactory { get; set; }
+    public static VkPipelineFactory DefaultPipelineFactory { get; } = new();
+    
+    public Func<uint, nint, PipelineDynamicStateCreateInfo>? DynamicStateFactory { get; set; }
+    public Func<uint, nint, uint, nint, PipelineVertexInputStateCreateInfo>? VertexInputFactory { get; set; }
+    public Func<PipelineInputAssemblyStateCreateInfo>? InputAssemblyFactory { get; set; }
+    public Func<nint, nint, PipelineViewportStateCreateInfo>? ViewportFactory { get; set; }
+    public Func<PipelineRasterizationStateCreateInfo>? RasterizationFactory { get; set; }
+    public Func<PipelineMultisampleStateCreateInfo>? MultisamplingFactory { get; set; }
+    public Func<PipelineColorBlendAttachmentState>? ColorBlendAttachmentFactory { get; set; }
+    public Func<nint, PipelineColorBlendStateCreateInfo>? ColorBlendFactory { get; set; }
+    public Func<PipelineDepthStencilStateCreateInfo>? DepthStencilFactory { get; set; }
+    public Func<VertexInputBindingDescription[]>? VertexInputDescriptionsFactory { get; set; }
+    public Func<VertexInputAttributeDescription[]>? VertexInputAttributeDescriptionsFactory { get; set; }
+
+    #region Default Factories
+
+    public static Func<PipelineDepthStencilStateCreateInfo> DisabledDepthStencil { get; } = () => new()
+    {
+        SType = StructureType.PipelineDepthStencilStateCreateInfo
+    };
+
+    #endregion
     
     public unsafe PipelineDynamicStateCreateInfo CreateDynamicState(uint stateCount, DynamicState* states)
     {
-        return DynamicStateFactory?.Create(stateCount, (nint)states) ?? new PipelineDynamicStateCreateInfo
+        return DynamicStateFactory?.Invoke(stateCount, (nint)states) ?? new PipelineDynamicStateCreateInfo
         {
             SType = StructureType.PipelineDynamicStateCreateInfo,
             DynamicStateCount = stateCount,
@@ -81,7 +99,7 @@ public class VkPipelineFactory : IVkPipelineFactory
     public unsafe PipelineVertexInputStateCreateInfo CreateVertexInputState(uint bindingDescCount, VertexInputBindingDescription* bindingDescriptions,
         uint attribDescCount, VertexInputAttributeDescription* attributeDescriptions)
     {
-        return VertexInputFactory?.Create(bindingDescCount, (nint)bindingDescriptions, attribDescCount, (nint)attributeDescriptions) 
+        return VertexInputFactory?.Invoke(bindingDescCount, (nint)bindingDescriptions, attribDescCount, (nint)attributeDescriptions) 
                ?? new PipelineVertexInputStateCreateInfo
         {
             SType = StructureType.PipelineVertexInputStateCreateInfo,
@@ -94,7 +112,7 @@ public class VkPipelineFactory : IVkPipelineFactory
 
     public PipelineInputAssemblyStateCreateInfo CreateInputAssembly()
     {
-        return InputAssemblyFactory?.Create() ?? new PipelineInputAssemblyStateCreateInfo
+        return InputAssemblyFactory?.Invoke() ?? new PipelineInputAssemblyStateCreateInfo
         {
             SType = StructureType.PipelineInputAssemblyStateCreateInfo,
             Topology = PrimitiveTopology.TriangleList,
@@ -104,7 +122,7 @@ public class VkPipelineFactory : IVkPipelineFactory
 
     public unsafe PipelineViewportStateCreateInfo CreateViewport(Viewport* viewport, Rect2D* scissors)
     {
-        return ViewportFactory?.Create((nint)viewport, (nint)scissors) ?? new PipelineViewportStateCreateInfo
+        return ViewportFactory?.Invoke((nint)viewport, (nint)scissors) ?? new PipelineViewportStateCreateInfo
         {
             SType = StructureType.PipelineViewportStateCreateInfo,
             ViewportCount = 1,
@@ -116,7 +134,7 @@ public class VkPipelineFactory : IVkPipelineFactory
 
     public PipelineRasterizationStateCreateInfo CreateRasterization()
     {
-        return RasterizationFactory?.Create() ?? new PipelineRasterizationStateCreateInfo
+        return RasterizationFactory?.Invoke() ?? new PipelineRasterizationStateCreateInfo
         {
             SType = StructureType.PipelineRasterizationStateCreateInfo,
             DepthClampEnable = Vk.False,
@@ -131,7 +149,7 @@ public class VkPipelineFactory : IVkPipelineFactory
 
     public PipelineMultisampleStateCreateInfo CreateMultisampling()
     {
-        return MultisamplingFactory?.Create() ?? new PipelineMultisampleStateCreateInfo
+        return MultisamplingFactory?.Invoke() ?? new PipelineMultisampleStateCreateInfo
         {
             SType = StructureType.PipelineMultisampleStateCreateInfo,
             SampleShadingEnable = Vk.False,
@@ -139,9 +157,19 @@ public class VkPipelineFactory : IVkPipelineFactory
         };
     }
 
+    public PipelineColorBlendAttachmentState CreateColorBlendAttachment()
+    {
+        return ColorBlendAttachmentFactory?.Invoke() ?? new PipelineColorBlendAttachmentState
+        {
+            ColorWriteMask = ColorComponentFlags.RBit | ColorComponentFlags.GBit | ColorComponentFlags.BBit |
+                             ColorComponentFlags.ABit,
+            BlendEnable = Vk.False
+        };
+    }
+
     public unsafe PipelineColorBlendStateCreateInfo CreateColorBlend(PipelineColorBlendAttachmentState* attachments)
     {
-        return ColorBlendFactory?.Create((nint)attachments) ?? new PipelineColorBlendStateCreateInfo
+        return ColorBlendFactory?.Invoke((nint)attachments) ?? new PipelineColorBlendStateCreateInfo
         {
             SType = StructureType.PipelineColorBlendStateCreateInfo,
             LogicOpEnable = Vk.False,
@@ -152,7 +180,7 @@ public class VkPipelineFactory : IVkPipelineFactory
 
     public PipelineDepthStencilStateCreateInfo CreateDepthStencil()
     {
-        return DepthStencilFactory?.Create() ?? new PipelineDepthStencilStateCreateInfo
+        return DepthStencilFactory?.Invoke() ?? new PipelineDepthStencilStateCreateInfo
         {
             SType = StructureType.PipelineDepthStencilStateCreateInfo,
             DepthTestEnable = Vk.True,
@@ -161,5 +189,15 @@ public class VkPipelineFactory : IVkPipelineFactory
             DepthBoundsTestEnable = Vk.False,
             StencilTestEnable = Vk.False
         };
+    }
+
+    public VertexInputBindingDescription[] CreateVertexInputDescriptions()
+    {
+        return VertexInputDescriptionsFactory?.Invoke() ?? [VertexUtility.GetVertexBindingDescription()];
+    }
+
+    public VertexInputAttributeDescription[] CreateVertexInputAttributeDescriptions()
+    {
+        return VertexInputAttributeDescriptionsFactory?.Invoke() ?? VertexUtility.GetVertexAttributeDescriptions();
     }
 }

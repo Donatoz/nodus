@@ -9,22 +9,22 @@ public interface IVkBoundBufferContext
     ulong Size { get; }
     BufferUsageFlags Usage { get; }
     SharingMode SharingMode { get; }
-    IVkMemoryLease MemoryLease { get; }
 }
 
-public readonly struct VkBoundBufferContext(ulong size, BufferUsageFlags usage, SharingMode sharingMode, IVkMemoryLease memoryLease)
+public readonly struct VkBoundBufferContext(ulong size, BufferUsageFlags usage, SharingMode sharingMode)
     : IVkBoundBufferContext
 {
     public ulong Size { get; } = size;
     public BufferUsageFlags Usage { get; } = usage;
     public SharingMode SharingMode { get; } = sharingMode;
-    public IVkMemoryLease MemoryLease { get; } = memoryLease;
 }
 
 public interface IVkBoundBuffer : IVkBuffer
 {
-    void BindToMemory();
+    void BindToMemory(IVkMemoryLease lease);
     void UpdateData<T>(Span<T> data, ulong offset) where T : unmanaged;
+    unsafe void SetMappedMemory(void* data, ulong size, ulong offset);
+    Span<T> GetMappedMemory<T>(ulong size, ulong offset) where T : unmanaged;
 }
 
 public class VkBoundBuffer : VkObject, IVkBoundBuffer
@@ -34,8 +34,10 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
 
     private readonly IVkLogicalDevice device;
     private readonly IVkBoundBufferContext bufferContext;
-    private readonly IDisposable leaseMutationContract;
 
+    private IVkMemoryLease? memory;
+    private IDisposable? leaseMutationContract;
+    
     private bool isMemoryBound;
 
     public unsafe VkBoundBuffer(IVkContext vkContext, IVkLogicalDevice device, IVkBoundBufferContext bufferContext) : base(vkContext)
@@ -56,48 +58,84 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
             .TryThrow($"Failed to create buffer: {createInfo.Usage}, Size={createInfo.Size}");
 
         WrappedBuffer = buffer;
-
-        leaseMutationContract = bufferContext.MemoryLease.MutationStream.Subscribe(OnLeaseMutation);
     }
 
-    public void BindToMemory()
+    public void BindToMemory(IVkMemoryLease lease)
     {
-        Console.WriteLine($"Bind to memory at offset: {bufferContext.MemoryLease.Region.Offset}");
-        ValidateAllocationState();
+        leaseMutationContract?.Dispose();
+
+        memory = lease;
         
-        Context.Api.BindBufferMemory(device.WrappedDevice, WrappedBuffer, bufferContext.MemoryLease.WrappedMemory, bufferContext.MemoryLease.Region.Offset);
+        Context.Api.BindBufferMemory(device.WrappedDevice, WrappedBuffer, memory.WrappedMemory, memory.Region.Offset);
+        leaseMutationContract = memory.MutationStream.Subscribe(OnLeaseMutation);
 
         isMemoryBound = true;
     }
 
     public unsafe void UpdateData<T>(Span<T> data, ulong offset) where T : unmanaged
     {
-        if (!bufferContext.MemoryLease.Memory.IsAllocated())
+        ValidateAllocationState();
+        
+        memory!.MapToHost();
+
+        fixed (void* p = data)
         {
-            throw new Exception("Failed to update buffer data: memory was not allocated.");
+            memory.SetMappedData(p, (ulong)(data.Length * sizeof(T)), offset);
         }
         
-        void* bufferData;
+        memory.Unmap();
+    }
+
+    public unsafe void SetMappedMemory(void* data, ulong size, ulong offset)
+    {
+        ValidateAllocationState();
         
-        Context.Api.MapMemory(device.WrappedDevice, bufferContext.MemoryLease.WrappedMemory, offset, (ulong)(sizeof(T) * data.Length), 0, &bufferData)
-            .TryThrow("Failed to map buffer memory.");
+        memory!.SetMappedData(data, size, offset);
+    }
+
+    public Span<T> GetMappedMemory<T>(ulong size, ulong offset) where T : unmanaged
+    {
+        ValidateAllocationState();
+
+        return memory!.GetMappedData<T>(size, offset);
+    }
+
+    public void MapToHost()
+    {
+        ValidateAllocationState();
         
-        data.CopyTo(new Span<T>(bufferData, data.Length));
+        memory!.MapToHost();
+    }
+
+    public void Unmap()
+    {
+        ValidateAllocationState();
         
-        Context.Api.UnmapMemory(device.WrappedDevice, bufferContext.MemoryLease.WrappedMemory);
+        memory!.Unmap();
     }
     
     private void OnLeaseMutation(IVkMemoryLease lease)
     {
         if (isMemoryBound)
         {
-            BindToMemory();
+            // TODO: Whenever lease is mutated - the buffer shall be re-created, notifying all dependant objects that consistently
+            // use the wrapped buffer handle. Those are, for instance, descriptor sets.
+        }
+    }
+
+    private void ValidateMemoryLeaseState()
+    {
+        if (memory == null)
+        {
+            throw new Exception("Failed to perform buffer operation: memory was not leased.");
         }
     }
 
     private void ValidateAllocationState()
     {
-        if (!bufferContext.MemoryLease.Memory.IsAllocated())
+        ValidateMemoryLeaseState();
+        
+        if (!memory!.Memory.IsAllocated())
         {
             throw new Exception("Failed to perform buffer operation: memory was not allocated.");
         }
@@ -107,7 +145,7 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
     {
         if (IsDisposing)
         {
-            leaseMutationContract.Dispose();
+            leaseMutationContract?.Dispose();
             Context.Api.DestroyBuffer(device.WrappedDevice, WrappedBuffer, null);
         }
         

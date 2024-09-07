@@ -57,7 +57,8 @@ public class VkContext : IVkContext
     public VkLayerInfo? LayerInfo { get; }
     public VkExtensionsInfo ExtensionsInfo { get; }
     public IReadOnlyCollection<VkObject> BoundObjects => boundObjects;
-    public IVkServiceContainer ServiceContainer => serviceContainer.NotNull("Vulkan service container was not initialized.");
+    public IVkServiceContainer ServiceContainer => serviceContainer.NotNull("Vulkan service container was not initialized. " +
+                                                                            "Ensure that it was initialized right after the devices.");
 
     private readonly Subject<bool> lifetimeSubject;
     private readonly HashSet<VkObject> boundObjects;

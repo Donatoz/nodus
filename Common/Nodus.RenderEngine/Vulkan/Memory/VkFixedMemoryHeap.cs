@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using Nodus.Core.Extensions;
+using Nodus.RenderEngine.Vulkan.Extensions;
 using Nodus.RenderEngine.Vulkan.Meta;
 
 namespace Nodus.RenderEngine.Vulkan.Memory;
@@ -34,6 +35,8 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
     private readonly IVkHeapAnalyzer[] analyzers;
     
     private VkMemory memory;
+    private unsafe void* memoryPtr;
+    private int mappedLeases;
 
     public VkFixedMemoryHeap(IVkContext vkContext, IVkLogicalDevice device, IVkPhysicalDevice physicalDevice, IVkMemoryHeapInfo meta) : base(vkContext)
     {
@@ -104,7 +107,7 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
             }
         }
         
-        var lease = new Lease(memory, annexedRegion, alignment, FreeAllocation, leaseMutationSubject);
+        var lease = new Lease(memory, annexedRegion, alignment, FreeLease, leaseMutationSubject, this);
 
         leases[annexedRegion.Offset] = lease;
 
@@ -198,7 +201,7 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
             .ToArray();
     }
 
-    private void FreeAllocation(IVkMemoryLease lease)
+    private void FreeLease(Lease lease)
     {
         lock (syncRoot)
         {
@@ -206,6 +209,44 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
             freeRegions.Add(lease.Region);
             MergeSubsequentRegions();
             AnalyzeMemory();
+
+            if (lease.IsMapped)
+            {
+                lease.Unmap();
+            }
+        }
+    }
+
+    private unsafe void RequestMemoryMapping()
+    {
+        mappedLeases++;
+        
+        if (memoryPtr != null) return;
+        
+        void* mappedMemory;
+        
+        Context.Api.MapMemory(device.WrappedDevice, memory.WrappedMemory!.Value, 0, Meta.Size, 0, &mappedMemory)
+            .TryThrow("Failed to map heap memory.");
+
+        memoryPtr = mappedMemory;
+    }
+
+    private void UnmapLease(IVkMemoryLease lease)
+    {
+        mappedLeases--;
+
+        if (mappedLeases == 0)
+        {
+            UnmapMemory();
+        }
+    }
+
+    private unsafe void UnmapMemory()
+    {
+        if (memoryPtr != null)
+        {
+            Context.Api.UnmapMemory(device.WrappedDevice, memory.WrappedMemory!.Value);
+            memoryPtr = null;
         }
     }
 
@@ -228,9 +269,14 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
 
         leaseValues.ForEach(x =>
         {
+            var previousOffset = x.Region.Offset;
             x.UpdateRegion(realignedLeaseRegions.First(r => r.Size == x.Region.Size));
             leases[x.Region.Offset] = x;
-            leaseMutationSubject.OnNext(x);
+
+            if (previousOffset != x.Region.Offset)
+            {
+                leaseMutationSubject.OnNext(x);
+            }
         });
 
         lock (syncRoot)
@@ -309,10 +355,12 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
         public ulong Alignment { get; }
         public IObservable<IVkMemoryLease> MutationStream { get; }
         
+        public bool IsMapped { get; private set; }
 
-        private readonly Action<IVkMemoryLease> deallocationContext;
+        private readonly Action<Lease> deallocationContext;
+        private readonly VkFixedMemoryHeap heap;
 
-        public Lease(IVkMemory memory, VkMemoryRegion region, ulong alignment, Action<IVkMemoryLease> deallocationContext, ISubject<IVkMemoryLease> leaseMutationSubject)
+        public Lease(IVkMemory memory, VkMemoryRegion region, ulong alignment, Action<Lease> deallocationContext, ISubject<IVkMemoryLease> leaseMutationSubject, VkFixedMemoryHeap heap)
         {
             UpdateMemory(memory);
             UpdateRegion(region);
@@ -320,6 +368,7 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
             Alignment = alignment;
 
             this.deallocationContext = deallocationContext;
+            this.heap = heap;
         }
 
         public void UpdateMemory(IVkMemory memory)
@@ -332,6 +381,57 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
             Region = region;
         }
         
+        public void MapToHost()
+        {
+            if (IsMapped)
+            {
+                throw new Exception("Failed to map the lease: lease was already mapped.");
+            }
+            
+            IsMapped = true;
+            heap.RequestMemoryMapping();
+        }
+
+        public void Unmap()
+        {
+            if (!IsMapped)
+            {
+                throw new Exception("Failed to unmap the lease: lease was not mapped.");
+            }
+            
+            IsMapped = false;
+            heap.UnmapLease(this);
+        }
+
+        public unsafe void SetMappedData(void* data, ulong size, ulong offset)
+        {
+            ValidateRequestedRegion(size, offset);
+
+            Buffer.MemoryCopy(data, (ulong*)((ulong)heap.memoryPtr + offset + Region.Offset), size, size);
+        }
+
+        public unsafe Span<T> GetMappedData<T>(ulong size, ulong offset) where T : unmanaged
+        {
+            ValidateRequestedRegion(size, offset);
+            
+            return new Span<T>((ulong*)((ulong)heap.memoryPtr + offset + Region.Offset), (int)(size / (ulong)sizeof(T)));
+        }
+
+        private void ValidateRequestedRegion(ulong size, ulong offset)
+        {
+            if (!IsMapped)
+            {
+                throw new Exception("Failed to access mapped memory: lease was not mapped.");
+            }
+
+            if (Region.Offset + offset + size - 1 > Region.End)
+            {
+                throw new Exception($"Failed to access mapped memory: lease region was exceeded. " +
+                                    $"Requested size: {size} bytes at offset: {offset}. " +
+                                    $"Total lease size: {Region.Size}.");
+            }
+        }
+
         public void Dispose()
         {
             deallocationContext.Invoke(this);

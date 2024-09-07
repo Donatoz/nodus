@@ -72,13 +72,13 @@ public class VkComputeDispatcher : IDisposable
         storageBuffer = new VkBoundBuffer(context, device, new VkBoundBufferContext(
             storageBufferSize,
             BufferUsageFlags.VertexBufferBit | BufferUsageFlags.StorageBufferBit | BufferUsageFlags.TransferDstBit,
-            SharingMode.Exclusive, storageBufferMemory));
+            SharingMode.Exclusive));
         outputBuffer = new VkAllocatedBuffer<float>(context, device, dispatcherContext.PhysicalDevice,
             new VkBufferContext((uint)storageBufferSize, BufferUsageFlags.StorageBufferBit | BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit));
         outputBuffer.Allocate();
         
-        storageBuffer.BindToMemory();
+        storageBuffer.BindToMemory(storageBufferMemory);
 
         using var stagingBuffer = new VkAllocatedBuffer<float>(context, device, dispatcherContext.PhysicalDevice,
             new VkBufferContext((uint)storageBufferSize, BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive,
@@ -97,8 +97,8 @@ public class VkComputeDispatcher : IDisposable
         };
 
         descriptorPool = new VkDescriptorPool(context, device, new VkDescriptorPoolContext(
-            [new VkDescriptorInfo { Type = DescriptorType.StorageBuffer }],
-            new VkDescriptorWriter(writeTokens)), 1, computePipeline.DescriptorSetLayout);
+            [new VkDescriptorInfo { Type = DescriptorType.StorageBuffer, Count = 1 }],
+            new VkDescriptorWriter(writeTokens)), 1, computePipeline.DescriptorSetLayouts[0]);
         
         descriptorPool.UpdateSets();
         writeTokens.OfType<IDisposable>().DisposeAll();
@@ -108,7 +108,7 @@ public class VkComputeDispatcher : IDisposable
     {
         return new VkDescriptorSetFactory
         {
-            LayoutFactory = new AnonymousFactory<DescriptorSetLayoutBinding[]>(() =>
+            BindingsFactory = () =>
             [
                 new DescriptorSetLayoutBinding
                 {
@@ -124,7 +124,7 @@ public class VkComputeDispatcher : IDisposable
                     DescriptorType = DescriptorType.StorageBuffer,
                     StageFlags = ShaderStageFlags.ComputeBit
                 }
-            ])
+            ]
         };
     }
 

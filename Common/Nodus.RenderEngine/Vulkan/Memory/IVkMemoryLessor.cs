@@ -15,7 +15,7 @@ public interface IVkMemoryLease : IDisposable
     
     VkMemoryRegion Region { get; }
     ulong Alignment { get; }
-
+    
     /// <summary>
     /// Represents a stream of mutations for a memory lease.
     /// </summary>
@@ -24,6 +24,11 @@ public interface IVkMemoryLease : IDisposable
     /// The stream emits the updated state value every time the lease bound memory or region changes (for example, after defragmentation).
     /// </remarks>
     IObservable<IVkMemoryLease> MutationStream { get; }
+
+    void MapToHost();
+    void Unmap();
+    unsafe void SetMappedData(void* data, ulong size, ulong offset);
+    Span<T> GetMappedData<T>(ulong size, ulong offset) where T : unmanaged;
 }
 
 /// <summary>
@@ -39,7 +44,7 @@ public interface IVkTrackedMemoryLease : IVkMemoryLease
 /// </summary>
 public interface IVkMemoryLessor : IDisposable
 {
-    IEnumerable<IVkMemoryHeap> AllocatedHeaps { get; }
+    IReadOnlyCollection<IVkMemoryHeap> AllocatedHeaps { get; }
     
     IVkMemoryLease LeaseMemory(string groupId, ulong size, uint alignment = 1);
 }

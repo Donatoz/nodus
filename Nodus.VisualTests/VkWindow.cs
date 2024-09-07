@@ -1,9 +1,11 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Numerics;
+using System.Runtime.InteropServices;
 using DynamicData;
-using Nodus.Core.Extensions;
+using ImGuiNET;
 using Nodus.RenderEngine.Common;
 using Nodus.RenderEngine.Serialization;
 using Nodus.RenderEngine.Vulkan;
+using Nodus.RenderEngine.Vulkan.Components;
 using Nodus.RenderEngine.Vulkan.Computing;
 using Nodus.RenderEngine.Vulkan.Convention;
 using Nodus.RenderEngine.Vulkan.DI;
@@ -15,6 +17,7 @@ using Nodus.RenderEngine.Vulkan.Utility;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
 using Silk.NET.Input;
+using Silk.NET.Input.Extensions;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
@@ -52,14 +55,20 @@ public unsafe class VkWindow
     private IVkRenderPresenter? presenter;
     private VkComputeDispatcher? computeDispatcher;
     private IVkMemoryLessor? memoryLessor;
+    private VkImGuiComponent? imGuiComponent;
 
     private VkLayerInfo? layerInfo;
     private VkExtensionsInfo? extensionsInfo;
     private VkContext? vkContext;
     private IVkExtensionProvider? extensionProvider;
     private IInputContext? input;
+    private VkRenderSupplier? renderSupplier;
+    private nint? imGuiContext;
 
     private bool isInitialized;
+    private double fps;
+    private uint frame;
+    private double refreshTime;
     
     private readonly VkGeometryPrimitiveRenderer renderer;
 
@@ -113,7 +122,7 @@ public unsafe class VkWindow
         instance = CreateVkInstance();
         SetupDebugMessenger();
         surface = CreateSurface();
-        
+
         physicalDevice = GetFirstSuitablePhysicalDevice();
         logicalDevice = CreateLogicalDevice(physicalDevice);
 
@@ -143,6 +152,11 @@ public unsafe class VkWindow
             new VkMemoryHeapInfo(MemoryGroups.ComputeStorageMemory, 
                 1024 * 1024 * 16,
                 MemoryPropertyFlags.DeviceLocalBit,
+                bufferHeapAllocator),
+            
+            new VkMemoryHeapInfo(MemoryGroups.StagingStorageMemory, 
+                1024 * 1024 * 8,
+                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
                 bufferHeapAllocator)
         ]);
 
@@ -162,23 +176,38 @@ public unsafe class VkWindow
         extensionProvider = new VkExtensionProvider(vkContext, instance, logicalDevice);
         
         swapChain = CreateSwapChain();
-        renderPass = new VkRenderPass(vkContext, logicalDevice, new VkRenderPassContext(swapChain.SurfaceFormat.Format, swapChain.DepthFormat));
+        renderPass = new VkRenderPass(vkContext, logicalDevice, new VkRenderPassContext(swapChain.SurfaceFormat.Format, swapChain.DepthFormat, CreatePassFactory()));
         
         swapChain.CreateFrameBuffers(renderPass.WrappedPass);
-        var rendererSupplier = new VkRenderSupplier(() => swapChain.Extent);
+        renderSupplier = new VkRenderSupplier(() => swapChain.Extent, 
+            () => new Vector2((float)window.FramebufferSize.X / window.Size.X, (float)window.FramebufferSize.Y / window.Size.Y));
+
+        imGuiContext = ImGui.CreateContext();
+        ImGui.SetCurrentContext(imGuiContext.Value);
+        ImGui.StyleColorsDark();
+
+        imGuiComponent = new VkImGuiComponent(vkContext,
+            new VkImGuiComponentContext([
+                new ShaderDefinition(
+                    new ShaderFileSource(@"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\imgui.vert.spv"),
+                    ShaderSourceType.Vertex),
+                new ShaderDefinition(
+                    new ShaderFileSource(@"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\imgui.frag.spv"),
+                    ShaderSourceType.Fragment)
+            ], renderSupplier, swapChain.SurfaceFormat.Format, swapChain.DepthFormat, 2, 
+                new VkImageLayoutTransition(ImageLayout.ColorAttachmentOptimal, ImageLayout.PresentSrcKhr), RenderGui));
 
         var pipelineContext = new VkGraphicsPipelineContext(
-            [DynamicState.Scissor ,DynamicState.Viewport], 
-            new IShaderDefinition[]
-            {
+            [DynamicState.Scissor ,DynamicState.Viewport],
+            [
                 new ShaderDefinition(
                     new ShaderFileSource(@"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\standard2.vert.spv"),
                     ShaderSourceType.Vertex),
                 new ShaderDefinition(
                     new ShaderFileSource(@"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\solid.frag.spv"),
                     ShaderSourceType.Fragment)
-            }, 
-            renderPass, rendererSupplier);
+            ], 
+            renderPass, renderSupplier);
 
         viewer = new Viewer(new Vector2D<float>(swapChain.Extent.Width, swapChain.Extent.Height))
         {
@@ -196,7 +225,8 @@ public unsafe class VkWindow
         
         renderer.Initialize(
             new VkGeometryPrimitiveRenderContext(cube, logicalDevice, physicalDevice, queueInfo, 
-                renderPass, viewer, pipelineContext, texture, presenter, rendererSupplier, 2),
+                renderPass, viewer, pipelineContext, texture, presenter, renderSupplier, 2, 
+                [imGuiComponent]),
             new VkRenderBackendProvider(vkContext)
         );
         
@@ -212,7 +242,7 @@ public unsafe class VkWindow
         //computeDispatcher.Dispatch();
     }
 
-    private List<IVkMemoryLease> debugLeases = new List<IVkMemoryLease>();
+    private List<IVkMemoryLease> debugLeases = new();
 
     private void OnKeyDown(IKeyboard keyboard, Key key, int n)
     {
@@ -261,11 +291,53 @@ public unsafe class VkWindow
         }
     }
 
+    private void RenderGui()
+    {
+        ImGui.Begin("Debug");
+        
+        ImGui.SeparatorText("Stats");
+        
+        ImGui.BeginGroup();
+        ImGui.Text($"FPS: {fps:0.00}");
+        ImGui.EndGroup();
+        
+        ImGui.SeparatorText("Memory");
+
+        ImGui.Text("Heaps");
+
+        if (ImGui.BeginTable("heaps", 3, ImGuiTableFlags.Borders))
+        {
+            ImGui.TableHeadersRow();
+            ImGui.TableSetColumnIndex(0);
+            ImGui.Text("Heap Id");
+            ImGui.TableSetColumnIndex(1);
+            ImGui.Text("Occupied");
+            ImGui.TableSetColumnIndex(2);
+            ImGui.Text("Fragmentation");
+            
+            for (var i = 0; i < memoryLessor!.AllocatedHeaps.Count; i++)
+            {
+                ImGui.TableNextRow();
+                var heap = memoryLessor.AllocatedHeaps.ElementAt(i);
+                
+                ImGui.TableSetColumnIndex(0);
+                ImGui.Text(heap.Meta.HeapId);
+                ImGui.TableSetColumnIndex(1);
+                ImGui.TextUnformatted($"{(double)heap.GetOccupiedMemory() / heap.Meta.Size * 100 :0.00}%");
+                ImGui.TableSetColumnIndex(2);
+                ImGui.TextUnformatted($"{heap.GetCurrentFragmentation() * 100:0.00}%");
+            }
+            
+            ImGui.EndTable();
+        }
+    }
+
     private void OnRender(double delta)
     {
         if (!isInitialized || window.FramebufferSize.X == 0 || window.FramebufferSize.Y == 0) return;
         
         renderer.RenderFrame();
+        frame++;
     }
     
     private void OnUpdate(double delta)
@@ -283,6 +355,38 @@ public unsafe class VkWindow
 
             viewer!.Position += leftFactor + rightFactor + forwardFactor + backwardFactor + upFactor + downFactor;
         }
+        
+        refreshTime += delta;
+
+        if (refreshTime > 1.0)
+        {
+            fps = frame / refreshTime;
+
+            frame = 0;
+            refreshTime = 0;
+        }
+        
+        UpdateImGuiInput();
+    }
+
+    private void UpdateImGuiInput()
+    {
+        if (input is not { Keyboards.Count: > 0, Mice.Count: > 0 }) return;
+        
+        var io = ImGui.GetIO();
+
+        var mouseState = input!.Mice[0].CaptureState();
+        var keyboard = input.Keyboards[0];
+
+        io.MouseDown[0] = mouseState.IsButtonPressed(MouseButton.Left);
+        io.MouseDown[1] = mouseState.IsButtonPressed(MouseButton.Right);
+        io.MouseDown[2] = mouseState.IsButtonPressed(MouseButton.Middle);
+        
+        io.MousePos = new Vector2(mouseState.Position.X, mouseState.Position.Y);
+
+        var wheel = mouseState.GetScrollWheels()[0];
+        io.MouseWheel = wheel.Y;
+        io.MouseWheelH = wheel.X;
     }
     
     private void OnFrameBufferResize(Vector2D<int> size)
@@ -291,11 +395,44 @@ public unsafe class VkWindow
         {
             viewer.ScreenSize = new Vector2D<float>(size.X, size.Y);
         }
+        
+        renderSupplier?.UpdateFrameBufferSize(size);
     }
     
     private void OnClosing()
     {
         Cleanup();
+    }
+
+    private IVkRenderPassFactory CreatePassFactory()
+    {
+        return new VkRenderPassFactory
+        {
+            DescriptionsFactory = (colFormat, depthFormat) => [
+                new AttachmentDescription
+                {
+                    Format = colFormat,
+                    Samples = SampleCountFlags.Count1Bit,
+                    LoadOp = AttachmentLoadOp.Clear,
+                    StoreOp = AttachmentStoreOp.Store,
+                    StencilLoadOp = AttachmentLoadOp.DontCare,
+                    StencilStoreOp = AttachmentStoreOp.DontCare,
+                    InitialLayout = ImageLayout.Undefined,
+                    FinalLayout = ImageLayout.ColorAttachmentOptimal
+                },
+                new AttachmentDescription
+                {
+                    Format = depthFormat,
+                    Samples = SampleCountFlags.Count1Bit,
+                    LoadOp = AttachmentLoadOp.Clear,
+                    StoreOp = AttachmentStoreOp.DontCare,
+                    StencilLoadOp = AttachmentLoadOp.DontCare,
+                    StencilStoreOp = AttachmentStoreOp.DontCare,
+                    InitialLayout = ImageLayout.Undefined,
+                    FinalLayout = ImageLayout.DepthStencilAttachmentOptimal
+                }
+            ]
+        };
     }
     
     private void SetupDebugMessenger()
@@ -443,6 +580,7 @@ public unsafe class VkWindow
             debugUtils!.DestroyDebugUtilsMessenger(instance!, debugMessenger, null);
         }
         
+        imGuiComponent?.Dispose();
         renderer.Dispose();
         presenter?.Dispose();
         computeDispatcher?.Dispose();
@@ -454,10 +592,16 @@ public unsafe class VkWindow
         layerInfo?.Dispose();
         memoryLessor?.Dispose();
         logicalDevice?.Dispose();
+        renderSupplier?.Dispose();
         
         instance?.Dispose();
         vkContext?.Dispose();
 
         vk!.Dispose();
+
+        if (imGuiContext != null)
+        {
+            ImGui.DestroyContext(imGuiContext.Value);
+        }
     }
 }

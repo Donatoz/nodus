@@ -27,7 +27,6 @@ public sealed class VkHeapDefragmentationAnalyzer : IVkHeapAnalyzer
     public HeapAnalysisResult RequestAnalysis(IVkMemoryHeap heap)
     {
         var fragmentationValue = heap.GetCurrentFragmentation();
-        Console.WriteLine($"Frag value: {fragmentationValue}");
 
         return fragmentationValue >= defragmentationThreshold 
             ? HeapAnalysisResult.DefragmentationRequired 

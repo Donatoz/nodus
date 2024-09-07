@@ -6,5 +6,5 @@ public interface IVkPipeline : IVkUnmanagedHook
 {
     Pipeline WrappedPipeline { get; }
     PipelineLayout Layout { get; }
-    DescriptorSetLayout DescriptorSetLayout { get; }
+    DescriptorSetLayout[] DescriptorSetLayouts { get; }
 }

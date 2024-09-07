@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Nodus.Core.Extensions;
 using Nodus.RenderEngine.Common;
+using Nodus.RenderEngine.Vulkan.Components;
 using Nodus.RenderEngine.Vulkan.Convention;
 using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Extensions;
@@ -9,7 +10,6 @@ using Nodus.RenderEngine.Vulkan.Meta;
 using Nodus.RenderEngine.Vulkan.Presentation;
 using Nodus.RenderEngine.Vulkan.Primitives;
 using Nodus.RenderEngine.Vulkan.Sync;
-using Nodus.RenderEngine.Vulkan.Utility;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using SixLabors.ImageSharp.PixelFormats;
@@ -30,6 +30,8 @@ public interface IVkGeometryPrimitiveRenderContext : IRenderContext
     IVkRenderSupplier Supplier { get; }
     
     int ConcurrentRenderedFrames { get; }
+    
+    IVkRenderComponent[]? Components { get; }
 }
 
 public record VkGeometryPrimitiveRenderContext(
@@ -43,9 +45,9 @@ public record VkGeometryPrimitiveRenderContext(
     ITexture<Rgba32> Texture,
     IVkRenderPresenter Presenter,
     IVkRenderSupplier Supplier,
-    int ConcurrentRenderedFrames)
+    int ConcurrentRenderedFrames,
+    IVkRenderComponent[]? Components = null)
     : IVkGeometryPrimitiveRenderContext;
-
 public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
 {
     private IVkContext? vkContext;
@@ -79,12 +81,17 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
     private ulong[]? uniformBufferOffsets;
 
     private readonly ConcurrentQueue<Action> workerQueue;
+    
+    private readonly SortedSet<IVkRenderComponent> inlineComponents;
+    private readonly SortedSet<IVkRenderComponent> explicitComponents;
 
     #region Initialization
     
     public VkGeometryPrimitiveRenderer()
     {
         workerQueue = new ConcurrentQueue<Action>();
+        inlineComponents = new SortedSet<IVkRenderComponent>(Comparer<IVkRenderComponent>.Create((a, b) => a.Priority.CompareTo(b.Priority)));
+        explicitComponents = new SortedSet<IVkRenderComponent>(Comparer<IVkRenderComponent>.Create((a, b) => a.Priority.CompareTo(b.Priority)));
     }
 
     public void Initialize(IRenderContext context, IRenderBackendProvider backendProvider)
@@ -147,10 +154,9 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         primitiveBuffer = new VkBoundBuffer(vkContext, device,
             new VkBoundBufferContext(primitiveBufferSize,
                 BufferUsageFlags.VertexBufferBit | BufferUsageFlags.IndexBufferBit | BufferUsageFlags.UniformBufferBit, 
-                SharingMode.Exclusive,
-                primitiveMemory));
+                SharingMode.Exclusive));
         
-        primitiveBuffer.BindToMemory();
+        primitiveBuffer.BindToMemory(primitiveMemory);
         
         primitiveBuffer.UpdateData(primitive.Vertices.AsSpan(), 0);
         primitiveBuffer.UpdateData(primitive.Indices.AsSpan(), primitiveVertSize);
@@ -178,6 +184,8 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         commandPool.AddDependency(device);
         descriptorPool!.AddDependency(device);
         descriptorPool.AddDependency(pipeline);
+
+        primitiveContext.Components?.ForEach(x => (x.SubmitSeparately ? explicitComponents : inlineComponents).Add(x));
         
         isInitialized = true;
     }
@@ -228,12 +236,12 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         var descPoolContext = new VkDescriptorPoolContext(
         [
-            new VkDescriptorInfo { Type = DescriptorType.UniformBuffer },
-            new VkDescriptorInfo { Type = DescriptorType.CombinedImageSampler }
+            new VkDescriptorInfo { Type = DescriptorType.UniformBuffer, Count = (uint)maxConcurrentFrames},
+            new VkDescriptorInfo { Type = DescriptorType.CombinedImageSampler, Count = (uint)maxConcurrentFrames}
         ], new VkDescriptorWriter(descriptorWriteTokens));
         
         descriptorPool = new VkDescriptorPool(vkContext!, device!, descPoolContext, (uint)maxConcurrentFrames,
-            pipeline!.DescriptorSetLayout);
+            pipeline!.DescriptorSetLayouts[0]);
         
         descriptorPool.UpdateSets();
         descriptorWriteTokens.OfType<IDisposable>().DisposeAll();
@@ -300,7 +308,8 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         var buffer = commandPool.GetBuffer(bufferIndex);
         
         RecordCommandsToBuffer(framebuffer, buffer);
-        
+        explicitComponents.ForEach(x => x.SubmitCommands(buffer, framebuffer, frameIndex));
+
         commandPool.End(bufferIndex);
     }
 
@@ -345,6 +354,8 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
             1, &descriptorSet, 0, null);
         
         vkContext.Api.CmdDrawIndexed(commandBuffer, (uint)primitive!.Indices.Length, 1, 0, 0, 0);
+        
+        inlineComponents.ForEach(x => x.SubmitCommands(commandBuffer, frameBuffer, frameIndex));
         
         vkContext.Api.CmdEndRenderPass(commandBuffer);
     }
@@ -417,6 +428,9 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         descriptorPool?.Dispose();
         
         pipeline?.Dispose();
+        
+        inlineComponents.Clear();
+        explicitComponents.Clear();
     }
     
     public void Dispose()

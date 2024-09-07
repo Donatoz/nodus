@@ -25,6 +25,7 @@ public interface IVkDescriptorPool : IVkUnmanagedHook
     DescriptorPool WrappedPool { get; }
     
     void UpdateSets();
+    void UpdateSet(int index, IVkDescriptorWriteToken writeToken);
     DescriptorSet GetSet(int index);
 }
 
@@ -36,44 +37,45 @@ public class VkDescriptorPool : VkObject, IVkDescriptorPool
 
     private readonly IVkLogicalDevice device;
     private readonly IVkDescriptorPoolContext descriptorPoolContext;
-    private readonly uint descriptorsCount;
+    private readonly uint maxSets;
     private readonly DescriptorSetLayout layout;
     
     public unsafe VkDescriptorPool(IVkContext vkContext, IVkLogicalDevice device, IVkDescriptorPoolContext descriptorPoolContext, 
-        uint descriptorsCount, DescriptorSetLayout layout) : base(vkContext)
+        uint maxSets, DescriptorSetLayout layout) : base(vkContext)
     {
         this.device = device;
         this.descriptorPoolContext = descriptorPoolContext;
-        this.descriptorsCount = descriptorsCount;
+        this.maxSets = maxSets;
         this.layout = layout;
 
         var descriptorFactory = descriptorPoolContext.DescriptorFactory ?? new VkDescriptorSetFactory();
 
-        using var sizes = descriptorFactory
-            .CreateSizes(descriptorPoolContext.Descriptors, descriptorsCount)
-            .ToFixedArray();
+        var sizes = descriptorFactory.CreateSizes(descriptorPoolContext.Descriptors);
 
-        var info = new DescriptorPoolCreateInfo
+        fixed (DescriptorPoolSize* p = sizes)
         {
-            SType = StructureType.DescriptorPoolCreateInfo,
-            PoolSizeCount = sizes.Length,
-            PPoolSizes = sizes.Data,
-            MaxSets = descriptorsCount
-        };
-
-        Context.Api.CreateDescriptorPool(device.WrappedDevice, in info, null, out var pool)
-            .TryThrow("Failed to create descriptor pool.");
-        
-        WrappedPool = pool;
+            var info = new DescriptorPoolCreateInfo
+            {
+                SType = StructureType.DescriptorPoolCreateInfo,
+                PoolSizeCount = (uint)sizes.Length,
+                PPoolSizes = p,
+                MaxSets = maxSets
+            };
+            
+            Context.Api.CreateDescriptorPool(device.WrappedDevice, in info, null, out var pool)
+                .TryThrow("Failed to create descriptor pool.");
+            
+            WrappedPool = pool;
+        }
         
         CreateSets();
     }
 
     private unsafe void CreateSets()
     {
-        var layouts = Enumerable.Repeat(layout, (int)descriptorsCount).ToArray();
+        var layouts = Enumerable.Repeat(layout, (int)maxSets).ToArray();
         
-        Sets = new DescriptorSet[descriptorsCount];
+        Sets = new DescriptorSet[maxSets];
 
         fixed (void* pSets = Sets, pLayouts = layouts)
         {
@@ -81,7 +83,7 @@ public class VkDescriptorPool : VkObject, IVkDescriptorPool
             {
                 SType = StructureType.DescriptorSetAllocateInfo,
                 DescriptorPool = WrappedPool,
-                DescriptorSetCount = descriptorsCount,
+                DescriptorSetCount = maxSets,
                 PSetLayouts = (DescriptorSetLayout*)pLayouts
             };
             
@@ -92,7 +94,7 @@ public class VkDescriptorPool : VkObject, IVkDescriptorPool
 
     public unsafe void UpdateSets()
     {
-        for (var i = 0; i < descriptorsCount; i++)
+        for (var i = 0; i < maxSets; i++)
         {
             var writeSets = descriptorPoolContext.DescriptorWriter.CreateWriteSets(Sets[i], i);
 
@@ -101,6 +103,21 @@ public class VkDescriptorPool : VkObject, IVkDescriptorPool
                 Context.Api.UpdateDescriptorSets(device.WrappedDevice, (uint)writeSets.Length, p, 0, null);
             }
         }
+    }
+
+    public unsafe void UpdateSet(int index, IVkDescriptorWriteToken writeToken)
+    {
+        var set = GetSet(index);
+        
+        var write = new WriteDescriptorSet
+        {
+            SType = StructureType.WriteDescriptorSet,
+            DstSet = set
+        };
+        
+        writeToken.PopulateWriteSet(ref write, index);
+        
+        Context.Api.UpdateDescriptorSets(device.WrappedDevice, 1, &write, 0, null);
     }
 
     public DescriptorSet GetSet(int index)

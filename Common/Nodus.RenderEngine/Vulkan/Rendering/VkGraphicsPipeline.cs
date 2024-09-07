@@ -1,3 +1,4 @@
+using Nodus.Common;
 using Nodus.Core.Extensions;
 using Nodus.RenderEngine.Common;
 using Nodus.RenderEngine.Vulkan.Convention;
@@ -19,21 +20,13 @@ public interface IVkGraphicsPipelineContext
     IVkDescriptorSetFactory? DescriptorFactory { get; }
 }
 
-public readonly struct VkGraphicsPipelineContext(
-    DynamicState[] dynamicStates, 
-    IEnumerable<IShaderDefinition> shaders, 
-    IVkRenderPass renderPass,
-    IVkRenderSupplier supplier,
-    IVkPipelineFactory? pipelineFactory = null,
-    IVkDescriptorSetFactory? descriptorFactory = null) : IVkGraphicsPipelineContext
-{
-    public DynamicState[] DynamicStates { get; } = dynamicStates;
-    public IEnumerable<IShaderDefinition> Shaders { get; } = shaders;
-    public IVkRenderSupplier Supplier { get; } = supplier;
-    public IVkRenderPass RenderPass { get; } = renderPass;
-    public IVkPipelineFactory? PipelineFactory { get; } = pipelineFactory;
-    public IVkDescriptorSetFactory? DescriptorFactory { get; } = descriptorFactory;
-}
+public record VkGraphicsPipelineContext(
+    DynamicState[] DynamicStates,
+    IEnumerable<IShaderDefinition> Shaders,
+    IVkRenderPass RenderPass,
+    IVkRenderSupplier Supplier,
+    IVkPipelineFactory? PipelineFactory = null,
+    IVkDescriptorSetFactory? DescriptorFactory = null) : IVkGraphicsPipelineContext;
 
 public interface IVkGraphicsPipeline : IVkPipeline
 {
@@ -50,21 +43,21 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
     public Pipeline WrappedPipeline { get; }
     public Viewport Viewport { get; private set; }
     public Rect2D Scissors { get; private set; }
-    public DescriptorSetLayout DescriptorSetLayout { get; }
+    public DescriptorSetLayout[] DescriptorSetLayouts { get; }
     
     protected IDictionary<ShaderSourceType, IVkShader> Shaders { get; }
 
-    private DescriptorSetLayout descriptorSetLayout;
     private readonly IVkLogicalDevice device;
     private readonly IVkGraphicsPipelineContext pipelineContext;
+    private readonly IVkDescriptorSetFactory descriptorFactory;
 
     public unsafe VkGraphicsPipeline(IVkContext vkContext, IVkLogicalDevice device, IVkGraphicsPipelineContext pipelineContext) : base(vkContext)
     {
         this.device = device;
         this.pipelineContext = pipelineContext;
 
-        var factory = pipelineContext.PipelineFactory ?? new VkPipelineFactory();
-        var descriptorFactory = pipelineContext.DescriptorFactory ?? new VkDescriptorSetFactory();
+        var factory = pipelineContext.PipelineFactory ?? VkPipelineFactory.DefaultPipelineFactory;
+        descriptorFactory = pipelineContext.DescriptorFactory ?? VkDescriptorSetFactory.DefaultDescriptorSetFactory;
         
         Shaders = pipelineContext.Shaders.Select(x => new
         {
@@ -105,53 +98,55 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
         
         Viewport = viewPort;
         Scissors = scissors;
-        
-        var colorBlendAttachment = new PipelineColorBlendAttachmentState
-        {
-            ColorWriteMask = ColorComponentFlags.RBit | ColorComponentFlags.GBit | ColorComponentFlags.BBit | ColorComponentFlags.ABit,
-            BlendEnable = Vk.False
-        };
-        
+
         var dynamicState = factory.CreateDynamicState((uint)pipelineContext.DynamicStates.Length, dynamicStates);
         var inputAssembly = factory.CreateInputAssembly();
         var viewPortState = factory.CreateViewport(&viewPort, &scissors);
         var rasterizer = factory.CreateRasterization();
         var multisampling = factory.CreateMultisampling();
+        var colorBlendAttachment = factory.CreateColorBlendAttachment();
         var colorBlend = factory.CreateColorBlend(&colorBlendAttachment);
         var depthStencil = factory.CreateDepthStencil();
         
         var bindings = descriptorFactory.CreateLayoutBindings();
-        var dscSetLayout = CreateDescriptorLayout(bindings);
-        
-        var layoutInfo = new PipelineLayoutCreateInfo
+        var dscSetLayouts = CreateDescriptorLayouts(bindings).ToArray();
+        var pushConstants = descriptorFactory.CreatePushConstants();
+
+        fixed (DescriptorSetLayout* pDesc = dscSetLayouts)
+        fixed (PushConstantRange* pConst = pushConstants)
         {
-            SType = StructureType.PipelineLayoutCreateInfo,
-            SetLayoutCount = 1,
-            PSetLayouts = &dscSetLayout
-        };
-
-        descriptorSetLayout = dscSetLayout;
+            var layoutInfo = new PipelineLayoutCreateInfo
+            {
+                SType = StructureType.PipelineLayoutCreateInfo,
+                SetLayoutCount = (uint)dscSetLayouts.Length,
+                PSetLayouts = pDesc,
+                PushConstantRangeCount = (uint)pushConstants.Length,
+                PPushConstantRanges = pConst
+            };
+            
+            Context.Api.CreatePipelineLayout(device.WrappedDevice, &layoutInfo, null, out var layout)
+                .TryThrow("Failed to create pipeline layout.");
+            
+            Layout = layout;
+        }
         
-        Context.Api.CreatePipelineLayout(device.WrappedDevice, &layoutInfo, null, out var layout)
-            .TryThrow("Failed to create pipeline layout.");
-
-        DescriptorSetLayout = descriptorSetLayout;
-
-        Layout = layout;
+        DescriptorSetLayouts = dscSetLayouts;
         
-        var vertexBinding = VertexUtility.GetVertexBindingDescription();
-        var vertexAttribs = VertexUtility.GetVertexAttributeDescriptions();
+        var vertexBindings = factory.CreateVertexInputDescriptions();
+        var vertexAttribs = factory.CreateVertexInputAttributeDescriptions();
 
-        fixed (void* pStages = stages, vertexAttributes = vertexAttribs)
+        fixed (VertexInputBindingDescription* pVertBindings = vertexBindings)
+        fixed (VertexInputAttributeDescription* pVertAttribs = vertexAttribs)
+        fixed (PipelineShaderStageCreateInfo* pStages = stages)
         {
-            var vertexInput = factory.CreateVertexInputState(1, &vertexBinding, 
-                (uint)vertexAttribs.Length, (VertexInputAttributeDescription*)vertexAttributes);
+            var vertexInput = factory.CreateVertexInputState((uint)vertexBindings.Length, pVertBindings, 
+                (uint)vertexAttribs.Length, pVertAttribs);
 
             var pipelineInfo = new GraphicsPipelineCreateInfo
             {
                 SType = StructureType.GraphicsPipelineCreateInfo,
                 StageCount = (uint)stages.Length,
-                PStages = (PipelineShaderStageCreateInfo*)pStages,
+                PStages = pStages,
                 PDynamicState = &dynamicState,
                 PVertexInputState = &vertexInput,
                 PInputAssemblyState = &inputAssembly,
@@ -176,24 +171,23 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
         stages.ForEach(x => SilkMarshal.Free((nint)x.PName));
     }
 
-    private unsafe DescriptorSetLayout CreateDescriptorLayout(DescriptorSetLayoutBinding[] bindings)
+    private unsafe IList<DescriptorSetLayout> CreateDescriptorLayouts(DescriptorSetLayoutBinding[] bindings)
     {
-        DescriptorSetLayout layout;
+        using var fixedBindings = bindings.ToFixedArray();
 
-        fixed (DescriptorSetLayoutBinding* p = bindings)
+        var createInfos = descriptorFactory.CreateDescriptorSetLayouts(fixedBindings);
+        var layouts = new List<DescriptorSetLayout>();
+
+        foreach (var info in createInfos)
         {
-            var createInfo = new DescriptorSetLayoutCreateInfo
-            {
-                SType = StructureType.DescriptorSetLayoutCreateInfo,
-                BindingCount = (uint)bindings.Length,
-                PBindings = p
-            };
-
-            Context.Api.CreateDescriptorSetLayout(device.WrappedDevice, in createInfo, null, &layout)
+            DescriptorSetLayout layout;
+            Context.Api.CreateDescriptorSetLayout(device.WrappedDevice, in info, null, &layout)
                 .TryThrow("Failed to create descriptor set layout.");
+            
+            layouts.Add(layout);
         }
-
-        return layout;
+        
+        return layouts;
     }
 
     public void UpdateViewport()
@@ -225,7 +219,7 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
             Shaders.Values.DisposeAll();
             Context.Api.DestroyPipeline(device.WrappedDevice, WrappedPipeline, null);
             Context.Api.DestroyPipelineLayout(device.WrappedDevice, Layout,  null);
-            Context.Api.DestroyDescriptorSetLayout(device.WrappedDevice, descriptorSetLayout, null);
+            DescriptorSetLayouts.ForEach(x => Context.Api.DestroyDescriptorSetLayout(device.WrappedDevice, x, null));
         }
         
         base.Dispose(disposing);

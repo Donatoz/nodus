@@ -13,4 +13,19 @@ public static class DeviceExtensions
                 : null
             : null;
     }
+    
+    public static Queue RequireGraphicsQueue(this IVkLogicalDevice device, VkQueueInfo info)
+    {
+        if (info.GraphicsFamily == null)
+        {
+            throw new Exception("Graphics family was not specified in the provided queue info.");
+        }
+
+        if (!device.Queues.TryGetValue(info.GraphicsFamily.Value, out var family))
+        {
+            throw new Exception("Graphics queue is not present on the device.");
+        }
+
+        return family;
+    }
 }

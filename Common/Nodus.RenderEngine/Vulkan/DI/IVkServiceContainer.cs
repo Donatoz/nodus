@@ -9,6 +9,8 @@ public interface IVkServiceContainer
 {
     IVkMemoryLessor MemoryLessor { get; }
     IVkDeviceContainer Devices { get; }
+    
+    // TODO: Add logger factory (Serilog)
 }
 
 public record VkServiceContainer : IVkServiceContainer

@@ -1,4 +1,5 @@
 using Nodus.Common;
+using Nodus.Core.Extensions;
 using Nodus.RenderEngine.Vulkan.Convention;
 using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Extensions;
@@ -15,7 +16,7 @@ public class VkComputePipeline : VkObject, IVkComputePipeline
 {
     public Pipeline WrappedPipeline { get; }
     public PipelineLayout Layout { get; }
-    public DescriptorSetLayout DescriptorSetLayout { get; private set; }
+    public DescriptorSetLayout[] DescriptorSetLayouts { get; private set; } = null!;
 
     private readonly IVkLogicalDevice device;
     private readonly IVkDescriptorSetFactory descriptorFactory;
@@ -65,7 +66,7 @@ public class VkComputePipeline : VkObject, IVkComputePipeline
         Context.Api.CreateDescriptorSetLayout(device.WrappedDevice, &setCreateInfo, null, out var setLayout)
             .TryThrow("Failed to create descriptor set layout.");
         
-        DescriptorSetLayout = setLayout;
+        DescriptorSetLayouts = [setLayout];
         
         var layoutInfo = new PipelineLayoutCreateInfo
         {
@@ -85,7 +86,7 @@ public class VkComputePipeline : VkObject, IVkComputePipeline
         {
             Context.Api.DestroyPipeline(device.WrappedDevice, WrappedPipeline, null);
             Context.Api.DestroyPipelineLayout(device.WrappedDevice, Layout, null);
-            Context.Api.DestroyDescriptorSetLayout(device.WrappedDevice, DescriptorSetLayout, null);
+            DescriptorSetLayouts.ForEach(x => Context.Api.DestroyDescriptorSetLayout(device.WrappedDevice, x, null));
         }
         
         base.Dispose(disposing);

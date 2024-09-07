@@ -34,7 +34,7 @@ public class VkRenderPass : VkObject, IVkRenderPass
     public unsafe VkRenderPass(IVkContext vkContext, IVkLogicalDevice device, IVkRenderPassContext context) : base(vkContext)
     {
         this.device = device;
-        var passFactory = context.Factory ?? new VkRenderPassFactory();
+        var passFactory = context.Factory ?? VkRenderPassFactory.DefaultRenderPassFactory;
         
         var attachments = passFactory.CreateAttachments(context.ColorFormat, context.DepthFormat);
         using var attachmentRefs = passFactory.CreateAttachmentReferences().ToFixedArray();

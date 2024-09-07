@@ -2,7 +2,7 @@
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
 
-namespace Nodus.RenderEngine.Vulkan;
+namespace Nodus.RenderEngine.Vulkan.Presentation;
 
 /// <summary>
 /// Represents a combination of the wrapped, unmanaged Vulkan surface (KHR) and its extension interface.

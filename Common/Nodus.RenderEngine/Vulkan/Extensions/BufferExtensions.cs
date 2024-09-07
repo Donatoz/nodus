@@ -22,7 +22,7 @@ public static class BufferExtensions
         }, context, queue, fence);
     }
     
-    public static unsafe void CmdCopyToImage(this IVkAllocatedBuffer<byte> allocatedBuffer, IVkContext context, CommandBuffer commandBuffer, IVkImage image, 
+    public static unsafe void CmdCopyToImage(this IVkBuffer buffer, IVkContext context, CommandBuffer commandBuffer, IVkImage image, 
         ImageAspectFlags aspectFlags = ImageAspectFlags.ColorBit)
     {
         var imageCopy = new BufferImageCopy
@@ -41,7 +41,7 @@ public static class BufferExtensions
             ImageExtent = image.Specification.Size
         };
         
-        context.Api.CmdCopyBufferToImage(commandBuffer, allocatedBuffer.WrappedBuffer, image.WrappedImage, ImageLayout.TransferDstOptimal, 1, &imageCopy);
+        context.Api.CmdCopyBufferToImage(commandBuffer, buffer.WrappedBuffer, image.WrappedImage, ImageLayout.TransferDstOptimal, 1, &imageCopy);
     }
 
     public static CommandBufferSubmitInfo CreateSubmitInfo(this CommandBuffer buffer)

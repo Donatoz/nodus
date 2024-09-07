@@ -15,6 +15,8 @@ public readonly struct AnonymousFactory<TOut> : IFactory<TOut>
     }
 
     public TOut Create() => factory.Invoke();
+    
+    public static implicit operator AnonymousFactory<TOut>(Func<TOut> factory) => new(factory);
 }
 
 public interface IFactory<in TIn, out TOut>

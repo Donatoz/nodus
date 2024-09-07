@@ -7,18 +7,22 @@ namespace Nodus.RenderEngine.Vulkan.Memory;
 
 public interface IVkBufferContext
 {
-    uint Size { get; }
+    ulong Size { get; }
     BufferUsageFlags Usage { get; }
     SharingMode SharingMode { get; }
     MemoryPropertyFlags MemoryProperties { get; }
+    
+    IVkMemoryLessor? Lessor { get; }
 }
 
-public readonly struct VkBufferContext(uint size, BufferUsageFlags usage, SharingMode sharingMode, MemoryPropertyFlags memoryProperties) : IVkBufferContext
+public readonly struct VkBufferContext(ulong size, BufferUsageFlags usage, SharingMode sharingMode, MemoryPropertyFlags memoryProperties, 
+    IVkMemoryLessor? lessor = null) : IVkBufferContext
 {
-    public uint Size { get; } = size;
+    public ulong Size { get; } = size;
     public BufferUsageFlags Usage { get; } = usage;
     public SharingMode SharingMode { get; } = sharingMode;
     public MemoryPropertyFlags MemoryProperties { get; } = memoryProperties;
+    public IVkMemoryLessor? Lessor { get; } = lessor;
 }
 
 /// <summary>
@@ -38,11 +42,6 @@ public interface IVkAllocatedBuffer<T> : IVkBuffer where T : unmanaged
     /// Allocate device memory for the buffer.
     /// </summary>
     void Allocate();
-
-    /// <summary>
-    /// Map the buffer to host memory.
-    /// </summary>
-    void MapToHost();
 
     /// <summary>
     /// Set the mapped data of the buffer to the specified data.
@@ -75,7 +74,7 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
         var createInfo = new BufferCreateInfo
         {
             SType = StructureType.BufferCreateInfo,
-            Size = (uint)(sizeof(T) * bufferContext.Size),
+            Size = (ulong)sizeof(T) * bufferContext.Size,
             Usage = bufferContext.Usage,
             SharingMode = bufferContext.SharingMode
         };
@@ -140,6 +139,16 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
             .TryThrow("Failed to map buffer memory.");
         
         mappedMemory = memory;
+    }
+
+    public void Unmap()
+    {
+        if (Memory == null)
+        {
+            throw new Exception("Failed to unmap buffer memory: buffer was not allocated.");
+        }
+        
+        Context.Api.UnmapMemory(device.WrappedDevice, Memory.Value);
     }
 
     public void SetMappedData(ReadOnlySpan<T> data)

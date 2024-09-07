@@ -1,4 +1,4 @@
-$shaderFiles = Get-ChildItem -Path .\* -Include *.vert, *.frag, *.comp, *.geom, *.tesc, *.tese
+$shaderFiles = Get-ChildItem -Path .\* -Recurse -Include *.vert, *.frag, *.comp, *.geom, *.tesc, *.tese
 $outputDir = "./compiled"
 
 if (-not(Test-Path $outputDir)) {
