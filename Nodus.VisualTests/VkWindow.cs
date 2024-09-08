@@ -273,7 +273,7 @@ public unsafe class VkWindow
         {
             memoryLessor!.AllocatedHeaps
                 .OfType<VkFixedMemoryHeap>()
-                .First(x => x.Meta.HeapId == MemoryGroups.ComputeStorageMemory)
+                .First(x => x.Meta.HeapId == MemoryGroups.ObjectBufferMemory)
                 .DebugMemory();
         }
 
@@ -293,42 +293,58 @@ public unsafe class VkWindow
 
     private void RenderGui()
     {
-        ImGui.Begin("Debug");
-        
-        ImGui.SeparatorText("Stats");
-        
-        ImGui.BeginGroup();
-        ImGui.Text($"FPS: {fps:0.00}");
-        ImGui.EndGroup();
-        
-        ImGui.SeparatorText("Memory");
-
-        ImGui.Text("Heaps");
-
-        if (ImGui.BeginTable("heaps", 3, ImGuiTableFlags.Borders))
+        if (ImGui.Begin("Debug"))
         {
-            ImGui.TableHeadersRow();
-            ImGui.TableSetColumnIndex(0);
-            ImGui.Text("Heap Id");
-            ImGui.TableSetColumnIndex(1);
-            ImGui.Text("Occupied");
-            ImGui.TableSetColumnIndex(2);
-            ImGui.Text("Fragmentation");
-            
-            for (var i = 0; i < memoryLessor!.AllocatedHeaps.Count; i++)
+
+            ImGui.SeparatorText("Stats");
+
+            ImGui.BeginGroup();
+            ImGui.Text($"FPS: {fps:0.00}");
+            ImGui.EndGroup();
+
+            ImGui.SeparatorText("Memory");
+
+            ImGui.Text("Heaps");
+
+            if (ImGui.BeginTable("heaps", 3, ImGuiTableFlags.Borders))
             {
-                ImGui.TableNextRow();
-                var heap = memoryLessor.AllocatedHeaps.ElementAt(i);
-                
+                ImGui.TableHeadersRow();
                 ImGui.TableSetColumnIndex(0);
-                ImGui.Text(heap.Meta.HeapId);
+                ImGui.Text("Heap Id");
                 ImGui.TableSetColumnIndex(1);
-                ImGui.TextUnformatted($"{(double)heap.GetOccupiedMemory() / heap.Meta.Size * 100 :0.00}%");
+                ImGui.Text("Occupied");
                 ImGui.TableSetColumnIndex(2);
-                ImGui.TextUnformatted($"{heap.GetCurrentFragmentation() * 100:0.00}%");
+                ImGui.Text("Fragmentation");
+
+                foreach (var heap in memoryLessor!.AllocatedHeaps)
+                {
+                    ImGui.TableNextRow();
+
+                    ImGui.TableSetColumnIndex(0);
+                    ImGui.Text(heap.Meta.HeapId);
+                    if (ImGui.Button($"Debug##{heap.Meta.HeapId}"))
+                    {
+                        (heap as VkFixedMemoryHeap)?.DebugMemory();
+                    }
+                    ImGui.SameLine();
+                    if (ImGui.Button($"Defrag##{heap.Meta.HeapId}"))
+                    {
+                        (heap as VkFixedMemoryHeap)?.Defragment();
+                    }
+                    
+                    ImGui.SetWindowFontScale(1.2f);
+                    ImGui.TableSetColumnIndex(1);
+                    ImGui.TextUnformatted($"{(double)heap.GetOccupiedMemory() / heap.Meta.Size * 100:0.00}%");
+                    
+                    ImGui.TableSetColumnIndex(2);
+                    ImGui.TextUnformatted($"{heap.GetCurrentFragmentation() * 100:0.00}%");
+                    ImGui.SetWindowFontScale(1);
+                }
+
+                ImGui.EndTable();
             }
             
-            ImGui.EndTable();
+            ImGui.End();
         }
     }
 
@@ -374,17 +390,16 @@ public unsafe class VkWindow
         if (input is not { Keyboards.Count: > 0, Mice.Count: > 0 }) return;
         
         var io = ImGui.GetIO();
-
-        var mouseState = input!.Mice[0].CaptureState();
         var keyboard = input.Keyboards[0];
+        var mouse = input.Mice[0];
 
-        io.MouseDown[0] = mouseState.IsButtonPressed(MouseButton.Left);
-        io.MouseDown[1] = mouseState.IsButtonPressed(MouseButton.Right);
-        io.MouseDown[2] = mouseState.IsButtonPressed(MouseButton.Middle);
+        io.MouseDown[0] = mouse.IsButtonPressed(MouseButton.Left);
+        io.MouseDown[1] = mouse.IsButtonPressed(MouseButton.Right);
+        io.MouseDown[2] = mouse.IsButtonPressed(MouseButton.Middle);
         
-        io.MousePos = new Vector2(mouseState.Position.X, mouseState.Position.Y);
+        io.MousePos = new Vector2(mouse.Position.X, mouse.Position.Y);
 
-        var wheel = mouseState.GetScrollWheels()[0];
+        var wheel = mouse.ScrollWheels[0];
         io.MouseWheel = wheel.Y;
         io.MouseWheelH = wheel.X;
     }

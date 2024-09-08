@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using Nodus.Core.Extensions;
+using Nodus.RenderEngine.Vulkan.Convention;
 using Nodus.RenderEngine.Vulkan.Extensions;
 using Nodus.RenderEngine.Vulkan.Meta;
 
@@ -26,7 +27,14 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
     private readonly object syncRoot;
     
     private readonly ConcurrentDictionary<ulong, Lease> leases;
+    
     private readonly SortedSet<VkMemoryRegion> freeRegions;
+    /// <summary>
+    /// A buffer that holds the latest array representation of the free regions set.
+    /// High-intensity workloads use this representation.
+    /// </summary>
+    private VkMemoryRegion[] freeRegionsBuffer = null!;
+
     private readonly Subject<IVkMemoryLease> leaseMutationSubject;
     private readonly IVkLogicalDevice device;
     private readonly IVkPhysicalDevice physicalDevice;
@@ -37,13 +45,18 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
     private VkMemory memory;
     private unsafe void* memoryPtr;
     private int mappedLeases;
-
+    
     public VkFixedMemoryHeap(IVkContext vkContext, IVkLogicalDevice device, IVkPhysicalDevice physicalDevice, IVkMemoryHeapInfo meta) : base(vkContext)
     {
         this.device = device;
         this.physicalDevice = physicalDevice;
         leases = new ConcurrentDictionary<ulong, Lease>();
-        freeRegions = new SortedSet<VkMemoryRegion>(Comparer<VkMemoryRegion>.Create((a, b) => a.Size.CompareTo(b.Size)));
+        
+        freeRegions = new SortedSet<VkMemoryRegion>(Comparer<VkMemoryRegion>.Create(
+            // Use region's offset as the comparison basis, as it less impact on the memory load.
+            // Frag-evaluation basically happens more frequently than memory leasing.
+            (a, b) => a.Offset.CompareTo(b.Offset))
+        );
         leaseMutationSubject = new Subject<IVkMemoryLease>();
         
         fragmentationAnalyzer = meta.FragmentationAnalyzer ?? new VkEntropicFragmentationAnalyzer();
@@ -56,8 +69,11 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
         memory = new VkMemory(Context, device, physicalDevice, Meta.MemoryProperties);
         AllocateMemory();
         AddDependency(memory);
+
+        var initialFreeRegion = new VkMemoryRegion(0, Meta.Size);
         
-        freeRegions.Add(new VkMemoryRegion(0, Meta.Size));
+        freeRegions.Add(initialFreeRegion);
+        UpdateFreeRegionsBuffer();
     }
 
     private void AllocateMemory()
@@ -105,6 +121,8 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
             {
                 freeRegions.Add(new VkMemoryRegion(annexedRegion.End + 1, bestRegion.region.Offset + bestRegion.region.Size - annexedRegion.End - 1));
             }
+
+            UpdateFreeRegionsBuffer();
         }
         
         var lease = new Lease(memory, annexedRegion, alignment, FreeLease, leaseMutationSubject, this);
@@ -151,17 +169,33 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
 
     private void MergeSubsequentRegions()
     {
-        // To perform subsequent merges, the memory regions must be ordered by their offsets.
-        var regions = freeRegions.OrderBy(x => x.Offset).ToArray();
+        if (freeRegions.Count <= 1) return;
         
-        for (var i = regions.Length - 1; i >= 1; i--)
+        var regions = freeRegionsBuffer;
+
+        var mergedRegions = new List<VkMemoryRegion>();
+        var current = regions[0];
+
+        for (var i = 1; i < regions.Length; i++)
         {
-            if (regions[i].Offset - regions[i - 1].End != 1) continue;
-            
-            freeRegions.Remove(regions[i]);
-            freeRegions.Remove(regions[i - 1]);
-            freeRegions.Add(new VkMemoryRegion(regions[i - 1].Offset, regions[i - 1].Size + regions[i].Size));
+            var next = regions[i];
+
+            if (next.Offset - current.End == 1)
+            {
+                current = new VkMemoryRegion(current.Offset, current.Size + next.Size);
+            }
+            else
+            {
+                mergedRegions.Add(current);
+                current = next;
+            }
         }
+        
+        mergedRegions.Add(current);
+        freeRegions.Clear();
+        mergedRegions.ForEach(x => freeRegions.Add(x));
+
+        UpdateFreeRegionsBuffer();
     }
 
     private void AnalyzeMemory()
@@ -207,6 +241,8 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
         {
             leases.Remove(lease.Region.Offset, out _);
             freeRegions.Add(lease.Region);
+            UpdateFreeRegionsBuffer();
+
             MergeSubsequentRegions();
             AnalyzeMemory();
 
@@ -219,7 +255,10 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
 
     private unsafe void RequestMemoryMapping()
     {
-        mappedLeases++;
+        lock (syncRoot)
+        {
+            mappedLeases++;
+        }
         
         if (memoryPtr != null) return;
         
@@ -231,13 +270,14 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
         memoryPtr = mappedMemory;
     }
 
-    private void UnmapLease(IVkMemoryLease lease)
+    private void UnmapLease()
     {
-        mappedLeases--;
-
-        if (mappedLeases == 0)
+        lock (syncRoot)
         {
-            UnmapMemory();
+            if (--mappedLeases == 0)
+            {
+                UnmapMemory();
+            }
         }
     }
 
@@ -258,7 +298,7 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
         Console.ResetColor();
         var startTime = DateTime.Now;
 #endif
-        
+
         var realignedLeaseRegions = defragmenter.Defragment(leases.Values.Select(x => (x.Region, x.Alignment)));
         
         // TODO: Optimization
@@ -283,6 +323,7 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
         {
             freeRegions.Clear();
             freeRegions.Add(new VkMemoryRegion(realignedLeaseRegions[^1].End + 1, Meta.Size - realignedLeaseRegions[^1].End));
+            UpdateFreeRegionsBuffer();
         }
         
 #if DEBUG
@@ -296,13 +337,28 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
     {
         lock (syncRoot)
         {
-            return fragmentationAnalyzer.EvaluateFragmentation(freeRegions, Meta.Size);
+            return fragmentationAnalyzer.EvaluateFragmentation(freeRegionsBuffer, Meta.Size);
         }
     }
     
     public ulong GetOccupiedMemory()
     {
-        return leases.Aggregate(0ul, (current, lease) => current + lease.Value.Region.Size);
+        lock (syncRoot)
+        {
+            var totalFreeSize = 0ul;
+
+            for (var i = 0; i < freeRegionsBuffer.Length; i++)
+            {
+                totalFreeSize += freeRegionsBuffer[i].Size;
+            }
+            
+            return Meta.Size - totalFreeSize;
+        }
+    }
+
+    private void UpdateFreeRegionsBuffer()
+    {
+        freeRegionsBuffer = freeRegions.ToArray();
     }
 
     protected override void Dispose(bool disposing)
@@ -400,7 +456,7 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
             }
             
             IsMapped = false;
-            heap.UnmapLease(this);
+            heap.UnmapLease();
         }
 
         public unsafe void SetMappedData(void* data, ulong size, ulong offset)

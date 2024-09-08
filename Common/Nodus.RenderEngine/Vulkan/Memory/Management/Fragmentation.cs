@@ -2,7 +2,7 @@ namespace Nodus.RenderEngine.Vulkan.Memory;
 
 public interface IVkFragmentationAnalyzer
 {
-    double EvaluateFragmentation(IEnumerable<VkMemoryRegion> regions, ulong memorySize);
+    double EvaluateFragmentation(IReadOnlyList<VkMemoryRegion> offsetOrderedRegions, ulong memorySize);
 }
 
 public interface IVkDefragmenter
@@ -27,21 +27,21 @@ public class VkEntropicFragmentationAnalyzer : IVkFragmentationAnalyzer
     /// <param name="entropyRatio">How much does entropy affect the fragmentation value?</param>
     /// <param name="maxEntropyRatio">Maximum entropy ratio achieved with the memory pressure.</param>
     /// <param name="entropyMemoryThreshold">Minimal occupied space ratio to shift the entropy weight.</param>
-    public VkEntropicFragmentationAnalyzer(double entropyRatio = 0.4, double maxEntropyRatio = 0.9, double entropyMemoryThreshold = 0.5)
+    public VkEntropicFragmentationAnalyzer(double entropyRatio = 0.4f, double maxEntropyRatio = 0.9, double entropyMemoryThreshold = 0.5)
     {
         this.entropyRatio = entropyRatio;
         this.maxEntropyRatio = maxEntropyRatio;
         this.entropyMemoryThreshold = entropyMemoryThreshold;
     }
     
-    public double EvaluateFragmentation(IEnumerable<VkMemoryRegion> regions, ulong memorySize)
+    public double EvaluateFragmentation(IReadOnlyList<VkMemoryRegion> offsetOrderedRegions, ulong memorySize)
     {
         var effectiveEntropyRatio = entropyRatio;
-        var orderedRegions = regions.OrderBy(region => region.Offset).ToArray();
+        var orderedRegions = offsetOrderedRegions;
         var cumulativeFrag = 0.0;
 
         // Calculate the cumulative free space of non-contiguous free regions.
-        for (var i = 0; i < orderedRegions.Length - 1; i++)
+        for (var i = 0; i < orderedRegions.Count - 1; i++)
         {
             if (orderedRegions[i + 1].Offset - orderedRegions[i].Offset != 1)
             {
@@ -49,7 +49,12 @@ public class VkEntropicFragmentationAnalyzer : IVkFragmentationAnalyzer
             }
         }
 
-        var totalFreeSize= orderedRegions.Sum(x => (double)x.Size);
+        var totalFreeSize = 0ul;
+
+        for (var i = 0; i < orderedRegions.Count; i++)
+        {
+            totalFreeSize += orderedRegions[i].Size;
+        }
 
         // Try to shift the entropy weight according to the memory threshold.
         // The entropy weight is being shifted if there is enough occupied memory.
@@ -58,17 +63,19 @@ public class VkEntropicFragmentationAnalyzer : IVkFragmentationAnalyzer
         
         // Calculate the total entropy value of the regions based on their size (using Shannon's entropy equation).
         var entropy = 0.0;
-        for (var i = 0; i < orderedRegions.Length; i++)
+        for (var i = 0; i < orderedRegions.Count; i++)
         {
             var p = orderedRegions[i].Size / totalFreeSize;
             entropy -= p * Math.Log2(p);
         }
 
         // Normalize the entropy value and cumulative size.
-        var normalizedEntropy = entropy > 0 ? entropy / Math.Log2(orderedRegions.Length) : 0;
+        var normalizedEntropy = entropy > 0 ? entropy / Math.Log2(orderedRegions.Count) : 0;
         cumulativeFrag /= memorySize;
 
-        return (1.0 - effectiveEntropyRatio) * cumulativeFrag + effectiveEntropyRatio * normalizedEntropy;
+        var result = (1.0 - effectiveEntropyRatio) * cumulativeFrag + effectiveEntropyRatio * normalizedEntropy;
+
+        return result;
     }
 }
 
@@ -77,7 +84,7 @@ public class VkEntropicFragmentationAnalyzer : IVkFragmentationAnalyzer
 // place a commonly-sized object.
 public class VkWeightedFragmentationAnalyzer : IVkFragmentationAnalyzer
 {
-    public double EvaluateFragmentation(IEnumerable<VkMemoryRegion> regions, ulong memorySize)
+    public double EvaluateFragmentation(IReadOnlyList<VkMemoryRegion> offsetOrderedRegions, ulong memorySize)
     {
         throw new NotImplementedException();
     }

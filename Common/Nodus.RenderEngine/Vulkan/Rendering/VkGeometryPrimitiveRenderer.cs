@@ -308,7 +308,11 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         var buffer = commandPool.GetBuffer(bufferIndex);
         
         RecordCommandsToBuffer(framebuffer, buffer);
-        explicitComponents.ForEach(x => x.SubmitCommands(buffer, framebuffer, frameIndex));
+
+        foreach (var component in explicitComponents)
+        {
+            component.SubmitCommands(buffer, framebuffer, frameIndex);
+        }
 
         commandPool.End(bufferIndex);
     }
@@ -355,7 +359,10 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         vkContext.Api.CmdDrawIndexed(commandBuffer, (uint)primitive!.Indices.Length, 1, 0, 0, 0);
         
-        inlineComponents.ForEach(x => x.SubmitCommands(commandBuffer, frameBuffer, frameIndex));
+        foreach (var component in inlineComponents)
+        {
+            component.SubmitCommands(commandBuffer, frameBuffer, frameIndex);
+        }
         
         vkContext.Api.CmdEndRenderPass(commandBuffer);
     }

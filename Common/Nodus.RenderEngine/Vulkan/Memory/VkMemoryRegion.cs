@@ -21,7 +21,7 @@ public readonly struct VkMemoryRegion(ulong offset, ulong size) : IEquatable<VkM
 
     public override int GetHashCode()
     {
-        return (int)Offset;
+        return Offset.GetHashCode();
     }
 
     public static bool operator ==(VkMemoryRegion left, VkMemoryRegion right)
