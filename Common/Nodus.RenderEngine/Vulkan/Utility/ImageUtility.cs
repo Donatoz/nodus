@@ -34,27 +34,16 @@ public static class ImageUtility
 
         throw new ArgumentException("Failed to find supported format.");
     }
-
-    public static void TransitionLayout(this IVkImage image, IVkContext context, CommandBuffer commandBuffer, ImageLayout layout, Queue? submitQueue = null)
-    {
-        var effectiveQueue = submitQueue ??
-                             context.ServiceContainer.Devices.LogicalDevice.RequireGraphicsQueue(
-                                 context.ServiceContainer.Devices.PhysicalDevice.QueueInfo);
-        
-        commandBuffer.BeginBuffer(context);
-        image.CmdTransitionLayout(commandBuffer, layout);
-        commandBuffer.SubmitBuffer(context, effectiveQueue);
-    }
     
     public static void UploadData(this IVkImage image, IVkContext context, CommandBuffer commandBuffer, Span<byte> data, ImageLayout? resultingLayout = null,
-        Queue? submitQueue = null, Fence? fence = null)
+        VkImageCopyRange uploadRange = default, Queue? submitQueue = null, Fence? fence = null)
     {
-        var device = context.ServiceContainer.Devices.LogicalDevice;
-        var physicalDevice = context.ServiceContainer.Devices.PhysicalDevice;
+        var device = context.RenderServices.Devices.LogicalDevice;
+        var physicalDevice = context.RenderServices.Devices.PhysicalDevice;
 
         context.Api.GetImageMemoryRequirements(device.WrappedDevice, image.WrappedImage, out var requirements);
 
-        using var lease = context.ServiceContainer.MemoryLessor.LeaseMemory(MemoryGroups.StagingStorageMemory,
+        using var lease = context.RenderServices.MemoryLessor.LeaseMemory(MemoryGroups.StagingStorageMemory,
             requirements.Size);
 
         using var stagingBuffer = new VkBoundBuffer(context, device,
@@ -69,7 +58,7 @@ public static class ImageUtility
             image.CmdTransitionLayout(commandBuffer, ImageLayout.TransferDstOptimal);
         }
         
-        stagingBuffer.CmdCopyToImage(context, commandBuffer, image);
+        stagingBuffer.CmdCopyToImage(context, commandBuffer, image, imageCopyRange: uploadRange);
         
         if (resultingLayout != null)
         {
@@ -81,8 +70,8 @@ public static class ImageUtility
 
     public static unsafe void SaveAsPng(this IVkImage image, IVkContext context, CommandBuffer commandBuffer, Vector2D<int> imageSize, string path, Queue? submitQueue = null)
     {
-        var device = context.ServiceContainer.Devices.LogicalDevice;
-        var physicalDevice = context.ServiceContainer.Devices.PhysicalDevice;
+        var device = context.RenderServices.Devices.LogicalDevice;
+        var physicalDevice = context.RenderServices.Devices.PhysicalDevice;
         var effectiveQueue = submitQueue ?? device.RequireGraphicsQueue(physicalDevice.QueueInfo);
         
         var imgSize = imageSize.X * imageSize.Y * 4;

@@ -12,7 +12,9 @@ using Nodus.RenderEngine.Vulkan.Primitives;
 using Nodus.RenderEngine.Vulkan.Sync;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
+using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 
 namespace Nodus.RenderEngine.Vulkan.Rendering;
 
@@ -25,7 +27,7 @@ public interface IVkGeometryPrimitiveRenderContext : IRenderContext
     IVkRenderPass RenderPass { get; }
     IVkGraphicsPipelineContext PipelineContext { get; }
     IScreenViewer Viewer { get; }
-    ITexture<Rgba32> Texture { get; }
+    ITexture<Rgba32>[] Textures { get; }
     IVkRenderPresenter Presenter { get; }
     IVkRenderSupplier Supplier { get; }
     
@@ -42,13 +44,14 @@ public record VkGeometryPrimitiveRenderContext(
     IVkRenderPass RenderPass,
     IScreenViewer Viewer,
     IVkGraphicsPipelineContext PipelineContext,
-    ITexture<Rgba32> Texture,
+    ITexture<Rgba32>[] Textures,
     IVkRenderPresenter Presenter,
     IVkRenderSupplier Supplier,
     int ConcurrentRenderedFrames,
     IVkRenderComponent[]? Components = null)
     : IVkGeometryPrimitiveRenderContext;
-public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
+
+public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
 {
     private IVkContext? vkContext;
     private IVkRenderPass? renderPass;
@@ -136,20 +139,21 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         var primitiveVertSize = (uint)(sizeof(Vertex) * primitive.Vertices.Length);
         var indicesSize = (uint)(sizeof(uint) * primitive.Indices.Length);
-        var uniformSize = (uint)sizeof(UniformBufferObject);
+        var uniformSize = (uint)sizeof(MvpUniformBufferObject);
         
-        // The uniform objects are necessary to be placed with an offset that is multiple of 64.
-        // Hence, we calculate the next nearest valid offset for each frame (since we render multiple images concurrently).
         var uniformBufferBaseOffset = primitiveVertSize + indicesSize;
         uniformBufferOffsets = new ulong[maxConcurrentFrames];
 
+        // The uniform buffer objects have to be aligned based on the physical device limits.
+        var uboAlignment = physicalDevice.Properties.Limits.MinUniformBufferOffsetAlignment;
+
         for (var i = 0; i < maxConcurrentFrames; i++)
         {
-            uniformBufferOffsets[i] = ((uniformBufferBaseOffset + uniformSize * (ulong)i) / 64 + 1) * 64;
+            uniformBufferOffsets[i] = (uniformBufferBaseOffset + uniformSize + uboAlignment - 1) & ~(uboAlignment - 1);
         }
 
         var primitiveBufferSize = uniformBufferOffsets.Max() + uniformSize;
-        primitiveMemory = vkContext.ServiceContainer.MemoryLessor.LeaseMemory(MemoryGroups.ObjectBufferMemory, primitiveBufferSize);
+        primitiveMemory = vkContext.RenderServices.MemoryLessor.LeaseMemory(MemoryGroups.ObjectBufferMemory, primitiveBufferSize);
 
         primitiveBuffer = new VkBoundBuffer(vkContext, device,
             new VkBoundBufferContext(primitiveBufferSize,
@@ -173,7 +177,7 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         // Create images
         
-        CreateTextureImages(primitiveContext.Texture);
+        CreateTextureImages(primitiveContext.Textures);
         
         // Populate descriptors
         
@@ -190,38 +194,65 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         isInitialized = true;
     }
 
-    private void CreateTextureImages(ITexture<Rgba32> texture)
+    private void CreateTextureImages(ITexture<Rgba32>[] textures)
     {
-        var textureSize = (uint)(texture.Width * texture.Height * 4);
-        var textureData = new byte[textureSize];
+        if (textures.Length == 0) return;
         
-        texture.ManagedImage.CopyPixelDataTo(textureData);
+        var cmdBuffer = commandPool!.GetBuffer(0);
+        
+        cmdBuffer.BeginBuffer(vkContext!);
 
+        var baseTexture = textures[0];
+        var textureSize = (uint)(textures[0].Width * textures[0].Height * 4);
+        
         using var stagingBuffer = new VkAllocatedBuffer<byte>(vkContext!, device!, physicalDevice!,
-            new VkBufferContext(textureSize, BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive,
+            new VkBufferContext(textureSize * (ulong)textures.Length, BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit));
         stagingBuffer.Allocate();
-        stagingBuffer.UpdateData(textureData);
         
         imageMemory = new VkMemory(vkContext!, device!, physicalDevice!, MemoryPropertyFlags.DeviceLocalBit);
         
         textureImage = new VkImage(vkContext!, device!, new VkImageSpecification(ImageType.Type2D,
-            new Extent3D((uint)texture.Width, (uint)texture.Height, 1), Format.R8G8B8A8Srgb,
-            ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit, ImageViewType.Type2D, deviceFeatures!.Value.Limits.MaxSamplerAnisotropy));
+            new Extent3D((uint)textures[0].Width, (uint)textures[0].Height, 1), Format.R8G8B8A8Srgb,
+            ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit, ImageViewType.Type2DArray, deviceFeatures!.Value.Limits.MaxSamplerAnisotropy,
+            ArrayLayers: (uint)textures.Length));
 
-        imageMemory.AllocateForImage(vkContext!, textureImage.WrappedImage, device!);
+        vkContext!.Api.GetImageMemoryRequirements(device!.WrappedDevice, textureImage.WrappedImage, out var requirements);
+        imageMemory.Allocate(requirements.Size, requirements.MemoryTypeBits);
+        
         textureImage.BindToMemory(imageMemory);
         textureImage.CreateSampler();
         textureImage.CreateView();
-
-        var cmdBuffer = commandPool!.GetBuffer(0);
-        
-        cmdBuffer.BeginBuffer(vkContext!);
         
         textureImage.CmdTransitionLayout(cmdBuffer, ImageLayout.TransferDstOptimal);
-        stagingBuffer.CmdCopyToImage(vkContext!, cmdBuffer, textureImage);
+
+        for (var i = 0u; i < textures.Length; i++)
+        {
+            var texture = textures[i];
+            var textureData = new byte[textureSize];
+
+            if (texture.Width != baseTexture.Width || texture.Height != baseTexture.Height)
+            {
+                using var clone = texture.ManagedImage.Clone();
+                clone.Mutate(x => x.Resize(new Size(baseTexture.Width, baseTexture.Height)));
+                clone.CopyPixelDataTo(textureData);
+            }
+            else
+            {
+                texture.ManagedImage.CopyPixelDataTo(textureData);
+            }
+
+            var offset = textureSize * i;
+            stagingBuffer.UpdateData(textureData, offset);
+        }
+
+        for (var i = 0u; i < textures.Length; i++)
+        {
+            stagingBuffer.CmdCopyToImage(vkContext!, cmdBuffer, textureImage, imageCopyRange: new VkImageCopyRange(i, 1, textureSize * i));
+        }
+
         textureImage.CmdTransitionLayout(cmdBuffer, ImageLayout.ShaderReadOnlyOptimal);
-        
+
         cmdBuffer.SubmitBuffer(vkContext!, device!.TryGetGraphicsQueue(queueInfo!.Value)!.Value);
     }
 
@@ -230,8 +261,8 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         var descriptorWriteTokens = new IVkDescriptorWriteToken[]
         {
             new VkUniformBufferWriteToken(0, 0, primitiveBuffer!.WrappedBuffer, uniformBufferOffsets!,
-                (uint)sizeof(UniformBufferObject)),
-            new VkImageSamplerWriteToken(1, 0, textureImage!.View!.Value, textureImage.Sampler!.Value)
+                (uint)sizeof(MvpUniformBufferObject)),
+            new VkImageSamplerWriteToken(1, 0, textureImage!.Views[0], textureImage.Sampler!.Value)
         };
         
         var descPoolContext = new VkDescriptorPoolContext(
@@ -257,16 +288,16 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         var fence = presenter!.GetPresentationFence((uint)frameIndex);
         fence.Await();
         
-        ExecuteRenderWorkerQueue();
         ValidateRenderState();
-        
+        ExecuteRenderWorkerQueue();
+
         if (!presenter.TryPrepareNewFrame(imageAvailabilitySemaphores![frameIndex], (uint)frameIndex))
         {
             return;
         }
         
         commandPool!.Reset(frameIndex, CommandBufferResetFlags.None);
-
+        
         var framebuffer = presenter.GetAvailableFramebuffer();
         
         UpdateUniforms();
@@ -311,13 +342,13 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
 
         foreach (var component in explicitComponents)
         {
-            component.SubmitCommands(buffer, framebuffer, frameIndex);
+            component.RecordCommands(buffer, framebuffer, frameIndex);
         }
 
         commandPool.End(bufferIndex);
     }
 
-    protected virtual void RecordCommandsToBuffer(Framebuffer frameBuffer, CommandBuffer commandBuffer)
+    private void RecordCommandsToBuffer(Framebuffer frameBuffer, CommandBuffer commandBuffer)
     {
         var clearValues = stackalloc[]
         {
@@ -361,17 +392,17 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         foreach (var component in inlineComponents)
         {
-            component.SubmitCommands(commandBuffer, frameBuffer, frameIndex);
+            component.RecordCommands(commandBuffer, frameBuffer, frameIndex);
         }
         
         vkContext.Api.CmdEndRenderPass(commandBuffer);
     }
 
-    protected void UpdateUniforms()
+    private void UpdateUniforms()
     {
         var ubo = CreateUbo();
         
-        primitiveBuffer!.UpdateData(new Span<UniformBufferObject>(ref ubo), uniformBufferOffsets![frameIndex]);
+        primitiveBuffer!.UpdateData(new Span<MvpUniformBufferObject>(ref ubo), uniformBufferOffsets![frameIndex]);
     }
     
     private void ExecuteRenderWorkerQueue()
@@ -400,9 +431,9 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         }
     }
 
-    private UniformBufferObject CreateUbo()
+    private MvpUniformBufferObject CreateUbo()
     {
-        return new UniformBufferObject
+        return new MvpUniformBufferObject
         {
             Model = Matrix4X4<float>.Identity,
             View = viewer!.GetView(),
@@ -415,7 +446,7 @@ public unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         throw new NotImplementedException();
     }
 
-    protected virtual void TryDiscardCurrentState()
+    private void TryDiscardCurrentState()
     {
         if (!isInitialized) return;
         

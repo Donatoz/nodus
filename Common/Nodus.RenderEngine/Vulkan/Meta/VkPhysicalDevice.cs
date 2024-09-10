@@ -14,6 +14,7 @@ public record VkPhysicalDeviceFeatures
 public record VkPhysicalDeviceLimits
 {
     public float MaxSamplerAnisotropy { get; init; }
+    public ulong MinUniformBufferOffsetAlignment { get; init; }
 }
 
 public record VkPhysicalDeviceProperties
@@ -77,7 +78,8 @@ public record VkPhysicalDevice : IVkPhysicalDevice
             DeviceName = SilkMarshal.PtrToString((nint)props.DeviceName) ?? string.Empty,
             Limits = new VkPhysicalDeviceLimits
             {
-                MaxSamplerAnisotropy = props.Limits.MaxSamplerAnisotropy
+                MaxSamplerAnisotropy = props.Limits.MaxSamplerAnisotropy,
+                MinUniformBufferOffsetAlignment = props.Limits.MinUniformBufferOffsetAlignment
             }
         };
     }

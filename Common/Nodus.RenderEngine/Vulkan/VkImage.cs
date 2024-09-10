@@ -38,21 +38,21 @@ public record VkImageSpecification(
 public interface IVkImage : IVkUnmanagedHook
 {
     Image WrappedImage { get; }
-    ImageView? View { get; }
+    IReadOnlyList<ImageView> Views { get; }
     IVkImageSpecification Specification { get; }
     Sampler? Sampler { get; }
     ImageLayout CurrentLayout { get; }
     
-    void CmdTransitionLayout(CommandBuffer buffer, ImageLayout newLayout);
+    void CmdTransitionLayout(CommandBuffer buffer, ImageLayout newLayout, uint arrayLevel = 0);
     void BindToMemory(IVkMemory memory);
-    void CreateView();
+    void CreateView(uint baseArrayLevel = 0, uint? layerCount = null);
     void CreateSampler();
 }
 
 public class VkImage : VkObject, IVkImage
 {
     public Image WrappedImage { get; }
-    public ImageView? View { get; private set; }
+    public IReadOnlyList<ImageView> Views => views;
     public Sampler? Sampler { get; private set; }
     public ImageLayout CurrentLayout { get; private set; }
 
@@ -60,6 +60,7 @@ public class VkImage : VkObject, IVkImage
 
     private readonly IVkLogicalDevice device;
     private readonly IVkImageTransitionResolver transitionResolver;
+    private readonly List<ImageView> views;
 
     public unsafe VkImage(IVkContext vkContext, IVkLogicalDevice device, IVkImageSpecification specification) : base(vkContext)
     {
@@ -67,6 +68,7 @@ public class VkImage : VkObject, IVkImage
         Specification = specification;
         transitionResolver = Specification.TransitionResolver ?? new VkImageTransitionResolver();
         CurrentLayout = ImageLayout.Undefined;
+        views = [];
 
         var createInfo = new ImageCreateInfo
         {
@@ -88,7 +90,7 @@ public class VkImage : VkObject, IVkImage
         WrappedImage = image;
     }
 
-    public unsafe void CreateView()
+    public unsafe void CreateView(uint baseArrayLevel = 0, uint? layerCount = null)
     {
         var createInfo = new ImageViewCreateInfo
         {
@@ -101,14 +103,14 @@ public class VkImage : VkObject, IVkImage
                 AspectMask = Specification.Aspect,
                 BaseMipLevel = 0,
                 LevelCount = Specification.MipLevels,
-                BaseArrayLayer = 0,
-                LayerCount = Specification.ArrayLayers
+                BaseArrayLayer = baseArrayLevel,
+                LayerCount = layerCount ?? Specification.ArrayLayers
             }
         };
 
         Context.Api.CreateImageView(device.WrappedDevice, &createInfo, null, out var view);
 
-        View = view;
+        views.Add(view);
     }
 
     // TODO: To separate vk type
@@ -139,7 +141,7 @@ public class VkImage : VkObject, IVkImage
         Sampler = sampler;
     }
 
-    public unsafe void CmdTransitionLayout(CommandBuffer buffer, ImageLayout newLayout)
+    public unsafe void CmdTransitionLayout(CommandBuffer buffer, ImageLayout newLayout, uint baseArrayLayer = 0)
     {
         var barrier = new ImageMemoryBarrier
         {
@@ -154,7 +156,7 @@ public class VkImage : VkObject, IVkImage
                 AspectMask = Specification.Aspect,
                 BaseMipLevel = 0,
                 LevelCount = Specification.MipLevels,
-                BaseArrayLayer = 0,
+                BaseArrayLayer = baseArrayLayer,
                 LayerCount = Specification.ArrayLayers
             }
         };
@@ -189,10 +191,7 @@ public class VkImage : VkObject, IVkImage
             {
                 Context.Api.DestroySampler(device.WrappedDevice, Sampler.Value, null);
             }
-            if (View != null)
-            {
-                Context.Api.DestroyImageView(device.WrappedDevice, View.Value, null);
-            }
+            views.ForEach(x => Context.Api.DestroyImageView(device.WrappedDevice, x, null));
             Context.Api.DestroyImage(device.WrappedDevice, WrappedImage, null);
         }
         

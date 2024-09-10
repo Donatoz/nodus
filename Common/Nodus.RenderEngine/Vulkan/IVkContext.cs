@@ -26,7 +26,7 @@ public interface IVkContext : IDisposable
     /// The extensions' information.
     /// </summary>
     VkExtensionsInfo ExtensionsInfo { get; }
-    IVkServiceContainer ServiceContainer { get; }
+    IVkRenderServiceContainer RenderServices { get; }
 
     /// <summary>
     /// A collection of bound Vulkan objects in a Vulkan context.
@@ -37,7 +37,7 @@ public interface IVkContext : IDisposable
     IReadOnlyCollection<VkObject> BoundObjects { get; }
 
     /// <summary>
-    /// Bind a VkObject to the VkContext and registers an action to be invoked when the VkContext is being destroyed.
+    /// Bind a VkObject to the VkContext and register an action to be invoked when the VkContext is being destroyed.
     /// </summary>
     /// <param name="vkObject">The VkObject to be bound.</param>
     /// <param name="onContextDestruction">The action to be invoked when the VkContext is being destroyed.</param>
@@ -57,12 +57,12 @@ public class VkContext : IVkContext
     public VkLayerInfo? LayerInfo { get; }
     public VkExtensionsInfo ExtensionsInfo { get; }
     public IReadOnlyCollection<VkObject> BoundObjects => boundObjects;
-    public IVkServiceContainer ServiceContainer => serviceContainer.NotNull("Vulkan service container was not initialized. " +
+    public IVkRenderServiceContainer RenderServices => serviceContainer.NotNull("Vulkan service container was not initialized. " +
                                                                             "Ensure that it was initialized right after the devices.");
 
     private readonly Subject<bool> lifetimeSubject;
     private readonly HashSet<VkObject> boundObjects;
-    private IVkServiceContainer? serviceContainer;
+    private IVkRenderServiceContainer? serviceContainer;
 
     public VkContext(Vk api, VkExtensionsInfo extensionsInfo, VkLayerInfo? layerInfo = null)
     {
@@ -74,7 +74,7 @@ public class VkContext : IVkContext
         LayerInfo = layerInfo;
     }
 
-    public void BindServices(IVkServiceContainer container)
+    public void BindServices(IVkRenderServiceContainer container)
     {
         serviceContainer = container;
     }

@@ -76,8 +76,8 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
 
         io.Fonts.AddFontDefault();
 
-        device = vkContext.ServiceContainer.Devices.LogicalDevice;
-        var physicalDevice = vkContext.ServiceContainer.Devices.PhysicalDevice;
+        device = vkContext.RenderServices.Devices.LogicalDevice;
+        var physicalDevice = vkContext.RenderServices.Devices.PhysicalDevice;
 
         commandPool = new VkCommandPool(vkContext, device, physicalDevice.QueueInfo, 1,
             CommandPoolCreateFlags.ResetCommandBufferBit);
@@ -107,7 +107,7 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
             new VkGraphicsPipelineContext([DynamicState.Viewport, DynamicState.Scissor], componentContext.Shaders,
                 renderPass, componentContext.RenderSupplier, CreatePipelineFactory(), CreateDescriptorsFactory()));
 
-        using var imgWriteToken = new VkImageSamplerWriteToken(1, 0, fontImage.View!.Value, fontImage.Sampler!.Value);
+        using var imgWriteToken = new VkImageSamplerWriteToken(1, 0, fontImage.Views[0], fontImage.Sampler!.Value);
 
         descriptorPool = new VkDescriptorPool(vkContext, device, new VkDescriptorPoolContext(
             [new VkDescriptorInfo { Type = DescriptorType.CombinedImageSampler, Count = 1000 }],
@@ -222,9 +222,9 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
     
     #endregion
     
-    #region Submit Logic
+    #region Record Logic
 
-    public unsafe void SubmitCommands(CommandBuffer commandBuffer, Framebuffer framebuffer, int frameIndex)
+    public unsafe void RecordCommands(CommandBuffer commandBuffer, Framebuffer framebuffer, int frameIndex)
     {
         ArgumentOutOfRangeException.ThrowIfGreaterThan(frameIndex, componentContext.ConcurrentRenderedFrames - 1);
         
@@ -379,7 +379,7 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
             out var requirements);
         
         drawMemories[frameIndex] =
-            Context.ServiceContainer.MemoryLessor.LeaseMemory(MemoryGroups.ObjectBufferMemory, requirements.Size, (uint)requirements.Alignment);
+            Context.RenderServices.MemoryLessor.LeaseMemory(MemoryGroups.ObjectBufferMemory, requirements.Size, (uint)requirements.Alignment);
         
         drawBuffers[frameIndex]!.BindToMemory(drawMemories[frameIndex]!);
         drawBuffers[frameIndex]!.MapToHost();

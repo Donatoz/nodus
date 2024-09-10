@@ -4,7 +4,7 @@ using Silk.NET.Maths;
 namespace Nodus.RenderEngine.Vulkan.Primitives;
 
 [StructLayout(LayoutKind.Sequential)]
-public struct UniformBufferObject
+public struct MvpUniformBufferObject
 {
     public Matrix4X4<float> Model;
     public Matrix4X4<float> View;

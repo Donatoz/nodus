@@ -28,10 +28,10 @@ public static class MemoryExtensions
 
     public static IVkMemoryLease LeaseImageMemory(this IVkImage image, IVkContext context, string memoryGroup = MemoryGroups.RgbaSampledImageMemory)
     {
-        var device = context.ServiceContainer.Devices.LogicalDevice;
+        var device = context.RenderServices.Devices.LogicalDevice;
         
         context.Api.GetImageMemoryRequirements(device.WrappedDevice, image.WrappedImage, out var requirements);
 
-        return context.ServiceContainer.MemoryLessor.LeaseMemory(memoryGroup, requirements.Size);
+        return context.RenderServices.MemoryLessor.LeaseMemory(memoryGroup, requirements.Size);
     }
 }

@@ -44,7 +44,7 @@ public class VkDetachedPresenter : IVkRenderPresenter
             inFlightFences[i] = new VkFence(context, device, true);
         }
 
-        frameBuffer = new VkFrameBuffer(context, device, renderPass, [bufferImage.View!.Value], renderSupplier);
+        frameBuffer = new VkFrameBuffer(context, device, renderPass, [bufferImage.Views[0]], renderSupplier);
     }
     
     public bool TryPrepareNewFrame(IVkSemaphore semaphore, uint frameIndex)

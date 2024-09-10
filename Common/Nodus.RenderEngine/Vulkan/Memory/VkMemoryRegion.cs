@@ -34,6 +34,12 @@ public readonly struct VkMemoryRegion(ulong offset, ulong size) : IEquatable<VkM
         return !(left == right);
     }
 
+    public bool Overlaps(VkMemoryRegion other)
+    {
+        return Offset >= other.Offset && Offset <= other.End 
+               || End >= other.Offset && End <= other.End;
+    }
+
     public override string ToString()
     {
         return $"[Offset={Offset}; End={End}; Size={Size}]";

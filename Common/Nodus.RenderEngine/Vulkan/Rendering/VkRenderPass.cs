@@ -46,17 +46,19 @@ public class VkRenderPass : VkObject, IVkRenderPass
 
         RenderPass pass;
 
-        fixed (void* pAttachments = attachments, pSubPasses = subPasses, pDeps = dependencies)
+        fixed (AttachmentDescription* pAttachments = attachments)
+        fixed (SubpassDescription* pSubPasses = subPasses)
+        fixed (SubpassDependency* pDeps = dependencies)
         {
             var renderPass = new RenderPassCreateInfo
             {
                 SType = StructureType.RenderPassCreateInfo,
                 AttachmentCount = (uint)attachments.Length,
-                PAttachments = (AttachmentDescription*)pAttachments,
+                PAttachments = pAttachments,
                 SubpassCount = (uint)subPasses.Length,
-                PSubpasses = (SubpassDescription*)pSubPasses,
+                PSubpasses = pSubPasses,
                 DependencyCount = (uint)dependencies.Length,
-                PDependencies = (SubpassDependency*)pDeps
+                PDependencies = pDeps
             };
             
             Context.Api.CreateRenderPass(device.WrappedDevice, in renderPass, null, &pass)

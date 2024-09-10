@@ -29,7 +29,7 @@ public interface IVkBoundBuffer : IVkBuffer
 
 public class VkBoundBuffer : VkObject, IVkBoundBuffer
 {
-    public Buffer WrappedBuffer { get; }
+    public Buffer WrappedBuffer { get; private set; }
     public ulong Size => bufferContext.Size;
 
     private readonly IVkLogicalDevice device;
@@ -37,14 +37,18 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
 
     private IVkMemoryLease? memory;
     private IDisposable? leaseMutationContract;
+    private ulong currentMemoryOffset;
     
-    private bool isMemoryBound;
-
-    public unsafe VkBoundBuffer(IVkContext vkContext, IVkLogicalDevice device, IVkBoundBufferContext bufferContext) : base(vkContext)
+    public VkBoundBuffer(IVkContext vkContext, IVkLogicalDevice device, IVkBoundBufferContext bufferContext) : base(vkContext)
     {
         this.device = device;
         this.bufferContext = bufferContext;
+        
+        WrappedBuffer = CreateBuffer();
+    }
 
+    private unsafe Buffer CreateBuffer()
+    {
         var createInfo = new BufferCreateInfo
         {
             SType = StructureType.BufferCreateInfo,
@@ -57,7 +61,7 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
         Context.Api.CreateBuffer(device.WrappedDevice, in createInfo, null, &buffer)
             .TryThrow($"Failed to create buffer: {createInfo.Usage}, Size={createInfo.Size}");
 
-        WrappedBuffer = buffer;
+        return buffer;
     }
 
     public void BindToMemory(IVkMemoryLease lease)
@@ -69,7 +73,7 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
         Context.Api.BindBufferMemory(device.WrappedDevice, WrappedBuffer, memory.WrappedMemory, memory.Region.Offset);
         leaseMutationContract = memory.MutationStream.Subscribe(OnLeaseMutation);
 
-        isMemoryBound = true;
+        currentMemoryOffset = lease.Region.Offset;
     }
 
     public unsafe void UpdateData<T>(Span<T> data, ulong offset) where T : unmanaged
@@ -113,14 +117,35 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
         
         memory!.Unmap();
     }
-    
+     
     private void OnLeaseMutation(IVkMemoryLease lease)
     {
-        if (isMemoryBound)
+        // TODO: Whenever lease is mutated - the buffer shall be re-created, notifying all dependant objects that consistently
+        // use the wrapped buffer handle. Those are, for instance, descriptor sets.
+
+        var leaseMemoryChanged = lease.WrappedMemory.Handle != memory!.WrappedMemory.Handle;
+        var leaseRegionChanged = lease.Region.Offset != currentMemoryOffset;
+        
+        if (leaseMemoryChanged || leaseRegionChanged)
         {
-            // TODO: Whenever lease is mutated - the buffer shall be re-created, notifying all dependant objects that consistently
-            // use the wrapped buffer handle. Those are, for instance, descriptor sets.
+            // The buffer has to be recreated between frames, and, most importantly, outside any command buffer.
+            // TODO: Extremely bad hack, must be executed in sync with a working queue of a render dispatcher.
+            Context.Api.DeviceWaitIdle(device.WrappedDevice);
+            
+            RecreateBuffer();
         }
+    }
+
+    private unsafe void RecreateBuffer()
+    {
+        var newBuffer = CreateBuffer();
+        
+        Context.Api.BindBufferMemory(device.WrappedDevice, newBuffer, memory!.WrappedMemory, memory.Region.Offset);
+        
+        Context.Api.DestroyBuffer(device.WrappedDevice, WrappedBuffer, null);
+
+        // TODO: External entities should be notified about the handle change
+        WrappedBuffer = newBuffer;
     }
 
     private void ValidateMemoryLeaseState()

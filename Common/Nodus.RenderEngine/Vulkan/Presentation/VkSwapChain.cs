@@ -117,7 +117,7 @@ public class VkSwapChain : VkObject, IVkSwapChain
         SwapChainContext = swapChainContext;
 
         commandPool = new VkCommandPool(vkContext, swapChainContext.LogicalDevice,
-            vkContext.ServiceContainer.Devices.PhysicalDevice.QueueInfo, 1,
+            vkContext.RenderServices.Devices.PhysicalDevice.QueueInfo, 1,
             CommandPoolCreateFlags.ResetCommandBufferBit);
 
         UpdateState();
@@ -182,7 +182,7 @@ public class VkSwapChain : VkObject, IVkSwapChain
     
     private void CreateDepthImage()
     {
-        var physicalDevice = Context.ServiceContainer.Devices.PhysicalDevice;
+        var physicalDevice = Context.RenderServices.Devices.PhysicalDevice;
         
         DepthFormat = ImageUtility.GetSupportedFormat(
             [Format.D32Sfloat, Format.D32SfloatS8Uint, Format.D24UnormS8Uint],
@@ -198,7 +198,7 @@ public class VkSwapChain : VkObject, IVkSwapChain
         {
             depthImageMemory?.Dispose();
             depthImageMemory =
-                Context.ServiceContainer.MemoryLessor.LeaseMemory(MemoryGroups.DepthImageMemory, requirements.Size, (uint)requirements.Alignment);
+                Context.RenderServices.MemoryLessor.LeaseMemory(MemoryGroups.DepthImageMemory, requirements.Size, (uint)requirements.Alignment);
             previousDepthMemorySize = depthImageMemory.Region.Size;
         }
         
@@ -211,7 +211,7 @@ public class VkSwapChain : VkObject, IVkSwapChain
         
         depthImage.CmdTransitionLayout(cmdBuffer, ImageLayout.DepthStencilAttachmentOptimal);
         
-        cmdBuffer.SubmitBuffer(Context, device.TryGetGraphicsQueue(Context.ServiceContainer.Devices.PhysicalDevice.QueueInfo)!.Value);
+        cmdBuffer.SubmitBuffer(Context, device.TryGetGraphicsQueue(Context.RenderServices.Devices.PhysicalDevice.QueueInfo)!.Value);
     }
 
     private unsafe void CreateImages(uint imageCount)
@@ -324,7 +324,7 @@ public class VkSwapChain : VkObject, IVkSwapChain
         
         for (var i = 0; i < Views.Length; i++)
         {
-            var attachments = stackalloc[] { Views[i], depthImage!.View!.Value };
+            var attachments = stackalloc[] { Views[i], depthImage!.Views[0] };
             var framebufferInfo = CreateFrameBufferInfo(pass, 2, attachments);
             Framebuffer buffer;
 

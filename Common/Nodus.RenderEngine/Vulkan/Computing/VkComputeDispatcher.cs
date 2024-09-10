@@ -67,7 +67,7 @@ public class VkComputeDispatcher : IDisposable
         
         storageBufferSize = (ulong)(sizeof(float) * inputData.Length);
         storageBufferMemory =
-            context.ServiceContainer.MemoryLessor.LeaseMemory(MemoryGroups.ComputeStorageMemory, storageBufferSize);
+            context.RenderServices.MemoryLessor.LeaseMemory(MemoryGroups.ComputeStorageMemory, storageBufferSize);
         
         storageBuffer = new VkBoundBuffer(context, device, new VkBoundBufferContext(
             storageBufferSize,

@@ -23,19 +23,19 @@ public static class BufferExtensions
     }
     
     public static unsafe void CmdCopyToImage(this IVkBuffer buffer, IVkContext context, CommandBuffer commandBuffer, IVkImage image, 
-        ImageAspectFlags aspectFlags = ImageAspectFlags.ColorBit)
+        ImageAspectFlags aspectFlags = ImageAspectFlags.ColorBit, VkImageCopyRange imageCopyRange = default)
     {
         var imageCopy = new BufferImageCopy
         {
-            BufferOffset = 0,
+            BufferOffset = imageCopyRange.BufferOffset,
             BufferRowLength = 0,
             BufferImageHeight = 0,
             ImageSubresource = new ImageSubresourceLayers
             {
                 AspectMask = aspectFlags,
                 MipLevel = 0,
-                BaseArrayLayer = 0,
-                LayerCount = image.Specification.ArrayLayers
+                BaseArrayLayer = imageCopyRange.BaseArrayLayer,
+                LayerCount = imageCopyRange.LayerCount ?? image.Specification.ArrayLayers
             },
             ImageOffset = new Offset3D(0, 0, 0),
             ImageExtent = image.Specification.Size

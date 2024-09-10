@@ -29,5 +29,5 @@ public interface IVkRenderComponent
     /// </summary>
     bool SubmitSeparately { get; }
     
-    void SubmitCommands(CommandBuffer buffer, Framebuffer framebuffer, int frameIndex);
+    void RecordCommands(CommandBuffer buffer, Framebuffer framebuffer, int frameIndex);
 }

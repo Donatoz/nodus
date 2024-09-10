@@ -5,6 +5,7 @@ public interface IVkHeapAnalyzer
     HeapAnalysisResult RequestAnalysis(IVkMemoryHeap heap);
 }
 
+[Flags]
 public enum HeapAnalysisResult
 {
     NoChangeRequired,

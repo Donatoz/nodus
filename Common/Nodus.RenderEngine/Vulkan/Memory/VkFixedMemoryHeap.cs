@@ -2,14 +2,15 @@ using System.Collections.Concurrent;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using Nodus.Core.Extensions;
-using Nodus.RenderEngine.Vulkan.Convention;
 using Nodus.RenderEngine.Vulkan.Extensions;
 using Nodus.RenderEngine.Vulkan.Meta;
+using Silk.NET.Vulkan;
+using Buffer = System.Buffer;
 
 namespace Nodus.RenderEngine.Vulkan.Memory;
 
 /// <summary>
-/// Represents a virtual memory heap that has a fixed memory allocation of a predefined type and size.
+/// Represents a virtual memory heap that operates on a fixed memory allocation of a predefined type and size.
 /// The heap tracks all memory leases and frees them all once disposed. Each memory lease represents a homogenous
 /// stream of bytes.
 /// </summary>
@@ -23,11 +24,9 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
     //     or if there is no valid memory region available for a lease, while there is enough free memory
     
     public IVkMemoryHeapInfo Meta { get; }
-
-    private readonly object syncRoot;
+    private bool IsHostVisible => Meta.MemoryProperties.HasFlag(MemoryPropertyFlags.HostVisibleBit);
     
     private readonly ConcurrentDictionary<ulong, Lease> leases;
-    
     private readonly SortedSet<VkMemoryRegion> freeRegions;
     /// <summary>
     /// A buffer that holds the latest array representation of the free regions set.
@@ -43,9 +42,11 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
     private readonly IVkHeapAnalyzer[] analyzers;
     
     private VkMemory memory;
-    private unsafe void* memoryPtr;
     private int mappedLeases;
+    private readonly object syncRoot;
     
+    private unsafe void* memoryPtr;
+
     public VkFixedMemoryHeap(IVkContext vkContext, IVkLogicalDevice device, IVkPhysicalDevice physicalDevice, IVkMemoryHeapInfo meta) : base(vkContext)
     {
         this.device = device;
@@ -205,14 +206,9 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
 
     private void InterpretAnalysisResult(HeapAnalysisResult result)
     {
-        switch (result)
+        if (result.HasFlag(HeapAnalysisResult.DefragmentationRequired))
         {
-            case HeapAnalysisResult.DefragmentationRequired:
-                Defragment();
-                break;
-            case HeapAnalysisResult.NoChangeRequired:
-            default:
-                return;
+            Context.RenderServices.Dispatcher.Enqueue(Defragment);
         }
     }
     
@@ -255,13 +251,25 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
 
     private unsafe void RequestMemoryMapping()
     {
-        lock (syncRoot)
-        {
-            mappedLeases++;
-        }
+        Interlocked.Increment(ref mappedLeases);
         
         if (memoryPtr != null) return;
         
+        MapMemory();
+    }
+
+    private void UnmapLease()
+    {
+        Interlocked.Decrement(ref mappedLeases);
+        
+        if (mappedLeases == 0)
+        {
+            UnmapMemory();
+        }
+    }
+    
+    private unsafe void MapMemory()
+    {
         void* mappedMemory;
         
         Context.Api.MapMemory(device.WrappedDevice, memory.WrappedMemory!.Value, 0, Meta.Size, 0, &mappedMemory)
@@ -270,23 +278,78 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
         memoryPtr = mappedMemory;
     }
 
-    private void UnmapLease()
-    {
-        lock (syncRoot)
-        {
-            if (--mappedLeases == 0)
-            {
-                UnmapMemory();
-            }
-        }
-    }
-
     private unsafe void UnmapMemory()
     {
         if (memoryPtr != null)
         {
             Context.Api.UnmapMemory(device.WrappedDevice, memory.WrappedMemory!.Value);
             memoryPtr = null;
+        }
+    }
+
+    private unsafe byte[] AcquireRegionData(VkMemoryRegion region)
+    {
+        if (region.End + 1 > Meta.Size)
+        {
+            throw new Exception("Failed to acquire region data: region out of memory range.");
+        }
+        
+        var result = new byte[region.Size];
+        
+        if (IsHostVisible)
+        {
+            if (memoryPtr == null)
+            {
+                MapMemory();
+            }
+            
+            for (var i = region.Offset; i < region.Size; i++)
+            {
+                result[i] = *((byte*)memoryPtr + i);
+            }
+
+            if (mappedLeases == 0)
+            {
+                UnmapMemory();
+            }
+        }
+        else
+        {
+            throw new NotImplementedException();
+        }
+
+        return result;
+    }
+
+    
+    private unsafe void TransferLeaseData(List<(IVkMemoryLease lease, ulong previousOffset, byte[] snapshot)> leaseStates)
+    {
+        if (IsHostVisible)
+        {
+            if (memoryPtr == null)
+            {
+                MapMemory();
+            }
+            
+            foreach (var l in leaseStates)
+            {
+                for (var i = 0ul; i < l.lease.Region.Size; i++)
+                {
+                    *((byte*)memoryPtr + l.lease.Region.Offset + i) = l.snapshot[i];
+                    *((byte*)memoryPtr + l.previousOffset + i) = 0;
+                }
+            
+                leaseMutationSubject.OnNext(l.lease);
+            }
+            
+            if (mappedLeases == 0)
+            {
+                UnmapMemory();
+            }
+        }
+        else
+        {
+            throw new NotImplementedException();
         }
     }
 
@@ -307,6 +370,8 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
         var leaseValues = leases.Values.ToArray();
         leases.Clear();
 
+        var movedLeases = new List<(IVkMemoryLease lease, ulong previousOffset, byte[] snapshot)>();
+
         leaseValues.ForEach(x =>
         {
             var previousOffset = x.Region.Offset;
@@ -315,10 +380,12 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
 
             if (previousOffset != x.Region.Offset)
             {
-                leaseMutationSubject.OnNext(x);
+                movedLeases.Add((x, previousOffset, AcquireRegionData(new VkMemoryRegion(previousOffset, x.Region.Size))));
             }
         });
-
+        
+        TransferLeaseData(movedLeases);
+        
         lock (syncRoot)
         {
             freeRegions.Clear();
@@ -463,14 +530,14 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
         {
             ValidateRequestedRegion(size, offset);
 
-            Buffer.MemoryCopy(data, (ulong*)((ulong)heap.memoryPtr + offset + Region.Offset), size, size);
+            Buffer.MemoryCopy(data, (byte*)((ulong)heap.memoryPtr + offset + Region.Offset), size, size);
         }
 
         public unsafe Span<T> GetMappedData<T>(ulong size, ulong offset) where T : unmanaged
         {
             ValidateRequestedRegion(size, offset);
             
-            return new Span<T>((ulong*)((ulong)heap.memoryPtr + offset + Region.Offset), (int)(size / (ulong)sizeof(T)));
+            return new Span<T>((T*)((byte)heap.memoryPtr + offset + Region.Offset), (int)(size / (ulong)sizeof(T)));
         }
 
         private void ValidateRequestedRegion(ulong size, ulong offset)

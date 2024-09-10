@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Globalization;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using DynamicData;
 using ImGuiNET;
@@ -137,13 +138,14 @@ public unsafe class VkWindow
             new VkMemoryHeapInfo(MemoryGroups.RgbaSampledImageMemory, 
                 1024 * 1024 * 64, 
                 MemoryPropertyFlags.DeviceLocalBit,
-                new ImageHeapMemoryAllocator(vkContext, logicalDevice, Format.R8G8B8A8Srgb, ImageUsageFlags.SampledBit)),
+                new ImageHeapMemoryAllocator(vkContext, logicalDevice, Format.R8G8B8A8Srgb, ImageUsageFlags.SampledBit | ImageUsageFlags.TransferDstBit)),
             
             new VkMemoryHeapInfo(MemoryGroups.DepthImageMemory, 
                 1024 * 1024 * 16, 
                 MemoryPropertyFlags.DeviceLocalBit,
                 new ImageHeapMemoryAllocator(vkContext, logicalDevice, depthFormat, ImageUsageFlags.DepthStencilAttachmentBit)),
             
+            // TODO: Object buffer memory shall be device local.
             new VkMemoryHeapInfo(MemoryGroups.ObjectBufferMemory, 
                 1024 * 1024 * 16,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
@@ -160,10 +162,11 @@ public unsafe class VkWindow
                 bufferHeapAllocator)
         ]);
 
-        var serviceContainer = new VkServiceContainer
+        var serviceContainer = new VkRenderServiceContainer
         {
             MemoryLessor = memoryLessor,
-            Devices = new VkDeviceContainer(logicalDevice, physicalDevice)
+            Devices = new VkDeviceContainer(logicalDevice, physicalDevice),
+            Dispatcher = renderer
         };
         
         vkContext.BindServices(serviceContainer);
@@ -171,7 +174,7 @@ public unsafe class VkWindow
         var queueInfo = VkQueueInfo.GetFromDevice(physicalDevice.WrappedDevice, vk, surface);
         var geoFactory = new AssimpGeometryFactory();
 
-        var cube = geoFactory.CreateFromFile(@"G:\CG\3D\Common\Cube.obj").First();
+        var cube = geoFactory.CreateFromFile(@"G:\CG\3D\Common\Sphere.obj").First();
 
         extensionProvider = new VkExtensionProvider(vkContext, instance, logicalDevice);
         
@@ -217,15 +220,19 @@ public unsafe class VkWindow
         var textureSource =
             new TextureFileSource(
                 @"C:\Users\Donatoz\RiderProjects\Nodus\Common\Nodus.RenderEngine.Avalonia\Assets\Textures\Noise_008.png");
+        var textureSource2 =
+            new TextureFileSource(
+                @"C:\Users\Donatoz\RiderProjects\Nodus\Common\Nodus.RenderEngine.Avalonia\Assets\Textures\Noise_077.png");
         var textureDataProvider = new TextureDataProvider<Rgba32>();
 
         using var texture = textureDataProvider.FetchTexture(textureSource);
+        using var texture2 = textureDataProvider.FetchTexture(textureSource2);
         //presenter = new VkImagePresenter(vkContext, logicalDevice, physicalDevice, rendererSupplier, renderPass, queueInfo, 2);
         presenter = new VkSwapchainRenderPresenter(vkContext, logicalDevice, swapChain, surface, renderPass, 2);
         
         renderer.Initialize(
             new VkGeometryPrimitiveRenderContext(cube, logicalDevice, physicalDevice, queueInfo, 
-                renderPass, viewer, pipelineContext, texture, presenter, renderSupplier, 2, 
+                renderPass, viewer, pipelineContext, [texture, texture2], presenter, renderSupplier, 2, 
                 [imGuiComponent]),
             new VkRenderBackendProvider(vkContext)
         );
@@ -251,38 +258,14 @@ public unsafe class VkWindow
             Exit();
         }
 
-        if (key == Key.F)
-        {
-            memoryLessor!.AllocatedHeaps
-                .OfType<VkFixedMemoryHeap>()
-                .First(x => x.Meta.HeapId == MemoryGroups.ComputeStorageMemory)
-                .Defragment();
-        }
-
         if (key == Key.L)
         {
-            debugLeases.Add(memoryLessor!.LeaseMemory(MemoryGroups.ComputeStorageMemory, (ulong)Random.Shared.Next(2000) * 1024));
+            debugLeases.Add(memoryLessor!.LeaseMemory(MemoryGroups.StagingStorageMemory, (ulong)Random.Shared.Next(2000) * 1024));
         }
 
         if (key == Key.O)
         {
             debugLeases[Random.Shared.Next(debugLeases.Count)].Dispose();
-        }
-
-        if (key == Key.F1)
-        {
-            memoryLessor!.AllocatedHeaps
-                .OfType<VkFixedMemoryHeap>()
-                .First(x => x.Meta.HeapId == MemoryGroups.ObjectBufferMemory)
-                .DebugMemory();
-        }
-
-        if (key == Key.T)
-        {
-            Console.WriteLine(memoryLessor!.AllocatedHeaps
-                .OfType<VkFixedMemoryHeap>()
-                .First(x => x.Meta.HeapId == MemoryGroups.ComputeStorageMemory)
-                .GetCurrentFragmentation());
         }
 
         if (key == Key.H)
@@ -310,11 +293,11 @@ public unsafe class VkWindow
             {
                 ImGui.TableHeadersRow();
                 ImGui.TableSetColumnIndex(0);
-                ImGui.Text("Heap Id");
+                ImGui.TextUnformatted("Heap Id");
                 ImGui.TableSetColumnIndex(1);
-                ImGui.Text("Occupied");
+                ImGui.TextUnformatted("Occupied (%)");
                 ImGui.TableSetColumnIndex(2);
-                ImGui.Text("Fragmentation");
+                ImGui.TextUnformatted("Fragmentation (%)");
 
                 foreach (var heap in memoryLessor!.AllocatedHeaps)
                 {
@@ -334,10 +317,10 @@ public unsafe class VkWindow
                     
                     ImGui.SetWindowFontScale(1.2f);
                     ImGui.TableSetColumnIndex(1);
-                    ImGui.TextUnformatted($"{(double)heap.GetOccupiedMemory() / heap.Meta.Size * 100:0.00}%");
+                    ImGui.TextUnformatted(((double)heap.GetOccupiedMemory() / heap.Meta.Size * 100).ToString("0.00"));
                     
                     ImGui.TableSetColumnIndex(2);
-                    ImGui.TextUnformatted($"{heap.GetCurrentFragmentation() * 100:0.00}%");
+                    ImGui.TextUnformatted((heap.GetCurrentFragmentation() * 100).ToString("0.00"));
                     ImGui.SetWindowFontScale(1);
                 }
 

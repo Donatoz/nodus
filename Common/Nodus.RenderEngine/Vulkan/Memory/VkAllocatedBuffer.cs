@@ -36,7 +36,8 @@ public interface IVkAllocatedBuffer<T> : IVkBuffer where T : unmanaged
     /// Map and update the data of the buffer with the specified data.
     /// </summary>
     /// <param name="data">The data to update.</param>
-    void UpdateData(ReadOnlySpan<T> data);
+    /// <param name="offset">Transfer starting offset.</param>
+    void UpdateData(ReadOnlySpan<T> data, ulong offset = 0);
 
     /// <summary>
     /// Allocate device memory for the buffer.
@@ -160,8 +161,8 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
     {
         return new Span<T>(mappedMemory, (int)length);
     }
-
-    public void UpdateData(ReadOnlySpan<T> data)
+    
+    public void UpdateData(ReadOnlySpan<T> data, ulong offset = 0)
     {
         if (Memory == null)
         {
@@ -170,7 +171,7 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
         
         void* bufferData;
         
-        Context.Api.MapMemory(device.WrappedDevice, Memory.Value, 0, bufferContext.Size, 0, &bufferData)
+        Context.Api.MapMemory(device.WrappedDevice, Memory.Value, offset, (ulong)(data.Length * sizeof(T)), 0, &bufferData)
             .TryThrow("Failed to map buffer memory.");
         
         data.CopyTo(new Span<T>(bufferData, data.Length));

@@ -20,6 +20,8 @@ public class VkMemory : VkObject, IVkMemory
     protected IVkPhysicalDevice PhysicalDevice { get; }
     protected MemoryPropertyFlags Properties { get; }
 
+    private ulong size;
+
     public VkMemory(IVkContext vkContext, IVkLogicalDevice device, IVkPhysicalDevice physicalDevice, MemoryPropertyFlags properties) : base(vkContext)
     {
         Device = device;
@@ -43,6 +45,7 @@ public class VkMemory : VkObject, IVkMemory
             .TryThrow("Failed to allocate device memory.");
         
         WrappedMemory = memory;
+        size = allocationSize;
     }
 
     public unsafe T[] GetSnapshot<T>(uint size) where T : unmanaged
@@ -62,6 +65,16 @@ public class VkMemory : VkObject, IVkMemory
         Context.Api.UnmapMemory(Device.WrappedDevice, WrappedMemory.Value);
 
         return result;
+    }
+
+    public IVkMemoryLease AsLease(ulong alignment = 1)
+    {
+        if (!this.IsAllocated())
+        {
+            throw new Exception("Failed to provide memory as a lease: memory was not allocated.");
+        }
+        
+        return new VkLeaseAdapter(Context, this, size, alignment);
     }
 
     private uint FindMemoryType(MemoryPropertyFlags properties, uint? typeFilter = null)
