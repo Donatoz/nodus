@@ -69,19 +69,19 @@ public class VkComputeDispatcher : IDisposable
         storageBufferMemory =
             context.RenderServices.MemoryLessor.LeaseMemory(MemoryGroups.ComputeStorageMemory, storageBufferSize);
         
-        storageBuffer = new VkBoundBuffer(context, device, new VkBoundBufferContext(
+        storageBuffer = new VkBoundBuffer(context, device, new VkBufferContext(
             storageBufferSize,
             BufferUsageFlags.VertexBufferBit | BufferUsageFlags.StorageBufferBit | BufferUsageFlags.TransferDstBit,
             SharingMode.Exclusive));
         outputBuffer = new VkAllocatedBuffer<float>(context, device, dispatcherContext.PhysicalDevice,
-            new VkBufferContext((uint)storageBufferSize, BufferUsageFlags.StorageBufferBit | BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive,
+            new VkAllocatedBufferContext((uint)storageBufferSize, BufferUsageFlags.StorageBufferBit | BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit));
         outputBuffer.Allocate();
         
         storageBuffer.BindToMemory(storageBufferMemory);
 
         using var stagingBuffer = new VkAllocatedBuffer<float>(context, device, dispatcherContext.PhysicalDevice,
-            new VkBufferContext((uint)storageBufferSize, BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive,
+            new VkAllocatedBufferContext((uint)storageBufferSize, BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit));
         stagingBuffer.Allocate();
         stagingBuffer.UpdateData(inputData);
@@ -149,7 +149,7 @@ public class VkComputeDispatcher : IDisposable
         inFlightFence.Await();
 
         using var stgBuffer = new VkAllocatedBuffer<float>(context, device, physicalDevice,
-            new VkBufferContext((uint)storageBufferSize, BufferUsageFlags.TransferDstBit, SharingMode.Exclusive,
+            new VkAllocatedBufferContext((uint)storageBufferSize, BufferUsageFlags.TransferDstBit, SharingMode.Exclusive,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit));
         
         stgBuffer.Allocate();

@@ -95,6 +95,7 @@ public class VkWeightedFragmentationAnalyzer : IVkFragmentationAnalyzer
 /// </summary>
 public class VkLinearDefragmenter : IVkDefragmenter
 {
+    // TODO: Implement partial defragmentation, so that critical memory regions would be pinned during defragmentation.
     public VkMemoryRegion[] Defragment(IEnumerable<(VkMemoryRegion region, ulong alignment)> regions)
     {
         var orderedRegions = regions.OrderBy(region => region.region.Offset).ToArray();

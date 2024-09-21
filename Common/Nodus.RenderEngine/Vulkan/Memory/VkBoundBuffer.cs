@@ -1,28 +1,13 @@
+using Nodus.Core.Extensions;
 using Nodus.RenderEngine.Vulkan.Extensions;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Nodus.RenderEngine.Vulkan.Memory;
 
-public interface IVkBoundBufferContext
-{
-    ulong Size { get; }
-    BufferUsageFlags Usage { get; }
-    SharingMode SharingMode { get; }
-}
-
-public readonly struct VkBoundBufferContext(ulong size, BufferUsageFlags usage, SharingMode sharingMode)
-    : IVkBoundBufferContext
-{
-    public ulong Size { get; } = size;
-    public BufferUsageFlags Usage { get; } = usage;
-    public SharingMode SharingMode { get; } = sharingMode;
-}
-
 public interface IVkBoundBuffer : IVkBuffer
 {
     void BindToMemory(IVkMemoryLease lease);
-    void UpdateData<T>(Span<T> data, ulong offset) where T : unmanaged;
     unsafe void SetMappedMemory(void* data, ulong size, ulong offset);
     Span<T> GetMappedMemory<T>(ulong size, ulong offset) where T : unmanaged;
 }
@@ -33,13 +18,13 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
     public ulong Size => bufferContext.Size;
 
     private readonly IVkLogicalDevice device;
-    private readonly IVkBoundBufferContext bufferContext;
+    private readonly IVkBufferContext bufferContext;
 
     private IVkMemoryLease? memory;
     private IDisposable? leaseMutationContract;
     private ulong currentMemoryOffset;
     
-    public VkBoundBuffer(IVkContext vkContext, IVkLogicalDevice device, IVkBoundBufferContext bufferContext) : base(vkContext)
+    public VkBoundBuffer(IVkContext vkContext, IVkLogicalDevice device, IVkBufferContext bufferContext) : base(vkContext)
     {
         this.device = device;
         this.bufferContext = bufferContext;
@@ -79,22 +64,30 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
     public unsafe void UpdateData<T>(Span<T> data, ulong offset) where T : unmanaged
     {
         ValidateAllocationState();
-        
-        memory!.MapToHost();
+
+        var memoryWasMapped = memory!.IsMapped;
+
+        if (!memoryWasMapped)
+        {
+            memory.MapToHost();
+        }
 
         fixed (void* p = data)
         {
-            memory.SetMappedData(p, (ulong)(data.Length * sizeof(T)), offset);
+            memory.SetMappedData((nint)p, (ulong)(data.Length * sizeof(T)), offset);
         }
-        
-        memory.Unmap();
+
+        if (!memoryWasMapped)
+        {
+            memory.Unmap();
+        }
     }
 
     public unsafe void SetMappedMemory(void* data, ulong size, ulong offset)
     {
         ValidateAllocationState();
         
-        memory!.SetMappedData(data, size, offset);
+        memory!.SetMappedData((nint)data, size, offset);
     }
 
     public Span<T> GetMappedMemory<T>(ulong size, ulong offset) where T : unmanaged
@@ -117,7 +110,7 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
         
         memory!.Unmap();
     }
-     
+    
     private void OnLeaseMutation(IVkMemoryLease lease)
     {
         // TODO: Whenever lease is mutated - the buffer shall be re-created, notifying all dependant objects that consistently
@@ -128,10 +121,9 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
         
         if (leaseMemoryChanged || leaseRegionChanged)
         {
+            bufferContext.BlockingFences?.ForEach(x => x.Await());
+
             // The buffer has to be recreated between frames, and, most importantly, outside any command buffer.
-            // TODO: Extremely bad hack, must be executed in sync with a working queue of a render dispatcher.
-            Context.Api.DeviceWaitIdle(device.WrappedDevice);
-            
             RecreateBuffer();
         }
     }

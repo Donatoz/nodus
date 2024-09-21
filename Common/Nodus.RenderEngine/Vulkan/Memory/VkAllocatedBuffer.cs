@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Nodus.RenderEngine.Vulkan.Extensions;
 using Nodus.RenderEngine.Vulkan.Meta;
 using Silk.NET.Vulkan;
@@ -5,25 +6,19 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Nodus.RenderEngine.Vulkan.Memory;
 
-public interface IVkBufferContext
+public interface IVkAllocatedBufferContext : IVkBufferContext
 {
-    ulong Size { get; }
-    BufferUsageFlags Usage { get; }
-    SharingMode SharingMode { get; }
     MemoryPropertyFlags MemoryProperties { get; }
     
     IVkMemoryLessor? Lessor { get; }
 }
 
-public readonly struct VkBufferContext(ulong size, BufferUsageFlags usage, SharingMode sharingMode, MemoryPropertyFlags memoryProperties, 
-    IVkMemoryLessor? lessor = null) : IVkBufferContext
-{
-    public ulong Size { get; } = size;
-    public BufferUsageFlags Usage { get; } = usage;
-    public SharingMode SharingMode { get; } = sharingMode;
-    public MemoryPropertyFlags MemoryProperties { get; } = memoryProperties;
-    public IVkMemoryLessor? Lessor { get; } = lessor;
-}
+public record VkAllocatedBufferContext(
+    ulong Size,
+    BufferUsageFlags Usage,
+    SharingMode SharingMode,
+    MemoryPropertyFlags MemoryProperties,
+    IVkMemoryLessor? Lessor = null) : VkBufferContext(Size, Usage, SharingMode), IVkAllocatedBufferContext;
 
 /// <summary>
 /// Represents a wrapped Vulkan buffer for storing data of a specific type. This buffer needs a dedicated memory to
@@ -33,7 +28,7 @@ public readonly struct VkBufferContext(ulong size, BufferUsageFlags usage, Shari
 public interface IVkAllocatedBuffer<T> : IVkBuffer where T : unmanaged
 {
     /// <summary>
-    /// Map and update the data of the buffer with the specified data.
+    /// Map and update the buffer with the specified data.
     /// </summary>
     /// <param name="data">The data to update.</param>
     /// <param name="offset">Transfer starting offset.</param>
@@ -62,11 +57,11 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
 
     private readonly IVkLogicalDevice device;
     private readonly IVkPhysicalDevice physicalDevice;
-    private readonly IVkBufferContext bufferContext;
+    private readonly IVkAllocatedBufferContext bufferContext;
     // TODO: Map this to T*
     private void* mappedMemory;
 
-    public VkAllocatedBuffer(IVkContext vkContext, IVkLogicalDevice device, IVkPhysicalDevice physicalDevice, IVkBufferContext bufferContext) : base(vkContext)
+    public VkAllocatedBuffer(IVkContext vkContext, IVkLogicalDevice device, IVkPhysicalDevice physicalDevice, IVkAllocatedBufferContext bufferContext) : base(vkContext)
     {
         this.device = device;
         this.physicalDevice = physicalDevice;
@@ -133,6 +128,11 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
         {
             throw new Exception("Failed to map buffer memory: buffer was not allocated.");
         }
+
+        if (!bufferContext.MemoryProperties.HasFlag(MemoryPropertyFlags.HostVisibleBit))
+        {
+            throw new Exception("Failed to map buffer memory: buffer memory isn't host-visible.");
+        }
         
         void* memory;
         
@@ -150,6 +150,16 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
         }
         
         Context.Api.UnmapMemory(device.WrappedDevice, Memory.Value);
+    }
+
+    public void UpdateData<TData>(Span<TData> data, ulong offset) where TData : unmanaged
+    {
+        if (typeof(TData) != typeof(T))
+        {
+            throw new Exception($"Invalid type for data input. Expected: {typeof(T)}, Actual: {typeof(TData)}");
+        }
+        
+        UpdateData((ReadOnlySpan<T>)MemoryMarshal.Cast<TData, T>(data), offset);
     }
 
     public void SetMappedData(ReadOnlySpan<T> data)

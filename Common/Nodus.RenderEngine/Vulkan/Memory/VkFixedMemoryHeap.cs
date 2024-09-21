@@ -526,18 +526,18 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
             heap.UnmapLease();
         }
 
-        public unsafe void SetMappedData(void* data, ulong size, ulong offset)
+        public unsafe void SetMappedData(nint dataPtr, ulong size, ulong offset)
         {
             ValidateRequestedRegion(size, offset);
 
-            Buffer.MemoryCopy(data, (byte*)((ulong)heap.memoryPtr + offset + Region.Offset), size, size);
+            Buffer.MemoryCopy((void*)dataPtr, (byte*)((ulong)heap.memoryPtr + offset + Region.Offset), size, size);
         }
 
         public unsafe Span<T> GetMappedData<T>(ulong size, ulong offset) where T : unmanaged
         {
             ValidateRequestedRegion(size, offset);
             
-            return new Span<T>((T*)((byte)heap.memoryPtr + offset + Region.Offset), (int)(size / (ulong)sizeof(T)));
+            return new Span<T>((T*)((ulong)heap.memoryPtr + offset + Region.Offset), (int)(size / (ulong)sizeof(T)));
         }
 
         private void ValidateRequestedRegion(ulong size, ulong offset)

@@ -9,6 +9,7 @@ public interface IVkSemaphore : IVkUnmanagedHook
     Semaphore WrappedSemaphore { get; }
 
     SemaphoreSubmitInfo CreateSubmitInfo(PipelineStageFlags2 stageMask);
+    void Signal(ulong value);
 }
 
 public class VkSemaphore : VkObject, IVkSemaphore
@@ -42,6 +43,18 @@ public class VkSemaphore : VkObject, IVkSemaphore
             DeviceIndex = 0,
             Value = 1
         };
+    }
+
+    public void Signal(ulong value)
+    {
+        var signalInfo = new SemaphoreSignalInfo
+        {
+            SType = StructureType.SemaphoreSignalInfo,
+            Semaphore = WrappedSemaphore,
+            Value = value
+        };
+
+        Context.Api.SignalSemaphore(device.WrappedDevice, signalInfo);
     }
 
     protected override unsafe void Dispose(bool disposing)

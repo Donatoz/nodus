@@ -213,7 +213,7 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
                 new PushConstantRange
                 {
                     Offset = 0,
-                    Size = sizeof(float) * 4,
+                    Size = sizeof(float) * 2 * 2, // sizeof(vec2) * 2
                     StageFlags = ShaderStageFlags.VertexBit
                 }
             ]
@@ -323,7 +323,6 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
         
         var vertexOffset = 0;
         var indexOffset = 0;
-
         
         for (var i = 0; i < drawData.CmdListsCount; i++)
         {
@@ -373,7 +372,7 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
         drawMemories[frameIndex]?.Dispose();
 
         drawBuffers[frameIndex] = new VkBoundBuffer(Context, device,
-            new VkBoundBufferContext(drawBufferSize, BufferUsageFlags.VertexBufferBit | BufferUsageFlags.IndexBufferBit, SharingMode.Exclusive));
+            new VkBufferContext(drawBufferSize, BufferUsageFlags.VertexBufferBit | BufferUsageFlags.IndexBufferBit, SharingMode.Exclusive));
 
         Context.Api.GetBufferMemoryRequirements(device.WrappedDevice, drawBuffers[frameIndex]!.WrappedBuffer,
             out var requirements);

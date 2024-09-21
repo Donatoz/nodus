@@ -28,16 +28,7 @@ public record VkGraphicsPipelineContext(
     IVkPipelineFactory? PipelineFactory = null,
     IVkDescriptorSetFactory? DescriptorFactory = null) : IVkGraphicsPipelineContext;
 
-public interface IVkGraphicsPipeline : IVkPipeline
-{
-    Viewport Viewport { get; }
-    Rect2D Scissors { get; }
-
-    void UpdateViewport();
-    void UpdateScissors();
-}
-
-public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
+public class VkGraphicsPipeline : VkObject, IVkPipeline
 {
     public PipelineLayout Layout { get; }
     public Pipeline WrappedPipeline { get; }
@@ -188,28 +179,6 @@ public class VkGraphicsPipeline : VkObject, IVkGraphicsPipeline
         }
         
         return layouts;
-    }
-
-    public void UpdateViewport()
-    {
-        Viewport = new Viewport
-        {
-            X = 0,
-            Y = 0,
-            Width = pipelineContext.Supplier.CurrentRenderExtent.Width,
-            Height = pipelineContext.Supplier.CurrentRenderExtent.Height,
-            MinDepth = 0,
-            MaxDepth = 1
-        };
-    }
-
-    public void UpdateScissors()
-    {
-        Scissors = new Rect2D
-        {
-            Offset = new Offset2D(0, 0),
-            Extent = pipelineContext.Supplier.CurrentRenderExtent
-        };
     }
 
     protected override unsafe void Dispose(bool disposing)

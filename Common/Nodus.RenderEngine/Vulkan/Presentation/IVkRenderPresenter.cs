@@ -1,8 +1,10 @@
 using System.Reactive.Subjects;
 using Nodus.Core.Extensions;
+using Nodus.RenderEngine.Vulkan.Extensions;
 using Nodus.RenderEngine.Vulkan.Rendering;
 using Nodus.RenderEngine.Vulkan.Sync;
 using Silk.NET.Vulkan;
+using Semaphore = Silk.NET.Vulkan.Semaphore;
 
 namespace Nodus.RenderEngine.Vulkan.Presentation;
 
@@ -10,10 +12,9 @@ public interface IVkRenderPresenter : IDisposable
 {
     IObservable<RenderPresentEvent> EventStream { get; }
 
-    bool TryPrepareNewFrame(IVkSemaphore semaphore, uint frameIndex);
-    void ProcessRenderQueue(Queue queue, IVkSemaphore semaphore, IVkFence fence);
+    IVkTask CreateFramePreparationTask(uint frameIndex);
+    IVkTask CreatePresentationTask(Queue queue);
     Framebuffer GetAvailableFramebuffer();
-    IVkFence GetPresentationFence(uint frameIndex);
 }
 
 public enum RenderPresentEvent
@@ -21,70 +22,90 @@ public enum RenderPresentEvent
     PresenterUpdated
 }
 
-public class VkSwapchainRenderPresenter : IVkRenderPresenter, IDisposable
+public class VkSwapchainRenderPresenter : IVkRenderPresenter
 {
     public IObservable<RenderPresentEvent> EventStream => eventSubject;
 
+    private readonly IVkContext context;
     private readonly IVkSwapChain swapChain;
     private readonly IVkKhrSurface surface;
     private readonly IVkRenderPass renderPass;
 
     private readonly Subject<RenderPresentEvent> eventSubject;
-    private readonly IVkFence[] inFlightFences;
+    private readonly IVkSemaphore[] framePrepareReadySemaphores;
 
     private uint currentImageIndex;
 
     public VkSwapchainRenderPresenter(IVkContext context, IVkLogicalDevice device, IVkSwapChain swapChain,
         IVkKhrSurface surface, IVkRenderPass renderPass, int maxConcurrentFrames)
     {
+        this.context = context;
         this.swapChain = swapChain;
         this.surface = surface;
         this.renderPass = renderPass;
 
         eventSubject = new Subject<RenderPresentEvent>();
-        inFlightFences = new IVkFence[maxConcurrentFrames];
 
-        for (var i = 0; i < maxConcurrentFrames; i++)
+        framePrepareReadySemaphores = new IVkSemaphore[maxConcurrentFrames];
+
+        for (var i = 0u; i < maxConcurrentFrames; i++)
         {
-            inFlightFences[i] = new VkFence(context, device, true);
+            framePrepareReadySemaphores[i] = new VkSemaphore(context, device);
         }
     }
-
-    public bool TryPrepareNewFrame(IVkSemaphore semaphore, uint frameIndex)
+    
+    public IVkTask CreateFramePreparationTask(uint frameIndex)
     {
-        var acquireResult = swapChain.AcquireNextImage(out var imgIndex, semaphore);
+        return new VkTask(PipelineStageFlags.ColorAttachmentOutputBit, (sm, st) => PrepareNewFrameImpl(sm, st, frameIndex))
+        {
+            SignalSemaphore = framePrepareReadySemaphores[frameIndex]
+        };
+    }
+
+    private VkTaskResult PrepareNewFrameImpl(Semaphore[]? waitSemaphores, PipelineStageFlags[]? _, uint frameIndex)
+    {
+        waitSemaphores?.AwaitAll(context);
+        
+        var acquireResult = swapChain.AcquireNextImage(out var imgIndex, framePrepareReadySemaphores[frameIndex]);
         
         if (acquireResult == Result.ErrorOutOfDateKhr)
         {
-            RecreateSwapChain(frameIndex);
-            return false;
+            RecreateSwapChain();
+            return VkTaskResult.Failure;
         }
         if (acquireResult != Result.Success && acquireResult != Result.SuboptimalKhr)
         {
             throw new Exception("Failed to acquire next swapchain image.");
         }
-
+        
         currentImageIndex = imgIndex;
-        return true;
+        return VkTaskResult.Success;
     }
-
-    public unsafe void ProcessRenderQueue(Queue queue, IVkSemaphore semaphore, IVkFence fence)
+    
+    public unsafe IVkTask CreatePresentationTask(Queue queue)
     {
-        var swapChainKhr = swapChain.WrappedSwapChain;
-        var signalSemaphore = semaphore.WrappedSemaphore;
-        var imgIndex = currentImageIndex;
-
-        var presentInfo = new PresentInfoKHR
+        return new VkTask(PipelineStageFlags.None, (sm, _) =>
         {
-            SType = StructureType.PresentInfoKhr,
-            WaitSemaphoreCount = 1,
-            PWaitSemaphores = &signalSemaphore,
-            SwapchainCount = 1,
-            PSwapchains = &swapChainKhr,
-            PImageIndices = &imgIndex
-        };
+            var swapChainKhr = swapChain.WrappedSwapChain;
+            var imgIndex = currentImageIndex;
 
-        swapChain.SwapChainExtension.QueuePresent(queue, in presentInfo);
+            fixed (Semaphore* pWaitSemaphores = sm)
+            {
+                var presentInfo = new PresentInfoKHR
+                {
+                    SType = StructureType.PresentInfoKhr,
+                    WaitSemaphoreCount = (uint)(sm?.Length ?? 0),
+                    PWaitSemaphores = pWaitSemaphores,
+                    SwapchainCount = 1,
+                    PSwapchains = &swapChainKhr,
+                    PImageIndices = &imgIndex
+                };
+
+                swapChain.SwapChainExtension.QueuePresent(queue, in presentInfo);
+            }
+
+            return VkTaskResult.Success;
+        });
     }
 
     public Framebuffer GetAvailableFramebuffer()
@@ -97,22 +118,8 @@ public class VkSwapchainRenderPresenter : IVkRenderPresenter, IDisposable
         return swapChain.FrameBuffers![currentImageIndex];
     }
 
-    public IVkFence GetPresentationFence(uint frameIndex)
+    private void RecreateSwapChain()
     {
-        if (frameIndex >= inFlightFences.Length)
-        {
-            throw new ArgumentOutOfRangeException(nameof(frameIndex));
-        }
-        
-        return inFlightFences[frameIndex];
-    }
-
-    private void RecreateSwapChain(uint frameIndex)
-    {
-        inFlightFences
-            .Where(x => x != inFlightFences[frameIndex])
-            .ForEach(x => x.Await());
-        
         swapChain.DiscardCurrentState();
         surface.Update();
         swapChain.RecreateState();
@@ -123,7 +130,7 @@ public class VkSwapchainRenderPresenter : IVkRenderPresenter, IDisposable
 
     public void Dispose()
     {
-        inFlightFences.DisposeAll();
         eventSubject.Dispose();
+        framePrepareReadySemaphores.DisposeAll();
     }
 }

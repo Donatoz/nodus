@@ -25,7 +25,7 @@ public interface IVkGeometryPrimitiveRenderContext : IRenderContext
     IVkPhysicalDevice PhysicalDevice { get; }
     VkQueueInfo QueueInfo { get; }
     IVkRenderPass RenderPass { get; }
-    IVkGraphicsPipelineContext PipelineContext { get; }
+    IVkMaterialInstance Material { get; }
     IScreenViewer Viewer { get; }
     ITexture<Rgba32>[] Textures { get; }
     IVkRenderPresenter Presenter { get; }
@@ -43,7 +43,7 @@ public record VkGeometryPrimitiveRenderContext(
     VkQueueInfo QueueInfo,
     IVkRenderPass RenderPass,
     IScreenViewer Viewer,
-    IVkGraphicsPipelineContext PipelineContext,
+    IVkMaterialInstance Material,
     ITexture<Rgba32>[] Textures,
     IVkRenderPresenter Presenter,
     IVkRenderSupplier Supplier,
@@ -63,11 +63,12 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
     
     private IVkCommandPool? commandPool;
     private IVkCommandPool? transientPool;
-    private IVkGraphicsPipeline? pipeline;
+    private IVkPipeline? pipeline;
     private VkQueueInfo? queueInfo;
     private IVkPhysicalDevice? physicalDevice;
     private PhysicalDeviceProperties? deviceFeatures;
     private IVkDescriptorPool? descriptorPool;
+    private IVkMaterialInstance? material;
 
     private IVkMemoryLease? primitiveMemory;
     private IVkBoundBuffer? primitiveBuffer;
@@ -75,26 +76,27 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
     private IVkMemory? imageMemory;
     private IVkImage? textureImage;
 
-    private IVkSemaphore[]? imageAvailabilitySemaphores;
     private IVkSemaphore[]? renderFinishedSemaphores;
+    private IVkFence[]? inFlightFences;
 
     private bool isInitialized;
     private int maxConcurrentFrames;
     private int frameIndex;
     private ulong[]? uniformBufferOffsets;
+    private ulong[]? materialUniformOffsets;
+    private uint baseUniformSize;
 
     private readonly ConcurrentQueue<Action> workerQueue;
     
-    private readonly SortedSet<IVkRenderComponent> inlineComponents;
-    private readonly SortedSet<IVkRenderComponent> explicitComponents;
+    private IVkRenderComponent[] inlineComponents;
+    private IVkRenderComponent[] explicitComponents;
 
     #region Initialization
     
     public VkGeometryPrimitiveRenderer()
     {
         workerQueue = new ConcurrentQueue<Action>();
-        inlineComponents = new SortedSet<IVkRenderComponent>(Comparer<IVkRenderComponent>.Create((a, b) => a.Priority.CompareTo(b.Priority)));
-        explicitComponents = new SortedSet<IVkRenderComponent>(Comparer<IVkRenderComponent>.Create((a, b) => a.Priority.CompareTo(b.Priority)));
+        inlineComponents = explicitComponents = [];
     }
 
     public void Initialize(IRenderContext context, IRenderBackendProvider backendProvider)
@@ -116,17 +118,10 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         deviceFeatures = vkContext.Api.GetPhysicalDeviceProperties(physicalDevice.WrappedDevice);
         presenter = primitiveContext.Presenter;
         supplier = primitiveContext.Supplier;
+        material = primitiveContext.Material;
         
         // Create pipeline
-        pipeline = new VkGraphicsPipeline(vkContext, device, primitiveContext.PipelineContext);
-        presenter.EventStream.Subscribe(x =>
-        {
-            if (x == RenderPresentEvent.PresenterUpdated)
-            {
-                pipeline.UpdateViewport();
-                pipeline.UpdateScissors();
-            }
-        });
+        pipeline = material.Parent.CreatePipeline(renderPass);
         
         // Create pools
         commandPool = new VkCommandPool(vkContext, device, queueInfo.Value, (uint)maxConcurrentFrames, CommandPoolCreateFlags.ResetCommandBufferBit);
@@ -135,44 +130,59 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         // Allocate memory & buffers
 
         // Primitive buffer layout:
-        // Primitive Vertices <---> Primitive Indices <---> Minimally each 64 bytes: Uniform Buffers
+        // Primitive Vertices <---> Primitive Indices <---> Uniform Buffers
         
         var primitiveVertSize = (uint)(sizeof(Vertex) * primitive.Vertices.Length);
         var indicesSize = (uint)(sizeof(uint) * primitive.Indices.Length);
-        var uniformSize = (uint)sizeof(MvpUniformBufferObject);
+        baseUniformSize = (uint)sizeof(MvpUniformBufferObject);
         
         var uniformBufferBaseOffset = primitiveVertSize + indicesSize;
         uniformBufferOffsets = new ulong[maxConcurrentFrames];
+        materialUniformOffsets = new ulong[maxConcurrentFrames];
 
         // The uniform buffer objects have to be aligned based on the physical device limits.
         var uboAlignment = physicalDevice.Properties.Limits.MinUniformBufferOffsetAlignment;
 
-        for (var i = 0; i < maxConcurrentFrames; i++)
+        for (var i = 0ul; i < (ulong)maxConcurrentFrames; i++)
         {
-            uniformBufferOffsets[i] = (uniformBufferBaseOffset + uniformSize + uboAlignment - 1) & ~(uboAlignment - 1);
+            uniformBufferOffsets[i] = (uniformBufferBaseOffset + baseUniformSize * i + uboAlignment - 1) & ~(uboAlignment - 1);
         }
 
-        var primitiveBufferSize = uniformBufferOffsets.Max() + uniformSize;
+        var lastUniformOffset = uniformBufferOffsets[^1];
+
+        for (var i = 0ul; i < (ulong)maxConcurrentFrames; i++)
+        {
+            materialUniformOffsets[i] = (lastUniformOffset + baseUniformSize 
+                                                           + material.Parent.MaximumUniformSize * i 
+                                                           + uboAlignment - 1)
+                                        & ~(uboAlignment - 1);
+        }
+
+        var primitiveBufferSize = uniformBufferOffsets.Max()
+                                  + baseUniformSize * (ulong)maxConcurrentFrames 
+                                  + material.Parent.MaximumUniformSize * (ulong)maxConcurrentFrames;
         primitiveMemory = vkContext.RenderServices.MemoryLessor.LeaseMemory(MemoryGroups.ObjectBufferMemory, primitiveBufferSize);
 
         primitiveBuffer = new VkBoundBuffer(vkContext, device,
-            new VkBoundBufferContext(primitiveBufferSize,
+            new VkBufferContext(primitiveBufferSize,
                 BufferUsageFlags.VertexBufferBit | BufferUsageFlags.IndexBufferBit | BufferUsageFlags.UniformBufferBit, 
                 SharingMode.Exclusive));
         
         primitiveBuffer.BindToMemory(primitiveMemory);
+        // Reduce mapping overhead
+        primitiveBuffer.MapToHost();
         
         primitiveBuffer.UpdateData(primitive.Vertices.AsSpan(), 0);
         primitiveBuffer.UpdateData(primitive.Indices.AsSpan(), primitiveVertSize);
         
         // Create sync objects
-        imageAvailabilitySemaphores = new IVkSemaphore[maxConcurrentFrames];
         renderFinishedSemaphores = new IVkSemaphore[maxConcurrentFrames];
+        inFlightFences = new IVkFence[maxConcurrentFrames];
         
         for (var i = 0; i < maxConcurrentFrames; i++)
         {
-            imageAvailabilitySemaphores[i] = new VkSemaphore(vkContext, device);
             renderFinishedSemaphores[i] = new VkSemaphore(vkContext, device);
+            inFlightFences[i] = new VkFence(vkContext, device, true);
         }
         
         // Create images
@@ -189,7 +199,8 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         descriptorPool!.AddDependency(device);
         descriptorPool.AddDependency(pipeline);
 
-        primitiveContext.Components?.ForEach(x => (x.SubmitSeparately ? explicitComponents : inlineComponents).Add(x));
+        inlineComponents = primitiveContext.Components?.Where(x => !x.SubmitSeparately).ToArray() ?? [];
+        explicitComponents = primitiveContext.Components?.Where(x => x.SubmitSeparately).ToArray() ?? [];
         
         isInitialized = true;
     }
@@ -203,10 +214,11 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         cmdBuffer.BeginBuffer(vkContext!);
 
         var baseTexture = textures[0];
+        // Take the first texture as a dimension basis
         var textureSize = (uint)(textures[0].Width * textures[0].Height * 4);
         
         using var stagingBuffer = new VkAllocatedBuffer<byte>(vkContext!, device!, physicalDevice!,
-            new VkBufferContext(textureSize * (ulong)textures.Length, BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive,
+            new VkAllocatedBufferContext(textureSize * (ulong)textures.Length, BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit));
         stagingBuffer.Allocate();
         
@@ -231,6 +243,7 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
             var texture = textures[i];
             var textureData = new byte[textureSize];
 
+            // Since the textures are packed into a texture array - every single texture must have a uniform size.
             if (texture.Width != baseTexture.Width || texture.Height != baseTexture.Height)
             {
                 using var clone = texture.ManagedImage.Clone();
@@ -258,24 +271,25 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
 
     private void PopulateDescriptorSets()
     {
-        var descriptorWriteTokens = new IVkDescriptorWriteToken[]
-        {
-            new VkUniformBufferWriteToken(0, 0, primitiveBuffer!.WrappedBuffer, uniformBufferOffsets!,
-                (uint)sizeof(MvpUniformBufferObject)),
-            new VkImageSamplerWriteToken(1, 0, textureImage!.Views[0], textureImage.Sampler!.Value)
-        };
+        using var uniformWriter = new VkUniformBufferWriteToken(0, 0, 
+            primitiveBuffer!.WrappedBuffer, uniformBufferOffsets!, (uint)sizeof(MvpUniformBufferObject));
+        
+        using var samplerWriter = new VkImageSamplerWriteToken(1, 0, 
+            textureImage!.Views[0], textureImage.Sampler!.Value);
+        
+        using var materialUniformWriter = new VkUniformBufferWriteToken(2, 0, 
+            primitiveBuffer!.WrappedBuffer, materialUniformOffsets!, material!.Parent.MaximumUniformSize);
         
         var descPoolContext = new VkDescriptorPoolContext(
         [
             new VkDescriptorInfo { Type = DescriptorType.UniformBuffer, Count = (uint)maxConcurrentFrames},
             new VkDescriptorInfo { Type = DescriptorType.CombinedImageSampler, Count = (uint)maxConcurrentFrames}
-        ], new VkDescriptorWriter(descriptorWriteTokens));
+        ], new VkDescriptorWriter([uniformWriter, samplerWriter, materialUniformWriter]));
         
         descriptorPool = new VkDescriptorPool(vkContext!, device!, descPoolContext, (uint)maxConcurrentFrames,
             pipeline!.DescriptorSetLayouts[0]);
         
         descriptorPool.UpdateSets();
-        descriptorWriteTokens.OfType<IDisposable>().DisposeAll();
     }
     
     #endregion
@@ -285,13 +299,15 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
     // TODO: Synchronization must not depend on the presenter.
     public void RenderFrame()
     {
-        var fence = presenter!.GetPresentationFence((uint)frameIndex);
+        var fence = inFlightFences![frameIndex];
         fence.Await();
         
         ValidateRenderState();
         ExecuteRenderWorkerQueue();
 
-        if (!presenter.TryPrepareNewFrame(imageAvailabilitySemaphores![frameIndex], (uint)frameIndex))
+        var prepareTask = presenter!.CreateFramePreparationTask((uint)frameIndex);
+
+        if (!prepareTask.Execute().IsSuccess())
         {
             return;
         }
@@ -305,29 +321,29 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         fence.Reset();
 
         RecordCommands(framebuffer, frameIndex);
-        
-        var waitSemaphores = stackalloc [] { imageAvailabilitySemaphores[frameIndex].WrappedSemaphore };
-        var signalSemaphores = stackalloc [] { renderFinishedSemaphores![frameIndex].WrappedSemaphore };
-        var waitStages = stackalloc [] { PipelineStageFlags.ColorAttachmentOutputBit };
+
+        var waitSemaphore = prepareTask.SignalSemaphore?.WrappedSemaphore ?? default;
+        var signalSemaphore = renderFinishedSemaphores![frameIndex].WrappedSemaphore;
+        var waitStages = PipelineStageFlags.ColorAttachmentOutputBit | prepareTask.WaitStageFlags;
         var cmdBuffer = commandPool.GetBuffer(frameIndex);
 
         var submitInfo = new SubmitInfo
         {
             SType = StructureType.SubmitInfo,
             WaitSemaphoreCount = 1,
-            PWaitSemaphores = waitSemaphores,
-            PWaitDstStageMask = waitStages,
+            PWaitSemaphores = &waitSemaphore,
+            PWaitDstStageMask = &waitStages,
             CommandBufferCount = 1,
             PCommandBuffers = &cmdBuffer,
             SignalSemaphoreCount = 1,
-            PSignalSemaphores = signalSemaphores
+            PSignalSemaphores = &signalSemaphore
         };
 
         var queue = device!.Queues[queueInfo!.Value.GraphicsFamily!.Value];
 
         vkContext!.Api.QueueSubmit(queue, 1, in submitInfo, fence.WrappedFence);
-        
-        presenter!.ProcessRenderQueue(queue, renderFinishedSemaphores![frameIndex], fence);
+
+        presenter.CreatePresentationTask(queue).Execute([renderFinishedSemaphores![frameIndex].WrappedSemaphore]);
 
         frameIndex = (frameIndex + 1) % maxConcurrentFrames;
     }
@@ -340,9 +356,9 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         RecordCommandsToBuffer(framebuffer, buffer);
 
-        foreach (var component in explicitComponents)
+        for (var i = 0; i < explicitComponents.Length; i++)
         {
-            component.RecordCommands(buffer, framebuffer, frameIndex);
+            explicitComponents[i].RecordCommands(buffer, framebuffer, frameIndex);
         }
 
         commandPool.End(bufferIndex);
@@ -372,27 +388,39 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         vkContext!.Api.CmdBeginRenderPass(commandBuffer, in beginInfo, SubpassContents.Inline);
         
+        var dataBuffer = primitiveBuffer!.WrappedBuffer;
+        
+        vkContext.Api.CmdBindVertexBuffers(commandBuffer, 0, 1, &dataBuffer, 0);
+        vkContext.Api.CmdBindIndexBuffer(commandBuffer, dataBuffer, (ulong)(sizeof(Vertex) * primitive!.Vertices.Length), IndexType.Uint32);
+
+        var viewPort = new Viewport
+        {
+            X = 0, Y = 0, MinDepth = 0, MaxDepth = 1,
+            Height = supplier.CurrentRenderExtent.Height,
+            Width = supplier.CurrentRenderExtent.Width
+        };
+        
+        var scissorRect = new Rect2D { Offset = new Offset2D(0, 0), Extent = supplier.CurrentRenderExtent };
+        
+        vkContext.Api.CmdSetViewport(commandBuffer, 0, 1, viewPort);
+        vkContext.Api.CmdSetScissor(commandBuffer, 0, 1, scissorRect);
+        
         vkContext.Api.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, pipeline!.WrappedPipeline);
 
-        var dataBuffer = primitiveBuffer!.WrappedBuffer;
-        var vertOffsets = stackalloc[] {0ul};
-        
-        vkContext.Api.CmdBindVertexBuffers(commandBuffer, 0, 1, &dataBuffer, vertOffsets);
-        vkContext.Api.CmdBindIndexBuffer(commandBuffer, dataBuffer, (ulong)(sizeof(Vertex) * primitive!.Vertices.Length), IndexType.Uint32);
-        
-        vkContext.Api.CmdSetViewport(commandBuffer, 0, 1, pipeline.Viewport);
-        vkContext.Api.CmdSetScissor(commandBuffer, 0, 1, pipeline.Scissors);
-
         var descriptorSet = descriptorPool!.GetSet(frameIndex);
+
+        var pushConst = supplier.FrameTime;
         
+        vkContext.Api.CmdPushConstants(commandBuffer, pipeline.Layout, ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit, 0, 
+            sizeof(float), &pushConst);
         vkContext.Api.CmdBindDescriptorSets(commandBuffer, PipelineBindPoint.Graphics, pipeline.Layout, 0, 
             1, &descriptorSet, 0, null);
         
         vkContext.Api.CmdDrawIndexed(commandBuffer, (uint)primitive!.Indices.Length, 1, 0, 0, 0);
         
-        foreach (var component in inlineComponents)
+        for (var i = 0; i < inlineComponents.Length; i++)
         {
-            component.RecordCommands(commandBuffer, frameBuffer, frameIndex);
+            explicitComponents[i].RecordCommands(commandBuffer, frameBuffer, frameIndex);
         }
         
         vkContext.Api.CmdEndRenderPass(commandBuffer);
@@ -403,6 +431,11 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         var ubo = CreateUbo();
         
         primitiveBuffer!.UpdateData(new Span<MvpUniformBufferObject>(ref ubo), uniformBufferOffsets![frameIndex]);
+
+        if (material!.UniformSize > 0)
+        {
+            material.TryApplyUniforms(primitiveBuffer, materialUniformOffsets![frameIndex]);
+        }
     }
     
     private void ExecuteRenderWorkerQueue()
@@ -452,8 +485,8 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         
         vkContext!.Api.DeviceWaitIdle(device!.WrappedDevice);
         
-        imageAvailabilitySemaphores?.DisposeAll();
         renderFinishedSemaphores?.DisposeAll();
+        inFlightFences?.DisposeAll();
         
         primitiveBuffer?.Dispose();
         textureImage?.Dispose();
@@ -466,9 +499,6 @@ public sealed unsafe class VkGeometryPrimitiveRenderer : IRenderer, IDisposable
         descriptorPool?.Dispose();
         
         pipeline?.Dispose();
-        
-        inlineComponents.Clear();
-        explicitComponents.Clear();
     }
     
     public void Dispose()

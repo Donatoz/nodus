@@ -11,6 +11,7 @@ public interface IVkRenderSupplier
     
     Extent2D CurrentRenderExtent { get; }
     Vector2 CurrentFrameBufferScale { get; }
+    float FrameTime { get; }
 }
 
 public record VkRenderSupplier : IVkRenderSupplier, IDisposable
@@ -19,7 +20,8 @@ public record VkRenderSupplier : IVkRenderSupplier, IDisposable
     
     public Extent2D CurrentRenderExtent => extentGetter.Invoke();
     public Vector2 CurrentFrameBufferScale => frameBufferScaleGetter.Invoke();
-    
+    public float FrameTime { get; private set; }
+
     private readonly Func<Extent2D> extentGetter;
     private readonly Func<Vector2> frameBufferScaleGetter;
     private readonly Subject<Vector2D<int>> frameBufferSizeSubject;
@@ -34,6 +36,11 @@ public record VkRenderSupplier : IVkRenderSupplier, IDisposable
     public void UpdateFrameBufferSize(Vector2D<int> size)
     {
         frameBufferSizeSubject.OnNext(size);
+    }
+
+    public void UpdateTime(float time)
+    {
+        FrameTime = time;
     }
 
     public void Dispose()

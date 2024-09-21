@@ -47,16 +47,16 @@ public class VkDetachedPresenter : IVkRenderPresenter
         frameBuffer = new VkFrameBuffer(context, device, renderPass, [bufferImage.Views[0]], renderSupplier);
     }
     
-    public bool TryPrepareNewFrame(IVkSemaphore semaphore, uint frameIndex)
+    public IVkTask CreateFramePreparationTask(uint frameIndex)
     {
-        return true;
+        return VkTask.CompleteTask;
     }
-
-    public void ProcessRenderQueue(Queue queue, IVkSemaphore semaphore, IVkFence fence)
+    
+    public IVkTask CreatePresentationTask(Queue queue)
     {
-        fence.Await();
+        return VkTask.CompleteTask;
     }
-
+    
     public Framebuffer GetAvailableFramebuffer()
     {
         return frameBuffer.WrappedBuffer;

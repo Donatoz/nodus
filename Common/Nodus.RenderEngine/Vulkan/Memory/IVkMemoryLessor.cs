@@ -15,6 +15,7 @@ public interface IVkMemoryLease : IDisposable
     
     VkMemoryRegion Region { get; }
     ulong Alignment { get; }
+    bool IsMapped { get; }
     
     /// <summary>
     /// Represents a stream of mutations for a memory lease.
@@ -27,7 +28,7 @@ public interface IVkMemoryLease : IDisposable
 
     void MapToHost();
     void Unmap();
-    unsafe void SetMappedData(void* data, ulong size, ulong offset);
+    void SetMappedData(nint dataPtr, ulong size, ulong offset);
     Span<T> GetMappedData<T>(ulong size, ulong offset) where T : unmanaged;
 }
 

@@ -77,17 +77,18 @@ public class VkDescriptorPool : VkObject, IVkDescriptorPool
         
         Sets = new DescriptorSet[maxSets];
 
-        fixed (void* pSets = Sets, pLayouts = layouts)
+        fixed (DescriptorSet* pSets = Sets)
+        fixed (DescriptorSetLayout* pLayouts = layouts)
         {
             var allocInfo = new DescriptorSetAllocateInfo
             {
                 SType = StructureType.DescriptorSetAllocateInfo,
                 DescriptorPool = WrappedPool,
                 DescriptorSetCount = maxSets,
-                PSetLayouts = (DescriptorSetLayout*)pLayouts
+                PSetLayouts = pLayouts
             };
             
-            Context.Api.AllocateDescriptorSets(device.WrappedDevice, in allocInfo, (DescriptorSet*)pSets)
+            Context.Api.AllocateDescriptorSets(device.WrappedDevice, in allocInfo, pSets)
                 .TryThrow("Failed to allocate descriptor sets.");
         }
     }

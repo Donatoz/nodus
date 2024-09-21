@@ -38,7 +38,7 @@ public class VkDescriptorSetFactory : IVkDescriptorSetFactory
                 Binding = 1,
                 DescriptorType = DescriptorType.CombinedImageSampler,
                 DescriptorCount = 1,
-                StageFlags = ShaderStageFlags.FragmentBit,
+                StageFlags = ShaderStageFlags.FragmentBit | ShaderStageFlags.VertexBit,
                 PImmutableSamplers = null
             }
         ];

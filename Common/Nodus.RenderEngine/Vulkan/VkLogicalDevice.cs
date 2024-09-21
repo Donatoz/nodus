@@ -54,6 +54,15 @@ public unsafe class VkLogicalDevice : VkObject, IVkLogicalDevice
             SamplerAnisotropy = Vk.True
         };
         var firstInfo = queueInfos[0];
+        
+        var indexing = new PhysicalDeviceDescriptorIndexingFeatures
+        {
+            SType = StructureType.PhysicalDeviceDescriptorIndexingFeatures,
+            RuntimeDescriptorArray = Vk.True,
+            ShaderSampledImageArrayNonUniformIndexing = Vk.True,
+            DescriptorBindingVariableDescriptorCount = Vk.True,
+            DescriptorBindingPartiallyBound = Vk.True
+        };
 
         var createInfo = new DeviceCreateInfo
         {
@@ -62,7 +71,8 @@ public unsafe class VkLogicalDevice : VkObject, IVkLogicalDevice
             QueueCreateInfoCount = (uint)queueInfos.Length,
             PEnabledFeatures = &features,
             EnabledExtensionCount = (uint)Context.ExtensionsInfo.RequiredDeviceExtensions.Length,
-            PpEnabledExtensionNames = (byte**)SilkMarshal.StringArrayToPtr(Context.ExtensionsInfo.RequiredDeviceExtensions)
+            PpEnabledExtensionNames = (byte**)SilkMarshal.StringArrayToPtr(Context.ExtensionsInfo.RequiredDeviceExtensions),
+            PNext = &indexing
         };
 
         if (Context.LayerInfo != null)

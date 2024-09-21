@@ -47,7 +47,7 @@ public static class ImageUtility
             requirements.Size);
 
         using var stagingBuffer = new VkBoundBuffer(context, device,
-            new VkBoundBufferContext(requirements.Size, BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive));
+            new VkBufferContext(requirements.Size, BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive));
         stagingBuffer.BindToMemory(lease);
         stagingBuffer.UpdateData(data, 0);
         
@@ -93,7 +93,7 @@ public static class ImageUtility
         };
         
         using var stagingImageBuffer = new VkAllocatedBuffer<byte>(context, device, physicalDevice,
-            new VkBufferContext((ulong)imgSize, 
+            new VkAllocatedBufferContext((ulong)imgSize, 
                 BufferUsageFlags.TransferDstBit, SharingMode.Exclusive,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit));
         stagingImageBuffer.Allocate();

@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Numerics;
+using System.Reactive.Disposables;
 using System.Runtime.InteropServices;
 using DynamicData;
 using ImGuiNET;
@@ -13,8 +14,11 @@ using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Memory;
 using Nodus.RenderEngine.Vulkan.Meta;
 using Nodus.RenderEngine.Vulkan.Presentation;
+using Nodus.RenderEngine.Vulkan.Primitives;
 using Nodus.RenderEngine.Vulkan.Rendering;
+using Nodus.RenderEngine.Vulkan.Sync;
 using Nodus.RenderEngine.Vulkan.Utility;
+using Nodus.VisualTests.Materials;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
 using Silk.NET.Input;
@@ -54,9 +58,9 @@ public unsafe class VkWindow
     private IVkRenderPass? renderPass;
     private IScreenViewer? viewer;
     private IVkRenderPresenter? presenter;
-    private VkComputeDispatcher? computeDispatcher;
     private IVkMemoryLessor? memoryLessor;
     private VkImGuiComponent? imGuiComponent;
+    private IVkMaterialInstance? materialInstance;
 
     private VkLayerInfo? layerInfo;
     private VkExtensionsInfo? extensionsInfo;
@@ -70,12 +74,18 @@ public unsafe class VkWindow
     private double fps;
     private uint frame;
     private double refreshTime;
+    private float timeMultiplier = 1;
+    private float uvSize = 1;
+    private float distortionAmount = 0.2f;
     
-    private readonly VkGeometryPrimitiveRenderer renderer;
+    private readonly IRenderer renderer;
+    private readonly CompositeDisposable disposables;
 
     public VkWindow(bool useValidationLayers = true)
     {
         this.useValidationLayers = useValidationLayers;
+        disposables = new CompositeDisposable();
+        
         var options = WindowOptions.DefaultVulkan with
         {
             Size = new Vector2D<int>(1440, 810),
@@ -174,7 +184,7 @@ public unsafe class VkWindow
         var queueInfo = VkQueueInfo.GetFromDevice(physicalDevice.WrappedDevice, vk, surface);
         var geoFactory = new AssimpGeometryFactory();
 
-        var cube = geoFactory.CreateFromFile(@"G:\CG\3D\Common\Sphere.obj").First();
+        var cube = geoFactory.CreateFromFile(@"G:\CG\3D\Common\Sphere3.obj").First();
 
         extensionProvider = new VkExtensionProvider(vkContext, instance, logicalDevice);
         
@@ -200,18 +210,6 @@ public unsafe class VkWindow
             ], renderSupplier, swapChain.SurfaceFormat.Format, swapChain.DepthFormat, 2, 
                 new VkImageLayoutTransition(ImageLayout.ColorAttachmentOptimal, ImageLayout.PresentSrcKhr), RenderGui));
 
-        var pipelineContext = new VkGraphicsPipelineContext(
-            [DynamicState.Scissor ,DynamicState.Viewport],
-            [
-                new ShaderDefinition(
-                    new ShaderFileSource(@"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\standard2.vert.spv"),
-                    ShaderSourceType.Vertex),
-                new ShaderDefinition(
-                    new ShaderFileSource(@"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\solid.frag.spv"),
-                    ShaderSourceType.Fragment)
-            ], 
-            renderPass, renderSupplier);
-
         viewer = new Viewer(new Vector2D<float>(swapChain.Extent.Width, swapChain.Extent.Height))
         {
             Position = Vector3D<float>.UnitZ * -5
@@ -227,26 +225,34 @@ public unsafe class VkWindow
 
         using var texture = textureDataProvider.FetchTexture(textureSource);
         using var texture2 = textureDataProvider.FetchTexture(textureSource2);
-        //presenter = new VkImagePresenter(vkContext, logicalDevice, physicalDevice, rendererSupplier, renderPass, queueInfo, 2);
+        //presenter = new VkDetachedPresenter(vkContext, logicalDevice, physicalDevice, renderSupplier, renderPass, queueInfo, 2);
         presenter = new VkSwapchainRenderPresenter(vkContext, logicalDevice, swapChain, surface, renderPass, 2);
+
+        var materialFactory = new CommonMaterialsFactory(vkContext, renderSupplier);
+        var material = materialFactory.CreateSolidMaterial();
         
+        materialInstance = material.CreateInstance();
+        
+        disposables.Add(materialInstance);
+        disposables.Add(material);
+
+
         renderer.Initialize(
-            new VkGeometryPrimitiveRenderContext(cube, logicalDevice, physicalDevice, queueInfo, 
-                renderPass, viewer, pipelineContext, [texture, texture2], presenter, renderSupplier, 2, 
+            new VkGeometryPrimitiveRenderContext(cube, logicalDevice, physicalDevice, queueInfo,
+                renderPass, viewer, materialInstance, [texture, texture2], presenter, renderSupplier, 2,
                 [imGuiComponent]),
             new VkRenderBackendProvider(vkContext)
         );
         
-        computeDispatcher = new VkComputeDispatcher(vkContext, logicalDevice,
-            new VkComputeDispatcherContext(
-                new ShaderDefinition(
-                    new ShaderFileSource(
-                        @"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\test.comp.spv"),
-                    ShaderSourceType.Compute), physicalDevice, queueInfo));
+        
+        /*
+        renderer.Initialize(
+            new VkMultiBufferRenderContext(2, presenter, renderPass, renderSupplier),
+            new VkRenderBackendProvider(vkContext)
+        );
+        */
         
         isInitialized = true;
-
-        //computeDispatcher.Dispatch();
     }
 
     private List<IVkMemoryLease> debugLeases = new();
@@ -329,6 +335,21 @@ public unsafe class VkWindow
             
             ImGui.End();
         }
+
+        if (ImGui.Begin("Mutation"))
+        {
+            ImGui.SliderFloat("Time Mult", ref timeMultiplier, 0, 1);
+            ImGui.SliderFloat("Uv Size", ref uvSize, 0.5f, 20);
+            ImGui.SliderFloat("Distortion", ref distortionAmount, 0, 1);
+            
+            materialInstance!.UpdateUniformSet(new SolidUniformBlock
+            {
+                UvSize = uvSize,
+                DistortionAmount = distortionAmount
+            });
+            
+            ImGui.End();
+        }
     }
 
     private void OnRender(double delta)
@@ -341,6 +362,8 @@ public unsafe class VkWindow
     
     private void OnUpdate(double delta)
     {
+        renderSupplier?.UpdateTime((float)window.Time * timeMultiplier % 100);
+        
         if (viewer != null && input?.Keyboards[0] is { } k)
         {
             const float movementDelta = 0.001f;
@@ -460,7 +483,7 @@ public unsafe class VkWindow
 
         var availableLayerNames = availableLayers.Select(layer =>
         {
-            return Marshal.PtrToStringAnsi((IntPtr)layer.LayerName);
+            return Marshal.PtrToStringAnsi((nint)layer.LayerName);
         }).ToHashSet();
 
         return valLayers.All(availableLayerNames.Contains);
@@ -578,10 +601,11 @@ public unsafe class VkWindow
             debugUtils!.DestroyDebugUtilsMessenger(instance!, debugMessenger, null);
         }
         
+        disposables.Dispose();
+        
         imGuiComponent?.Dispose();
-        renderer.Dispose();
+        (renderer as IDisposable)?.Dispose();
         presenter?.Dispose();
-        computeDispatcher?.Dispose();
         
         renderPass?.Dispose();
         swapChain?.Dispose();

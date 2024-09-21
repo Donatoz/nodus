@@ -4,6 +4,7 @@ namespace Nodus.RenderEngine.OpenGL;
 
 public interface IGlMaterialDefinition : IMaterialDefinition
 {
+    IList<IShaderUniform> Uniforms { get; }
     IReadOnlyCollection<IGlTexture> Textures { get; set; }
 }
 

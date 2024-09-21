@@ -14,8 +14,23 @@ layout (binding = 0) uniform UniformBufferObject {
     mat4 proj;
 } ubo;
 
+layout(binding = 1) uniform sampler2DArray texSampler;
+
+layout (binding = 2) uniform FrameDataObject {
+    float uvSize;
+    float distortionAmount;
+} frameData;
+
+layout (push_constant) uniform PushConstants {
+    float time;
+} pc;
+
 void main() {
-    gl_Position = ubo.proj * ubo.view * ubo.model * vec4(vPosition, 1.0);
+    vec4 displaced = vec4(vPosition, 1.0);
+
+    displaced += mix(vec4(0), texture(texSampler, vec3(vTexCoord + pc.time * 0.01, 0.0)) * vec4(vNormal, 1.0), frameData.distortionAmount);
+    
+    gl_Position = ubo.proj * ubo.view * ubo.model * displaced;
     vertexColor = vec3(1.0, 1.0, 1.0);
 
     vertexNormal = vNormal;

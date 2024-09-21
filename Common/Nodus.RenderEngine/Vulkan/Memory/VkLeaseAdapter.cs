@@ -10,6 +10,7 @@ public sealed class VkLeaseAdapter : IVkMemoryLease
     public IVkMemory Memory { get; }
     public VkMemoryRegion Region { get; }
     public ulong Alignment { get; }
+    public bool IsMapped { get; private set; }
     public IObservable<IVkMemoryLease> MutationStream => Observable.Empty<IVkMemoryLease>();
     
     private readonly IVkContext context;
@@ -34,6 +35,7 @@ public sealed class VkLeaseAdapter : IVkMemoryLease
         context.Api.MapMemory(device.WrappedDevice, Memory.WrappedMemory!.Value, Region.Offset, Region.Size, 0, &data);
 
         mappedData = data;
+        IsMapped = true;
     }
 
     public unsafe void Unmap()
@@ -48,6 +50,7 @@ public sealed class VkLeaseAdapter : IVkMemoryLease
         context.Api.UnmapMemory(device.WrappedDevice, Memory.WrappedMemory!.Value);
 
         mappedData = null;
+        IsMapped = false;
     }
 
     private void ValidateAllocationState()
@@ -59,9 +62,9 @@ public sealed class VkLeaseAdapter : IVkMemoryLease
     }
 
     // TODO: This is a duplicate of the Lease functionality. Move this to a separate layer.
-    public unsafe void SetMappedData(void* data, ulong size, ulong offset)
+    public unsafe void SetMappedData(nint dataPtr, ulong size, ulong offset)
     {
-        Buffer.MemoryCopy(data, (ulong*)((ulong)mappedData + offset + Region.Offset), size, size);
+        Buffer.MemoryCopy((void*)dataPtr, (ulong*)((ulong)mappedData + offset + Region.Offset), size, size);
     }
 
     public unsafe Span<T> GetMappedData<T>(ulong size, ulong offset) where T : unmanaged
