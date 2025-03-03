@@ -44,7 +44,7 @@ public sealed class VkLeaseAdapter : IVkMemoryLease
         
         if (mappedData == null)
         {
-            throw new Exception("Failed to unmap memory: memory was not mapped.");
+            throw new VulkanMemoryException("Failed to unmap memory: memory was not mapped.");
         }
         
         context.Api.UnmapMemory(device.WrappedDevice, Memory.WrappedMemory!.Value);
@@ -57,7 +57,7 @@ public sealed class VkLeaseAdapter : IVkMemoryLease
     {
         if (Memory.WrappedMemory == null)
         {
-            throw new Exception("Failed to map memory: memory was not allocated.");
+            throw new VulkanMemoryException("Failed to map memory: memory was not allocated.");
         }
     }
 

@@ -24,7 +24,7 @@ public interface IVkDescriptorPool : IVkUnmanagedHook
 {
     DescriptorPool WrappedPool { get; }
     
-    void UpdateSets();
+    void UpdateSets(WriteDescriptorSet[]? writeSets = null);
     void UpdateSet(int index, IVkDescriptorWriteToken writeToken);
     DescriptorSet GetSet(int index);
 }
@@ -73,6 +73,8 @@ public class VkDescriptorPool : VkObject, IVkDescriptorPool
 
     private unsafe void CreateSets()
     {
+        // TODO: Get rid of multi-buffer rendering approach, this functionality has to stay flexible and provide
+        // non-uniform layouts option
         var layouts = Enumerable.Repeat(layout, (int)maxSets).ToArray();
         
         Sets = new DescriptorSet[maxSets];
@@ -93,15 +95,15 @@ public class VkDescriptorPool : VkObject, IVkDescriptorPool
         }
     }
 
-    public unsafe void UpdateSets()
+    public unsafe void UpdateSets(WriteDescriptorSet[]? writeSets = null)
     {
         for (var i = 0; i < maxSets; i++)
         {
-            var writeSets = descriptorPoolContext.DescriptorWriter.CreateWriteSets(Sets[i], i);
+            var effectiveSets = writeSets ?? descriptorPoolContext.DescriptorWriter.CreateWriteSets(Sets[i], i);
 
-            fixed (WriteDescriptorSet* p = writeSets)
+            fixed (WriteDescriptorSet* p = effectiveSets)
             {
-                Context.Api.UpdateDescriptorSets(device.WrappedDevice, (uint)writeSets.Length, p, 0, null);
+                Context.Api.UpdateDescriptorSets(device.WrappedDevice, (uint)effectiveSets.Length, p, 0, null);
             }
         }
     }

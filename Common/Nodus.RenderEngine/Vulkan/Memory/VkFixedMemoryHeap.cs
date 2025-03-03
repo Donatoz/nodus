@@ -21,7 +21,8 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
     
     // Default defragmentation strategy: the process takes place whenever
     //     the fragmentation value reaches a specific threshold,
-    //     or if there is no valid memory region available for a lease, while there is enough free memory
+    //     or if there is no valid memory region available for a lease, while there is enough free memory.
+    // Defragmentation execution logic depends on the provided defragmenter (or linear defragmenter if none provided).
     
     public IVkMemoryHeapInfo Meta { get; }
     private bool IsHostVisible => Meta.MemoryProperties.HasFlag(MemoryPropertyFlags.HostVisibleBit);
@@ -142,7 +143,7 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
     {
         if (freeRegions.Count == 0)
         {
-            throw new Exception($"Failed to lease memory of size ({size} bytes): memory is full.");
+            throw new VulkanMemoryException($"Failed to lease memory of size ({size} bytes): memory is full.");
         }
         
         foreach (var region in freeRegions)
@@ -165,7 +166,7 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
             return GetAvailableRegion(size, alignment);
         }
         
-        throw new Exception($"Failed to lease memory: a memory region of a valid size ({size} bytes) was not found.");
+        throw new VulkanMemoryException($"Failed to lease memory: a memory region of a valid size ({size} bytes) was not found.");
     }
 
     private void MergeSubsequentRegions()
@@ -291,7 +292,7 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
     {
         if (region.End + 1 > Meta.Size)
         {
-            throw new Exception("Failed to acquire region data: region out of memory range.");
+            throw new VulkanMemoryException("Failed to acquire region data: region out of memory range.");
         }
         
         var result = new byte[region.Size];
@@ -508,7 +509,7 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
         {
             if (IsMapped)
             {
-                throw new Exception("Failed to map the lease: lease was already mapped.");
+                throw new VulkanMemoryException("Failed to map the lease: lease was already mapped.");
             }
             
             IsMapped = true;
@@ -519,7 +520,7 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
         {
             if (!IsMapped)
             {
-                throw new Exception("Failed to unmap the lease: lease was not mapped.");
+                throw new VulkanMemoryException("Failed to unmap the lease: lease was not mapped.");
             }
             
             IsMapped = false;
@@ -544,19 +545,24 @@ public sealed class VkFixedMemoryHeap : VkObject, IVkMemoryHeap
         {
             if (!IsMapped)
             {
-                throw new Exception("Failed to access mapped memory: lease was not mapped.");
+                throw new VulkanMemoryException("Failed to access mapped memory: lease was not mapped.");
             }
 
             if (Region.Offset + offset + size - 1 > Region.End)
             {
-                throw new Exception($"Failed to access mapped memory: lease region was exceeded. " +
-                                    $"Requested size: {size} bytes at offset: {offset}. " +
-                                    $"Total lease size: {Region.Size}.");
+                throw new VulkanMemoryException($"Failed to access mapped memory: lease region was exceeded. " +
+                                                $"Requested size: {size} bytes at offset: {offset}. " +
+                                                $"Total lease size: {Region.Size}.");
             }
         }
 
         public void Dispose()
         {
+            if (IsMapped)
+            {
+                Unmap();
+            }
+            
             deallocationContext.Invoke(this);
         }
     }

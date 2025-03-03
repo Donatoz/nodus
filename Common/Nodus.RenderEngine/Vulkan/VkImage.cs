@@ -1,6 +1,7 @@
 using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Extensions;
 using Nodus.RenderEngine.Vulkan.Memory;
+using Nodus.RenderEngine.Vulkan.Utility;
 using Silk.NET.Vulkan;
 
 namespace Nodus.RenderEngine.Vulkan;
@@ -44,9 +45,10 @@ public interface IVkImage : IVkUnmanagedHook
     ImageLayout CurrentLayout { get; }
     
     void CmdTransitionLayout(CommandBuffer buffer, ImageLayout newLayout, uint arrayLevel = 0);
-    void BindToMemory(IVkMemory memory);
+    void BindToMemory(IVkMemoryLease memory);
     void CreateView(uint baseArrayLevel = 0, uint? layerCount = null);
     void CreateSampler();
+    void GetMemoryRequirements(out MemoryRequirements requirements);
 }
 
 public class VkImage : VkObject, IVkImage
@@ -61,6 +63,8 @@ public class VkImage : VkObject, IVkImage
     private readonly IVkLogicalDevice device;
     private readonly IVkImageTransitionResolver transitionResolver;
     private readonly List<ImageView> views;
+
+    private bool isImageNative;
 
     public unsafe VkImage(IVkContext vkContext, IVkLogicalDevice device, IVkImageSpecification specification) : base(vkContext)
     {
@@ -88,6 +92,17 @@ public class VkImage : VkObject, IVkImage
         Context.Api.CreateImage(device.WrappedDevice, &createInfo, null, out var image);
 
         WrappedImage = image;
+        isImageNative = true;
+    }
+
+    public VkImage(IVkContext vkContext, IVkLogicalDevice device, Image wrappedImage, IVkImageSpecification specification) : base(vkContext)
+    {
+        this.device = device;
+        Specification = specification;
+        transitionResolver = Specification.TransitionResolver ?? new VkImageTransitionResolver();
+        CurrentLayout = ImageLayout.Undefined;
+        views = [];
+        WrappedImage = wrappedImage;
     }
 
     public unsafe void CreateView(uint baseArrayLevel = 0, uint? layerCount = null)
@@ -141,46 +156,28 @@ public class VkImage : VkObject, IVkImage
         Sampler = sampler;
     }
 
-    public unsafe void CmdTransitionLayout(CommandBuffer buffer, ImageLayout newLayout, uint baseArrayLayer = 0)
+    public void GetMemoryRequirements(out MemoryRequirements requirements)
     {
-        var barrier = new ImageMemoryBarrier
+        Context.Api.GetImageMemoryRequirements(device.WrappedDevice, WrappedImage, out requirements);
+    }
+
+    public void CmdTransitionLayout(CommandBuffer buffer, ImageLayout newLayout, uint baseArrayLayer = 0)
+    {
+        ImageUtility.CmdTransitionLayout(buffer, Context, WrappedImage, CurrentLayout, newLayout, new ImageSubresourceRange
         {
-            SType = StructureType.ImageMemoryBarrier,
-            OldLayout = CurrentLayout,
-            NewLayout = newLayout,
-            SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
-            DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
-            Image = WrappedImage,
-            SubresourceRange = new ImageSubresourceRange
-            {
-                AspectMask = Specification.Aspect,
-                BaseMipLevel = 0,
-                LevelCount = Specification.MipLevels,
-                BaseArrayLayer = baseArrayLayer,
-                LayerCount = Specification.ArrayLayers
-            }
-        };
-
-        var srcStage = PipelineStageFlags.None;
-        var dstStage = PipelineStageFlags.None;
-
-        transitionResolver.ResolveOldLayout(CurrentLayout, ref srcStage, ref barrier);
-        transitionResolver.ResolveNewLayout(newLayout, ref dstStage, ref barrier);
+            AspectMask = Specification.Aspect,
+            BaseMipLevel = 0,
+            LevelCount = Specification.MipLevels,
+            BaseArrayLayer = baseArrayLayer,
+            LayerCount = Specification.ArrayLayers
+        }, transitionResolver);
         
-        Context.Api.CmdPipelineBarrier(buffer, srcStage, dstStage, 0, 0, 
-            null, 0, null, 1, &barrier);
-
         CurrentLayout = newLayout;
     }
 
-    public void BindToMemory(IVkMemory memory)
+    public void BindToMemory(IVkMemoryLease memory)
     {
-        if (!memory.IsAllocated())
-        {
-            throw new Exception("Failed to bind image: memory was not allocated.");
-        }
-
-        Context.Api.BindImageMemory(device.WrappedDevice, WrappedImage, memory.WrappedMemory!.Value, 0);
+        Context.Api.BindImageMemory(device.WrappedDevice, WrappedImage, memory.WrappedMemory, memory.Region.Offset);
     }
 
     protected override unsafe void Dispose(bool disposing)
@@ -192,7 +189,11 @@ public class VkImage : VkObject, IVkImage
                 Context.Api.DestroySampler(device.WrappedDevice, Sampler.Value, null);
             }
             views.ForEach(x => Context.Api.DestroyImageView(device.WrappedDevice, x, null));
-            Context.Api.DestroyImage(device.WrappedDevice, WrappedImage, null);
+
+            if (isImageNative)
+            {
+                Context.Api.DestroyImage(device.WrappedDevice, WrappedImage, null);
+            }
         }
         
         base.Dispose(disposing);

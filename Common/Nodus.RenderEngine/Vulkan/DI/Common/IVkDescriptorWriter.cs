@@ -9,17 +9,23 @@ namespace Nodus.RenderEngine.Vulkan.DI;
 public interface IVkDescriptorWriter
 {
     WriteDescriptorSet[] CreateWriteSets(DescriptorSet destinationSet, int setIndex);
+    void UpdateTokens(IVkDescriptorWriteToken[] tokens);
 }
 
 public class VkDescriptorWriter : IVkDescriptorWriter
 {
     public static VkDescriptorWriter Empty { get; } = new([]);
     
-    private readonly IVkDescriptorWriteToken[] writeTokens;
+    private IVkDescriptorWriteToken[] writeTokens = null!;
 
     public VkDescriptorWriter(IVkDescriptorWriteToken[] writeTokens)
     {
-        this.writeTokens = writeTokens;
+        UpdateTokens(writeTokens);
+    }
+
+    public void UpdateTokens(IVkDescriptorWriteToken[] tokens)
+    {
+        writeTokens = tokens;
     }
     
     public WriteDescriptorSet[] CreateWriteSets(DescriptorSet destinationSet, int setIndex)

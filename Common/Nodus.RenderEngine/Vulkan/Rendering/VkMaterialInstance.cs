@@ -47,7 +47,7 @@ public sealed class VkMaterialInstance : VkObject, IVkMaterialInstance
 
         if (size > Parent.MaximumUniformSize)
         {
-            throw new Exception($"Uniform block ({set}) of size ({size}) is too large. Maximum size allowed: {Parent.MaximumUniformSize}");
+            throw new VulkanRenderingException($"Uniform block ({set}) of size ({size}) is too large. Maximum size allowed: {Parent.MaximumUniformSize}");
         }
 
         if (currentSetObject != null && currentSetObject.Equals(set))

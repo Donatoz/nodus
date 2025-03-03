@@ -1,4 +1,5 @@
 ﻿using Nodus.RenderEngine.Common;
+using Serilog;
 
 namespace Nodus.RenderEngine.Vulkan;
 
@@ -56,8 +57,8 @@ public class VkObject : RenderContextObject<IVkContext>, IVkUnmanagedHook
     {
         if (!IsDisposing)
         {
-            throw new Exception($"The context of {this} is being disposed prior to the bound object." +
-                                $"{Environment.NewLine}Bound objects:{Environment.NewLine}{Context.GetBoundObjectsTrace()}");
+            throw new VulkanException($"The context of {this} is being disposed prior to the bound object." +
+                                      $"{Environment.NewLine}Bound objects:{Environment.NewLine}{Context.GetBoundObjectsTrace()}");
         }
     }
 

@@ -24,9 +24,7 @@ public interface IVkImGuiComponentContext
     int ConcurrentRenderedFrames { get; }
     Action GuiContext { get; }
     
-    // TODO: Improvement
-    // This should be provided by some external synchronizer of rendering components.
-    VkImageLayoutTransition AttachmentLayoutTransition { get; }
+    VkRenderAttachmentsInfo? RenderAttachments { get; }
 }
 
 public readonly struct VkImGuiComponentContext(
@@ -35,8 +33,8 @@ public readonly struct VkImGuiComponentContext(
     Format colorFormat,
     Format depthFormat,
     int concurrentRenderedFrames,
-    VkImageLayoutTransition attachmentLayoutTransition,
-    Action renderingContext)
+    Action renderingContext,
+    VkRenderAttachmentsInfo? renderAttachments = null)
     : IVkImGuiComponentContext
 {
     public IEnumerable<IShaderDefinition> Shaders { get; } = shaders;
@@ -45,13 +43,13 @@ public readonly struct VkImGuiComponentContext(
     public Format DepthFormat { get; } = depthFormat;
     public int ConcurrentRenderedFrames { get; } = concurrentRenderedFrames;
     public Action GuiContext { get; } = renderingContext;
-    public VkImageLayoutTransition AttachmentLayoutTransition { get; } = attachmentLayoutTransition;
+    public VkRenderAttachmentsInfo? RenderAttachments { get; } = renderAttachments;
 }
 
 public class VkImGuiComponent : VkObject, IVkRenderComponent
 {
     public uint Priority => 1000;
-    public bool SubmitSeparately => true;
+    public bool SubmitSeparately => false;
 
     private readonly IVkLogicalDevice device;
     private readonly IVkImGuiComponentContext componentContext;
@@ -59,10 +57,9 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
     private readonly IVkDescriptorPool descriptorPool;
     private readonly IVkCommandPool commandPool;
     private readonly IVkImage fontImage;
-    private readonly IVkRenderPass renderPass;
     private readonly IVkPipeline pipeline;
 
-    private readonly IVkMemory imageMemory;
+    private readonly IVkMemoryLease imageMemory;
     private readonly UnmanagedContainer<Sampler> fontSamplerReference;
 
     private IVkMemoryLease?[] drawMemories;
@@ -89,8 +86,9 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
                 ImageUsageFlags.SampledBit | ImageUsageFlags.TransferDstBit, ImageViewType.Type2D,
                 physicalDevice.Properties.Limits.MaxSamplerAnisotropy));
 
-        imageMemory = new VkMemory(vkContext, device, physicalDevice, MemoryPropertyFlags.DeviceLocalBit);
-        imageMemory.AllocateForImage(vkContext, fontImage.WrappedImage, device);
+        fontImage.GetMemoryRequirements(out var requirements);
+        
+        imageMemory = Context.RenderServices.MemoryLessor.LeaseMemory(MemoryGroups.RgbaSampledImageMemory, requirements.Size, (uint)requirements.Alignment);
         
         fontImage.BindToMemory(imageMemory);
         fontImage.CreateView();
@@ -101,11 +99,10 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
         var pixelData = new Span<byte>((void*)pixels, fontImageWidth * fontImageHeight * fontImagePixelStride);
         fontImage.UploadData(vkContext, commandPool.GetBuffer(0), pixelData, ImageLayout.ShaderReadOnlyOptimal);
 
-        renderPass = new VkRenderPass(vkContext, device,
-            new VkRenderPassContext(componentContext.ColorFormat, componentContext.DepthFormat, CreatePassFactory()));
         pipeline = new VkGraphicsPipeline(vkContext, device,
             new VkGraphicsPipelineContext([DynamicState.Viewport, DynamicState.Scissor], componentContext.Shaders,
-                renderPass, componentContext.RenderSupplier, CreatePipelineFactory(), CreateDescriptorsFactory()));
+                componentContext.RenderSupplier, null, CreatePipelineFactory(), CreateDescriptorsFactory(),
+                this.componentContext.RenderAttachments != null ? [new VkRenderAttachmentsInjector(this.componentContext.RenderAttachments.Value)] : null));
 
         using var imgWriteToken = new VkImageSamplerWriteToken(1, 0, fontImage.Views[0], fontImage.Sampler!.Value);
 
@@ -159,37 +156,6 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
                 AlphaBlendOp = BlendOp.Add
             },
             DepthStencilFactory = VkPipelineFactory.DisabledDepthStencil
-        };
-    }
-
-    private IVkRenderPassFactory CreatePassFactory()
-    {
-        return new VkRenderPassFactory
-        {
-            DescriptionsFactory = (colFormat, depthFormat) => [
-                new AttachmentDescription
-                {
-                    Format = colFormat,
-                    Samples = SampleCountFlags.Count1Bit,
-                    LoadOp = AttachmentLoadOp.Load,
-                    StoreOp = AttachmentStoreOp.Store,
-                    StencilLoadOp = AttachmentLoadOp.DontCare,
-                    StencilStoreOp = AttachmentStoreOp.DontCare,
-                    InitialLayout = componentContext.AttachmentLayoutTransition.From,
-                    FinalLayout = componentContext.AttachmentLayoutTransition.To
-                },
-                new AttachmentDescription
-                {
-                    Format = depthFormat,
-                    Samples = SampleCountFlags.Count1Bit,
-                    LoadOp = AttachmentLoadOp.DontCare,
-                    StoreOp = AttachmentStoreOp.DontCare,
-                    StencilLoadOp = AttachmentLoadOp.DontCare,
-                    StencilStoreOp = AttachmentStoreOp.DontCare,
-                    InitialLayout = ImageLayout.DepthStencilAttachmentOptimal,
-                    FinalLayout = ImageLayout.DepthStencilAttachmentOptimal
-                }
-            ]
         };
     }
 
@@ -275,20 +241,6 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
                 idxOffset += (ulong)idxRegionSize;
             }
         }
-
-        var beginInfo = new RenderPassBeginInfo
-        {
-            SType = StructureType.RenderPassBeginInfo,
-            Framebuffer = framebuffer,
-            RenderArea = new Rect2D
-            {
-                Offset = new Offset2D(0, 0),
-                Extent = componentContext.RenderSupplier.CurrentRenderExtent
-            },
-            RenderPass = renderPass.WrappedPass
-        };
-        
-        Context.Api.CmdBeginRenderPass(commandBuffer, in beginInfo, SubpassContents.Inline);
         
         Context.Api.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, pipeline.WrappedPipeline);
 
@@ -360,8 +312,6 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
             indexOffset += cmdList.IdxBuffer.Size;
             vertexOffset += cmdList.VtxBuffer.Size;
         }
-
-        Context.Api.CmdEndRenderPass(commandBuffer);
     }
 
     #endregion
@@ -371,7 +321,7 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
         drawBuffers[frameIndex]?.Dispose();
         drawMemories[frameIndex]?.Dispose();
 
-        drawBuffers[frameIndex] = new VkBoundBuffer(Context, device,
+        drawBuffers[frameIndex] = new VkBoundBuffer(Context,
             new VkBufferContext(drawBufferSize, BufferUsageFlags.VertexBufferBit | BufferUsageFlags.IndexBufferBit, SharingMode.Exclusive));
 
         Context.Api.GetBufferMemoryRequirements(device.WrappedDevice, drawBuffers[frameIndex]!.WrappedBuffer,
@@ -406,7 +356,6 @@ public class VkImGuiComponent : VkObject, IVkRenderComponent
             Context.Api.DeviceWaitIdle(device.WrappedDevice);
             
             pipeline.Dispose();
-            renderPass.Dispose();
             fontSamplerReference.Dispose();
             fontImage.Dispose();
             

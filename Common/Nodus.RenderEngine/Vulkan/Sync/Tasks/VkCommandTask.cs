@@ -5,7 +5,7 @@ using Semaphore = Silk.NET.Vulkan.Semaphore;
 namespace Nodus.RenderEngine.Vulkan.Sync;
 
 /// <summary>
-/// Represents a task that submits its payload to the specified queue using the provided command buffer.
+/// Represents a task that submits its payload to the specified GPU queue using the provided command buffer.
 /// </summary>
 public sealed record VkCommandTask : VkTaskBase
 {
@@ -26,7 +26,7 @@ public sealed record VkCommandTask : VkTaskBase
     public override unsafe VkTaskResult Execute(Semaphore[]? waitSemaphores, PipelineStageFlags[]? waitStageFlags)
     {
         var buffer = commandBuffer;
-        var signalSemaphore = SignalSemaphore?.WrappedSemaphore ?? default;
+        var signalSemaphore = CompletionSemaphore?.WrappedSemaphore ?? default;
 
         vkContext.Api.ResetCommandBuffer(buffer, CommandBufferResetFlags.None);
         var result = context.Invoke(buffer);
@@ -47,12 +47,11 @@ public sealed record VkCommandTask : VkTaskBase
                 PWaitDstStageMask = pWaitStageFlags,
                 CommandBufferCount = 1,
                 PCommandBuffers = &buffer,
-                SignalSemaphoreCount = SignalSemaphore != null ? 1u : 0u,
+                SignalSemaphoreCount = CompletionSemaphore != null ? 1u : 0u,
                 PSignalSemaphores = &signalSemaphore
             };
             
-            vkContext.Api.QueueSubmit(targetQueue, 1, &submitInfo, CompletionFence?.WrappedFence ?? default)
-                .TryThrow($"Failed to submit ({this}) to a queue.");
+            vkContext.Api.QueueSubmit(targetQueue, 1, &submitInfo, CompletionFence?.WrappedFence ?? default);
         }
 
         return VkTaskResult.Success;

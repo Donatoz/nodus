@@ -1,5 +1,5 @@
-using Nodus.Core.Extensions;
 using Nodus.RenderEngine.Vulkan.Convention;
+using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Extensions;
 using Nodus.RenderEngine.Vulkan.Memory;
 using Nodus.RenderEngine.Vulkan.Meta;
@@ -13,6 +13,29 @@ namespace Nodus.RenderEngine.Vulkan.Utility;
 
 public static class ImageUtility
 {
+    #region Common subresource ranges
+
+    public static ImageSubresourceRange SingleColorAttachmentRange { get; } = new()
+    {
+        AspectMask = ImageAspectFlags.ColorBit,
+        BaseArrayLayer = 0,
+        BaseMipLevel = 0,
+        LayerCount = 1,
+        LevelCount = 1
+    };
+
+    public static ImageSubresourceRange SingleDepthStencilAttachmentRange { get; } = new()
+    {
+        AspectMask = ImageAspectFlags.DepthBit | ImageAspectFlags.StencilBit,
+        BaseArrayLayer = 0,
+        BaseMipLevel = 0,
+        LayerCount = 1,
+        LevelCount = 1
+    };
+
+    #endregion
+    
+    
     public static Format GetSupportedFormat(Format[] candidateFormats, IVkPhysicalDevice physicalDevice, ImageTiling tiling, FormatFeatureFlags features)
     {
         foreach (var format in candidateFormats)
@@ -46,7 +69,7 @@ public static class ImageUtility
         using var lease = context.RenderServices.MemoryLessor.LeaseMemory(MemoryGroups.StagingStorageMemory,
             requirements.Size);
 
-        using var stagingBuffer = new VkBoundBuffer(context, device,
+        using var stagingBuffer = new VkBoundBuffer(context,
             new VkBufferContext(requirements.Size, BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive));
         stagingBuffer.BindToMemory(lease);
         stagingBuffer.UpdateData(data, 0);
@@ -92,7 +115,7 @@ public static class ImageUtility
             }
         };
         
-        using var stagingImageBuffer = new VkAllocatedBuffer<byte>(context, device, physicalDevice,
+        using var stagingImageBuffer = new VkAllocatedBuffer<byte>(context,
             new VkAllocatedBufferContext((ulong)imgSize, 
                 BufferUsageFlags.TransferDstBit, SharingMode.Exclusive,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit));
@@ -110,5 +133,64 @@ public static class ImageUtility
 
         using var img = Image.LoadPixelData<Bgra32>(data, imageSize.X, imageSize.Y);
         img.SaveAsPng(path);
+
+        context.Api.ResetCommandBuffer(commandBuffer, CommandBufferResetFlags.None);
+    }
+
+    public static unsafe void CmdTransitionLayout(CommandBuffer cmdBuffer, IVkContext context, Silk.NET.Vulkan.Image image, ImageLayout oldLayout, ImageLayout newLayout,
+        ImageSubresourceRange subresourceRange, IVkImageTransitionResolver? resolver = null)
+    {
+        var barrier = new ImageMemoryBarrier2
+        {
+            SType = StructureType.ImageMemoryBarrier2,
+            OldLayout = oldLayout,
+            NewLayout = newLayout,
+            SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
+            DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
+            Image = image,
+            SubresourceRange = subresourceRange
+        };
+
+        var transitionResolver = resolver ?? VkImageTransitionResolver.Default;
+
+        transitionResolver.ResolveOldLayout(oldLayout, ref barrier);
+        transitionResolver.ResolveNewLayout(newLayout, ref barrier);
+
+        var depInfo = new DependencyInfo
+        {
+            SType = StructureType.DependencyInfo,
+            ImageMemoryBarrierCount = 1,
+            PImageMemoryBarriers = &barrier,
+        };
+        
+        context.Api.CmdPipelineBarrier2(cmdBuffer, in depInfo);
+    }
+    
+    public static unsafe void CmdTransitionLayoutManual(CommandBuffer cmdBuffer, IVkContext context, Silk.NET.Vulkan.Image image, ImageLayout oldLayout, ImageLayout newLayout,
+        ImageSubresourceRange subresourceRange, VkImageMemoryBarrierMasks masks)
+    {
+        var barrier = new ImageMemoryBarrier2
+        {
+            SType = StructureType.ImageMemoryBarrier2,
+            OldLayout = oldLayout,
+            NewLayout = newLayout,
+            SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
+            DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
+            SrcAccessMask = masks.SrcAccessMask,
+            SrcStageMask = masks.SrcStageMask,
+            DstAccessMask = masks.DstAccessMask,
+            DstStageMask = masks.DstStageMask,
+            Image = image,
+            SubresourceRange = subresourceRange
+        };
+
+        var depInfo = new DependencyInfo
+        {
+            SType = StructureType.DependencyInfo,
+            ImageMemoryBarrierCount = 1,
+            PImageMemoryBarriers = &barrier,
+        };
+        
+        context.Api.CmdPipelineBarrier2(cmdBuffer, in depInfo);
     }
 }

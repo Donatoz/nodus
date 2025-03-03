@@ -27,6 +27,7 @@ public interface IVkContext : IDisposable
     /// </summary>
     VkExtensionsInfo ExtensionsInfo { get; }
     IVkRenderServiceContainer RenderServices { get; }
+    IVkFactoryProvider FactoryProvider { get; }
 
     /// <summary>
     /// A collection of bound Vulkan objects in a Vulkan context.
@@ -56,6 +57,7 @@ public class VkContext : IVkContext
     public Vk Api { get; }
     public VkLayerInfo? LayerInfo { get; }
     public VkExtensionsInfo ExtensionsInfo { get; }
+    public IVkFactoryProvider FactoryProvider { get; }
     public IReadOnlyCollection<VkObject> BoundObjects => boundObjects;
     public IVkRenderServiceContainer RenderServices => serviceContainer.NotNull("Vulkan service container was not initialized. " +
                                                                             "Ensure that it was initialized right after the devices.");
@@ -72,6 +74,7 @@ public class VkContext : IVkContext
         Api = api;
         ExtensionsInfo = extensionsInfo;
         LayerInfo = layerInfo;
+        FactoryProvider = new VkFactoryProvider();
     }
 
     public void BindServices(IVkRenderServiceContainer container)

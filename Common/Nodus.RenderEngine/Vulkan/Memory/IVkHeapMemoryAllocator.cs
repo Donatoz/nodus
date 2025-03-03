@@ -4,8 +4,16 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Nodus.RenderEngine.Vulkan.Memory;
 
+/// <summary>
+/// Represents an allocator of a temporary GPU memory.
+/// </summary>
 public interface IVkHeapMemoryAllocator
 {
+    /// <summary>
+    /// Allocate a temporary memory region on GPU using provided heap meta and a memory handle.
+    /// </summary>
+    /// <param name="memory"></param>
+    /// <param name="heapInfo"></param>
     void AllocateMemory(IVkMemory memory, IVkMemoryHeapInfo heapInfo);
 }
 
@@ -21,11 +29,19 @@ public sealed class BufferHeapMemoryAllocator : IVkHeapMemoryAllocator
 {
     private readonly IVkContext context;
     private readonly IVkLogicalDevice device;
+    
+    private BufferCreateInfo createInfo;
 
-    public BufferHeapMemoryAllocator(IVkContext context, IVkLogicalDevice device)
+    public BufferHeapMemoryAllocator(IVkContext context, IVkLogicalDevice device, BufferCreateInfo? createInfo = null)
     {
         this.context = context;
         this.device = device;
+        this.createInfo = createInfo ?? new BufferCreateInfo
+        {
+            SType = StructureType.BufferCreateInfo,
+            Usage = BufferUsageFlags.StorageBufferBit,
+            SharingMode = SharingMode.Exclusive
+        };
     }
     
     public unsafe void AllocateMemory(IVkMemory memory, IVkMemoryHeapInfo heapInfo)
@@ -39,17 +55,11 @@ public sealed class BufferHeapMemoryAllocator : IVkHeapMemoryAllocator
     
     private unsafe Buffer CreateHeapBuffer(IVkMemoryHeapInfo heapInfo)
     {
-        var createInfo = new BufferCreateInfo
-        {
-            SType = StructureType.BufferCreateInfo,
-            Size = heapInfo.Size,
-            Usage = BufferUsageFlags.StorageBufferBit,
-            SharingMode = SharingMode.Exclusive
-        };
-
+        var effectiveInfo = createInfo with { Size = heapInfo.Size };
+        
         Buffer buffer;
-        context.Api.CreateBuffer(device.WrappedDevice, in createInfo, null, &buffer)
-            .TryThrow($"Failed to create heap buffer.");
+        context.Api.CreateBuffer(device.WrappedDevice, in effectiveInfo, null, &buffer)
+            .TryThrow("Failed to create heap buffer.");
 
         return buffer;
     }

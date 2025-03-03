@@ -15,18 +15,20 @@ public interface IVkGraphicsPipelineContext
     DynamicState[] DynamicStates { get; }
     IEnumerable<IShaderDefinition> Shaders { get; }
     IVkRenderSupplier Supplier { get; }
-    IVkRenderPass RenderPass { get; }
+    IVkRenderPass? RenderPass { get; }
     IVkPipelineFactory? PipelineFactory { get; }
     IVkDescriptorSetFactory? DescriptorFactory { get; }
+    IVkPipelineDecorator[]? Decorators { get; }
 }
 
 public record VkGraphicsPipelineContext(
     DynamicState[] DynamicStates,
     IEnumerable<IShaderDefinition> Shaders,
-    IVkRenderPass RenderPass,
     IVkRenderSupplier Supplier,
+    IVkRenderPass? RenderPass = null,
     IVkPipelineFactory? PipelineFactory = null,
-    IVkDescriptorSetFactory? DescriptorFactory = null) : IVkGraphicsPipelineContext;
+    IVkDescriptorSetFactory? DescriptorFactory = null,
+    IVkPipelineDecorator[]? Decorators = null) : IVkGraphicsPipelineContext;
 
 public class VkGraphicsPipeline : VkObject, IVkPipeline
 {
@@ -37,15 +39,15 @@ public class VkGraphicsPipeline : VkObject, IVkPipeline
     public DescriptorSetLayout[] DescriptorSetLayouts { get; }
     
     protected IDictionary<ShaderSourceType, IVkShader> Shaders { get; }
+    protected IVkGraphicsPipelineContext PipelineContext { get; private set; }
 
     private readonly IVkLogicalDevice device;
-    private readonly IVkGraphicsPipelineContext pipelineContext;
     private readonly IVkDescriptorSetFactory descriptorFactory;
 
     public unsafe VkGraphicsPipeline(IVkContext vkContext, IVkLogicalDevice device, IVkGraphicsPipelineContext pipelineContext) : base(vkContext)
     {
         this.device = device;
-        this.pipelineContext = pipelineContext;
+        PipelineContext = pipelineContext;
 
         var factory = pipelineContext.PipelineFactory ?? VkPipelineFactory.DefaultPipelineFactory;
         descriptorFactory = pipelineContext.DescriptorFactory ?? VkDescriptorSetFactory.DefaultDescriptorSetFactory;
@@ -146,20 +148,47 @@ public class VkGraphicsPipeline : VkObject, IVkPipeline
                 PMultisampleState = &multisampling,
                 PColorBlendState = &colorBlend,
                 PDepthStencilState = &depthStencil,
-                Layout = Layout,
-                RenderPass = pipelineContext.RenderPass.WrappedPass,
-                Subpass = 0
+                Layout = Layout
             };
+            
+            using var chain = DecoratePipelineCreation(ref pipelineInfo);
 
             Pipeline pipeline;
             
-            Context.Api.CreateGraphicsPipelines(device.WrappedDevice, default, 1, &pipelineInfo, null, &pipeline)
+            Context.Api.CreateGraphicsPipelines(device.WrappedDevice, default, 1, 
+                    (GraphicsPipelineCreateInfo*)chain.HeadPtr, null, &pipeline)
                 .TryThrow("Failed to create pipeline.");
 
             WrappedPipeline = pipeline;
         }
         
         stages.ForEach(x => SilkMarshal.Free((nint)x.PName));
+    }
+
+    private Chain DecoratePipelineCreation(ref GraphicsPipelineCreateInfo createInfo)
+    {
+        var pass = PipelineContext.RenderPass;
+
+        if (pass != null)
+        {
+            createInfo.RenderPass = pass.WrappedPass;
+            createInfo.Subpass = 0;
+        }
+
+        Chain currentChain = Chain.Create(createInfo);
+
+        if (PipelineContext.Decorators != null)
+        {
+            for (var i = 0; i < PipelineContext.Decorators.Length; i++)
+            {
+                var nextChain = PipelineContext.Decorators[i].ExtendChain(currentChain);
+                currentChain.Dispose();
+                
+                currentChain = nextChain;
+            }
+        }
+
+        return currentChain;
     }
 
     private unsafe IList<DescriptorSetLayout> CreateDescriptorLayouts(DescriptorSetLayoutBinding[] bindings)

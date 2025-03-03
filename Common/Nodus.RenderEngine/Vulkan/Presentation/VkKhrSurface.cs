@@ -37,7 +37,7 @@ public class VkKhrSurface : VkObject, IVkKhrSurface
 
         if (!Context.Api.TryGetInstanceExtension<KhrSurface>(instance.WrappedInstance, out var kSurface))
         {
-            throw new Exception("Failed to retrieve KHR_surface extension.");
+            throw new VulkanRenderingException("Failed to retrieve KHR_surface extension.");
         }
         
         Extension = kSurface;

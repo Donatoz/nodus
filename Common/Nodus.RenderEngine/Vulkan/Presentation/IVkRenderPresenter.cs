@@ -1,5 +1,6 @@
 using System.Reactive.Subjects;
 using Nodus.Core.Extensions;
+using Nodus.RenderEngine.Vulkan.DI;
 using Nodus.RenderEngine.Vulkan.Extensions;
 using Nodus.RenderEngine.Vulkan.Rendering;
 using Nodus.RenderEngine.Vulkan.Sync;
@@ -8,6 +9,10 @@ using Semaphore = Silk.NET.Vulkan.Semaphore;
 
 namespace Nodus.RenderEngine.Vulkan.Presentation;
 
+/// <summary>
+/// Represents an interface for presenting rendering results acquired from a renderer.
+/// It exposes available rendering targets and provides functionality for render synchronization.
+/// </summary>
 public interface IVkRenderPresenter : IDisposable
 {
     IObservable<RenderPresentEvent> EventStream { get; }
@@ -15,6 +20,9 @@ public interface IVkRenderPresenter : IDisposable
     IVkTask CreateFramePreparationTask(uint frameIndex);
     IVkTask CreatePresentationTask(Queue queue);
     Framebuffer GetAvailableFramebuffer();
+    
+    IVkImage GetCurrentImage();
+    IVkImage? TryGetCurrentDepthImage();
 }
 
 public enum RenderPresentEvent
@@ -56,9 +64,9 @@ public class VkSwapchainRenderPresenter : IVkRenderPresenter
     
     public IVkTask CreateFramePreparationTask(uint frameIndex)
     {
-        return new VkTask(PipelineStageFlags.ColorAttachmentOutputBit, (sm, st) => PrepareNewFrameImpl(sm, st, frameIndex))
+        return new VkHostTask(PipelineStageFlags.ColorAttachmentOutputBit, (sm, st) => PrepareNewFrameImpl(sm, st, frameIndex))
         {
-            SignalSemaphore = framePrepareReadySemaphores[frameIndex]
+            CompletionSemaphore = framePrepareReadySemaphores[frameIndex]
         };
     }
 
@@ -75,7 +83,7 @@ public class VkSwapchainRenderPresenter : IVkRenderPresenter
         }
         if (acquireResult != Result.Success && acquireResult != Result.SuboptimalKhr)
         {
-            throw new Exception("Failed to acquire next swapchain image.");
+            throw new VulkanRenderingException("Failed to acquire next swapchain image.");
         }
         
         currentImageIndex = imgIndex;
@@ -84,7 +92,7 @@ public class VkSwapchainRenderPresenter : IVkRenderPresenter
     
     public unsafe IVkTask CreatePresentationTask(Queue queue)
     {
-        return new VkTask(PipelineStageFlags.None, (sm, _) =>
+        return new VkHostTask(PipelineStageFlags.None, (sm, _) =>
         {
             var swapChainKhr = swapChain.WrappedSwapChain;
             var imgIndex = currentImageIndex;
@@ -112,10 +120,20 @@ public class VkSwapchainRenderPresenter : IVkRenderPresenter
     {
         if (swapChain.FrameBuffers == null)
         {
-            throw new Exception("Failed to get available framebuffer: buffers were not initialized by the swapchain.");
+            throw new VulkanRenderingException("Failed to get available framebuffer: buffers were not initialized by the swapchain.");
         }
 
         return swapChain.FrameBuffers![currentImageIndex];
+    }
+
+    public IVkImage GetCurrentImage()
+    {
+        return swapChain.Images[currentImageIndex];
+    }
+
+    public IVkImage? TryGetCurrentDepthImage()
+    {
+        return swapChain.DepthStencilImage;
     }
 
     private void RecreateSwapChain()

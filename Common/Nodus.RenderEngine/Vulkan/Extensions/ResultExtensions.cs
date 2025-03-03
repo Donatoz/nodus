@@ -9,7 +9,7 @@ public static class ResultExtensions
     {
         if (result != Result.Success)
         {
-            throw new Exception($"{result}: {onErrorMessage}");
+            throw new VulkanException($"{result}: {onErrorMessage}");
         }
     }
 }

@@ -1,5 +1,6 @@
 using Nodus.RenderEngine.Vulkan.Convention;
 using Nodus.RenderEngine.Vulkan.Memory;
+using Nodus.RenderEngine.Vulkan.Meta;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
 

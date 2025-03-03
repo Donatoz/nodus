@@ -69,18 +69,18 @@ public class VkComputeDispatcher : IDisposable
         storageBufferMemory =
             context.RenderServices.MemoryLessor.LeaseMemory(MemoryGroups.ComputeStorageMemory, storageBufferSize);
         
-        storageBuffer = new VkBoundBuffer(context, device, new VkBufferContext(
+        storageBuffer = new VkBoundBuffer(context, new VkBufferContext(
             storageBufferSize,
             BufferUsageFlags.VertexBufferBit | BufferUsageFlags.StorageBufferBit | BufferUsageFlags.TransferDstBit,
             SharingMode.Exclusive));
-        outputBuffer = new VkAllocatedBuffer<float>(context, device, dispatcherContext.PhysicalDevice,
+        outputBuffer = new VkAllocatedBuffer<float>(context,
             new VkAllocatedBufferContext((uint)storageBufferSize, BufferUsageFlags.StorageBufferBit | BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit));
         outputBuffer.Allocate();
         
         storageBuffer.BindToMemory(storageBufferMemory);
 
-        using var stagingBuffer = new VkAllocatedBuffer<float>(context, device, dispatcherContext.PhysicalDevice,
+        using var stagingBuffer = new VkAllocatedBuffer<float>(context,
             new VkAllocatedBufferContext((uint)storageBufferSize, BufferUsageFlags.TransferSrcBit, SharingMode.Exclusive,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit));
         stagingBuffer.Allocate();
@@ -148,7 +148,7 @@ public class VkComputeDispatcher : IDisposable
         
         inFlightFence.Await();
 
-        using var stgBuffer = new VkAllocatedBuffer<float>(context, device, physicalDevice,
+        using var stgBuffer = new VkAllocatedBuffer<float>(context,
             new VkAllocatedBufferContext((uint)storageBufferSize, BufferUsageFlags.TransferDstBit, SharingMode.Exclusive,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit));
         

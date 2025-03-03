@@ -61,10 +61,10 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
     // TODO: Map this to T*
     private void* mappedMemory;
 
-    public VkAllocatedBuffer(IVkContext vkContext, IVkLogicalDevice device, IVkPhysicalDevice physicalDevice, IVkAllocatedBufferContext bufferContext) : base(vkContext)
+    public VkAllocatedBuffer(IVkContext vkContext, IVkAllocatedBufferContext bufferContext) : base(vkContext)
     {
-        this.device = device;
-        this.physicalDevice = physicalDevice;
+        device = vkContext.RenderServices.Devices.LogicalDevice;
+        physicalDevice = vkContext.RenderServices.Devices.PhysicalDevice;
         this.bufferContext = bufferContext;
 
         var createInfo = new BufferCreateInfo
@@ -97,7 +97,7 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
             }
         }
 
-        throw new Exception("Failed to find memory type for the buffer.");
+        throw new VulkanMemoryException("Failed to find memory type for the buffer.");
     }
 
     public void Allocate()
@@ -126,12 +126,12 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
     {
         if (Memory == null)
         {
-            throw new Exception("Failed to map buffer memory: buffer was not allocated.");
+            throw new VulkanMemoryException("Failed to map buffer memory: buffer was not allocated.");
         }
 
         if (!bufferContext.MemoryProperties.HasFlag(MemoryPropertyFlags.HostVisibleBit))
         {
-            throw new Exception("Failed to map buffer memory: buffer memory isn't host-visible.");
+            throw new VulkanMemoryException("Failed to map buffer memory: buffer memory isn't host-visible.");
         }
         
         void* memory;
@@ -146,7 +146,7 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
     {
         if (Memory == null)
         {
-            throw new Exception("Failed to unmap buffer memory: buffer was not allocated.");
+            throw new VulkanMemoryException("Failed to unmap buffer memory: buffer was not allocated.");
         }
         
         Context.Api.UnmapMemory(device.WrappedDevice, Memory.Value);
@@ -156,7 +156,7 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
     {
         if (typeof(TData) != typeof(T))
         {
-            throw new Exception($"Invalid type for data input. Expected: {typeof(T)}, Actual: {typeof(TData)}");
+            throw new VulkanException($"Invalid type for data input. Expected: {typeof(T)}, Actual: {typeof(TData)}");
         }
         
         UpdateData((ReadOnlySpan<T>)MemoryMarshal.Cast<TData, T>(data), offset);
@@ -176,7 +176,7 @@ public unsafe class VkAllocatedBuffer<T> : VkObject, IVkAllocatedBuffer<T> where
     {
         if (Memory == null)
         {
-            throw new Exception("Failed to update buffer data: memory was not allocated.");
+            throw new VulkanMemoryException("Failed to update buffer data: memory was not allocated.");
         }
         
         void* bufferData;

@@ -18,10 +18,25 @@ public interface IVkRenderContext : IRenderContext
 
 public abstract class VkGraphRendererBase : IRenderer, IDisposable
 {
+    /// <summary>
+    /// Attached vulkan context.
+    /// </summary>
     protected IVkContext? Context { get; private set; }
+    /// <summary>
+    /// Logical device.
+    /// </summary>
     protected IVkLogicalDevice? Device { get; private set; }
+    /// <summary>
+    /// Attached components.
+    /// </summary>
     protected IVkRenderComponent[]? Components { get; private set; }
+    /// <summary>
+    /// Attached presenter.
+    /// </summary>
     protected IVkRenderPresenter? Presenter { get; private set; }
+    /// <summary>
+    /// Primary render graph.
+    /// </summary>
     protected IVkTaskGraph? RenderGraph { get; private set; }
 
     private IVkRenderContext? renderContext;
@@ -62,6 +77,9 @@ public abstract class VkGraphRendererBase : IRenderer, IDisposable
         }
     }
 
+    /// <summary>
+    /// Rebuild the <see cref="RenderGraph"/>.
+    /// </summary>
     protected void BuildRenderGraph()
     {
         RenderGraph?.Dispose();
@@ -79,9 +97,18 @@ public abstract class VkGraphRendererBase : IRenderer, IDisposable
         RenderGraph!.Execute();
     }
     
+    /// <summary>
+    /// Initialize the renderer with <see cref="IVkRenderContext"/>.
+    /// </summary>
+    /// <param name="context"></param>
     protected abstract void Initialize(IVkRenderContext context);
+    /// <summary>
+    /// Acquire render tasks that <see cref="RenderGraph"/> will execute per each frame.
+    /// </summary>
     protected abstract IEnumerable<IVkTask> GetRenderTasks();
-    
+    /// <summary>
+    /// Prepare the renderer state for the next frame.
+    /// </summary>
     protected virtual void PrepareFrame() { }
 
     public void Enqueue(Action workItem)
@@ -118,6 +145,9 @@ public abstract class VkGraphRendererBase : IRenderer, IDisposable
         throw new NotImplementedException();
     }
 
+    /// <summary>
+    /// Create new instance of <see cref="IVkTaskGraph"/> that will be used as primary render graph (<see cref="RenderGraph"/>).
+    /// </summary>
     protected virtual IVkTaskGraph CreateRenderGraph()
     {
         var graph = new VkTaskGraph(Context!);

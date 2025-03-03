@@ -8,6 +8,6 @@ public readonly struct VkRenderBackendProvider(IVkContext context) : IRenderBack
     {
         return typeof(T) == typeof(IVkContext)
             ? (T)context
-            : throw new Exception($"Failed to provide context of type: {typeof(T)}");
+            : throw new VulkanException($"Failed to provide context of type: {typeof(T)}");
     }
 }

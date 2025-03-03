@@ -7,6 +7,9 @@ uniform, storage, vertex, and index.
 Each Vulkan renderer has to be supplied with a rendering context, which serves as
 the main configuration interface.
 
+A renderer can be re-initialized with the different context, while it is advised to use high-level
+abstractions (`Nodus.RenderEngine.Common`) to manipulate the render process at runtime.
+
 ## Graph-based renderers
 
 A graph-based renderer (`VkGraphRendererBase`) has it's rendering logic split into separate `IVkTask`'s, which execute the

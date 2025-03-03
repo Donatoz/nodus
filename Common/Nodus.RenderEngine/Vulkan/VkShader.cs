@@ -56,7 +56,7 @@ public class VkShader : VkObject, IVkShader
 
             if (Context.Api.CreateShaderModule(device.WrappedDevice, in createInfo, null, out module) != Result.Success)
             {
-                throw new Exception($"Failed to create shader module from source: {source}");
+                throw new VulkanException($"Failed to create shader module from source: {source}");
             }
         }
 
@@ -67,8 +67,7 @@ public class VkShader : VkObject, IVkShader
     {
         if (source is not IShaderByteSource s)
         {
-            throw new Exception(
-                $"Failed to create shader module from source: {source}. Only byte-sources are supported.");
+            throw new VulkanException($"Failed to create shader module from source: {source}. Only byte-sources are supported.");
         }
 
         return s.FetchBytes();

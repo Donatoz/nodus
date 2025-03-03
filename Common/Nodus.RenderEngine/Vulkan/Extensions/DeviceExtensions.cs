@@ -18,12 +18,12 @@ public static class DeviceExtensions
     {
         if (info.GraphicsFamily == null)
         {
-            throw new Exception("Graphics family was not specified in the provided queue info.");
+            throw new VulkanException("Graphics family was not specified in the provided queue info.");
         }
 
         if (!device.Queues.TryGetValue(info.GraphicsFamily.Value, out var family))
         {
-            throw new Exception("Graphics queue is not present on the device.");
+            throw new VulkanException("Graphics queue is not present on the device.");
         }
 
         return family;

@@ -44,7 +44,8 @@ public unsafe class VkWindow
 
     private readonly string[] deviceExtensions =
     [
-        KhrSwapchain.ExtensionName
+        KhrSwapchain.ExtensionName,
+        
     ];
     
     private Vk? vk;
@@ -69,14 +70,19 @@ public unsafe class VkWindow
     private IInputContext? input;
     private VkRenderSupplier? renderSupplier;
     private nint? imGuiContext;
+    private IVkCommandPool? commandPool;
 
     private bool isInitialized;
     private double fps;
     private uint frame;
+    private double frameRenderTime;
     private double refreshTime;
     private float timeMultiplier = 1;
     private float uvSize = 1;
     private float distortionAmount = 0.2f;
+
+    private readonly bool incrementalRender = false;
+    private int renderRequests;
     
     private readonly IRenderer renderer;
     private readonly CompositeDisposable disposables;
@@ -136,7 +142,7 @@ public unsafe class VkWindow
 
         physicalDevice = GetFirstSuitablePhysicalDevice();
         logicalDevice = CreateLogicalDevice(physicalDevice);
-
+        
         var bufferHeapAllocator = new BufferHeapMemoryAllocator(vkContext, logicalDevice);
         
         var depthFormat = ImageUtility.GetSupportedFormat(
@@ -151,7 +157,7 @@ public unsafe class VkWindow
                 new ImageHeapMemoryAllocator(vkContext, logicalDevice, Format.R8G8B8A8Srgb, ImageUsageFlags.SampledBit | ImageUsageFlags.TransferDstBit)),
             
             new VkMemoryHeapInfo(MemoryGroups.DepthImageMemory, 
-                1024 * 1024 * 16, 
+                1024 * 1024 * 64, 
                 MemoryPropertyFlags.DeviceLocalBit,
                 new ImageHeapMemoryAllocator(vkContext, logicalDevice, depthFormat, ImageUsageFlags.DepthStencilAttachmentBit)),
             
@@ -167,7 +173,7 @@ public unsafe class VkWindow
                 bufferHeapAllocator),
             
             new VkMemoryHeapInfo(MemoryGroups.StagingStorageMemory, 
-                1024 * 1024 * 8,
+                1024 * 1024 * 32,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
                 bufferHeapAllocator)
         ]);
@@ -184,16 +190,20 @@ public unsafe class VkWindow
         var queueInfo = VkQueueInfo.GetFromDevice(physicalDevice.WrappedDevice, vk, surface);
         var geoFactory = new AssimpGeometryFactory();
 
-        var cube = geoFactory.CreateFromFile(@"G:\CG\3D\Common\Sphere3.obj").First();
+        var geometry = geoFactory.CreateFromFile(@"G:\CG\3D\Common\Sphere3.obj").First();
 
         extensionProvider = new VkExtensionProvider(vkContext, instance, logicalDevice);
         
         swapChain = CreateSwapChain();
         renderPass = new VkRenderPass(vkContext, logicalDevice, new VkRenderPassContext(swapChain.SurfaceFormat.Format, swapChain.DepthFormat, CreatePassFactory()));
-        
+        commandPool = new VkCommandPool(vkContext, logicalDevice, queueInfo, 1, CommandPoolCreateFlags.ResetCommandBufferBit);
+
         swapChain.CreateFrameBuffers(renderPass.WrappedPass);
         renderSupplier = new VkRenderSupplier(() => swapChain.Extent, 
             () => new Vector2((float)window.FramebufferSize.X / window.Size.X, (float)window.FramebufferSize.Y / window.Size.Y));
+        
+        var attachments = new VkRenderAttachmentsInfo(1, [swapChain.SurfaceFormat.Format], swapChain.DepthFormat,
+            swapChain.DepthFormat);
 
         imGuiContext = ImGui.CreateContext();
         ImGui.SetCurrentContext(imGuiContext.Value);
@@ -207,8 +217,7 @@ public unsafe class VkWindow
                 new ShaderDefinition(
                     new ShaderFileSource(@"C:\Users\Donatoz\RiderProjects\Nodus\Nodus.VisualTests\Assets\Shaders\compiled\imgui.frag.spv"),
                     ShaderSourceType.Fragment)
-            ], renderSupplier, swapChain.SurfaceFormat.Format, swapChain.DepthFormat, 2, 
-                new VkImageLayoutTransition(ImageLayout.ColorAttachmentOptimal, ImageLayout.PresentSrcKhr), RenderGui));
+            ], renderSupplier, swapChain.SurfaceFormat.Format, swapChain.DepthFormat, 2, RenderGui, attachments));
 
         viewer = new Viewer(new Vector2D<float>(swapChain.Extent.Width, swapChain.Extent.Height))
         {
@@ -225,29 +234,37 @@ public unsafe class VkWindow
 
         using var texture = textureDataProvider.FetchTexture(textureSource);
         using var texture2 = textureDataProvider.FetchTexture(textureSource2);
-        //presenter = new VkDetachedPresenter(vkContext, logicalDevice, physicalDevice, renderSupplier, renderPass, queueInfo, 2);
+        //presenter = new VkDetachedPresenter(vkContext, renderSupplier, renderPass, queueInfo, 2);
         presenter = new VkSwapchainRenderPresenter(vkContext, logicalDevice, swapChain, surface, renderPass, 2);
 
         var materialFactory = new CommonMaterialsFactory(vkContext, renderSupplier);
-        var material = materialFactory.CreateSolidMaterial();
+        var material = materialFactory.CreateSolidMaterial(renderAttachments: attachments);
         
         materialInstance = material.CreateInstance();
         
         disposables.Add(materialInstance);
         disposables.Add(material);
-
-
+        
+        /*
         renderer.Initialize(
-            new VkGeometryPrimitiveRenderContext(cube, logicalDevice, physicalDevice, queueInfo,
+            new VkMultiBufferRenderContext(2, presenter, renderPass, renderSupplier), new VkRenderBackendProvider(vkContext));
+        */
+        
+        renderer.Initialize(
+            new VkGeometryPrimitiveRenderContext(geometry, physicalDevice, queueInfo,
                 renderPass, viewer, materialInstance, [texture, texture2], presenter, renderSupplier, 2,
                 [imGuiComponent]),
             new VkRenderBackendProvider(vkContext)
         );
+
+        var scene = new RenderScene(viewer);
         
+        scene.RenderedObjects.Add(new RenderedObject(geometry, new Transform3D(), materialInstance.Parent.MaterialId));
         
         /*
         renderer.Initialize(
-            new VkMultiBufferRenderContext(2, presenter, renderPass, renderSupplier),
+            new VkSceneRenderContext(2, presenter, renderPass, renderSupplier, [imGuiComponent], 
+                scene, [materialInstance]),
             new VkRenderBackendProvider(vkContext)
         );
         */
@@ -278,6 +295,20 @@ public unsafe class VkWindow
         {
             HeapVisualizer.Visualize(memoryLessor!.AllocatedHeaps.ToArray(), @"J:\heaps.png");
         }
+
+        if (key == Key.R)
+        {
+            renderRequests++;
+        }
+
+        if (key == Key.S && keyboard.IsKeyPressed(Key.ControlLeft))
+        {
+            var img = presenter!.GetCurrentImage();
+            
+            img.SaveAsPng(vkContext!, commandPool!.GetBuffer(0), new Vector2D<int>((int)img.Specification.Size.Width, (int)img.Specification.Size.Height), "J:\\render.png");
+            
+            Console.WriteLine("Save img");
+        }
     }
 
     private void RenderGui()
@@ -285,11 +316,15 @@ public unsafe class VkWindow
         if (ImGui.Begin("Debug"))
         {
 
-            ImGui.SeparatorText("Stats");
+            ImGui.SeparatorText("Global Stats");
 
             ImGui.BeginGroup();
             ImGui.Text($"FPS: {fps:0.00}");
+            ImGui.Text($"Frame render: {frameRenderTime:0.00}");
+            ImGui.Text($"Active VkObjects: {vkContext!.BoundObjects.Count}");
             ImGui.EndGroup();
+            
+            ImGui.SeparatorText("Renderer Stats");
 
             ImGui.SeparatorText("Memory");
 
@@ -355,8 +390,19 @@ public unsafe class VkWindow
     private void OnRender(double delta)
     {
         if (!isInitialized || window.FramebufferSize.X == 0 || window.FramebufferSize.Y == 0) return;
-        
-        renderer.RenderFrame();
+
+        if (incrementalRender)
+        {
+            if (renderRequests > 0)
+            {
+                renderRequests--;
+                renderer.RenderFrame();
+            }
+        }
+        else
+        {
+            renderer.RenderFrame();
+        }
         frame++;
     }
     
@@ -610,7 +656,8 @@ public unsafe class VkWindow
         renderPass?.Dispose();
         swapChain?.Dispose();
         surface?.Dispose();
-        
+        commandPool?.Dispose();
+
         layerInfo?.Dispose();
         memoryLessor?.Dispose();
         logicalDevice?.Dispose();

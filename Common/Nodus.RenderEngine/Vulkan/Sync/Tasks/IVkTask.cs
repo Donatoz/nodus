@@ -30,11 +30,11 @@ public interface IVkTask
     ISet<IVkTask> Dependencies { get; }
     
     /// <summary>
-    /// Optional semaphore that is signaled whenever the task has completed its execution.
+    /// Optional semaphore that is signaled whenever the task execution is complete.
     /// </summary>
-    IVkSemaphore? SignalSemaphore { get; set; }
+    IVkSemaphore? CompletionSemaphore { get; set; }
     /// <summary>
-    /// Optional fence that is signaled whenever the task has completed its execution.
+    /// Optional fence that is signaled whenever the task execution is complete.
     /// </summary>
     IVkFence? CompletionFence { get; set; }
     
@@ -59,7 +59,7 @@ public abstract record VkTaskBase : IVkTask
     public PipelineStageFlags WaitStageFlags { get; }
     public ISet<IVkTask> Dependencies => dependencies;
     
-    public IVkSemaphore? SignalSemaphore { get; set; }
+    public IVkSemaphore? CompletionSemaphore { get; set; }
     public IVkFence? CompletionFence { get; set; }
     
     private readonly HashSet<IVkTask> dependencies;

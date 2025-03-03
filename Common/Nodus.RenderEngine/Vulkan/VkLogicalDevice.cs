@@ -1,4 +1,4 @@
-﻿using Nodus.RenderEngine.Common;
+﻿using Nodus.RenderEngine.Vulkan.Extensions;
 using Nodus.RenderEngine.Vulkan.Meta;
 using Nodus.RenderEngine.Vulkan.Presentation;
 using Silk.NET.Core.Native;
@@ -55,46 +55,47 @@ public unsafe class VkLogicalDevice : VkObject, IVkLogicalDevice
         };
         var firstInfo = queueInfos[0];
         
-        var indexing = new PhysicalDeviceDescriptorIndexingFeatures
-        {
-            SType = StructureType.PhysicalDeviceDescriptorIndexingFeatures,
-            RuntimeDescriptorArray = Vk.True,
-            ShaderSampledImageArrayNonUniformIndexing = Vk.True,
-            DescriptorBindingVariableDescriptorCount = Vk.True,
-            DescriptorBindingPartiallyBound = Vk.True
-        };
+        using var createChain = Chain.Create
+        <
+            DeviceCreateInfo, 
+            PhysicalDeviceDescriptorIndexingFeatures,
+            PhysicalDeviceDynamicRenderingFeatures,
+            PhysicalDeviceSynchronization2Features
+        >();
+        
+        createChain.HeadRef.PQueueCreateInfos = &firstInfo;
+        createChain.HeadRef.QueueCreateInfoCount = (uint)queueInfos.Length;
+        createChain.HeadRef.PEnabledFeatures = &features;
+        createChain.HeadRef.EnabledExtensionCount = (uint)Context.ExtensionsInfo.RequiredDeviceExtensions.Length;
+        createChain.HeadRef.PpEnabledExtensionNames = (byte**)SilkMarshal.StringArrayToPtr(Context.ExtensionsInfo.RequiredDeviceExtensions);
 
-        var createInfo = new DeviceCreateInfo
-        {
-            SType = StructureType.DeviceCreateInfo,
-            PQueueCreateInfos = &firstInfo,
-            QueueCreateInfoCount = (uint)queueInfos.Length,
-            PEnabledFeatures = &features,
-            EnabledExtensionCount = (uint)Context.ExtensionsInfo.RequiredDeviceExtensions.Length,
-            PpEnabledExtensionNames = (byte**)SilkMarshal.StringArrayToPtr(Context.ExtensionsInfo.RequiredDeviceExtensions),
-            PNext = &indexing
-        };
+        createChain.Item1Ref.RuntimeDescriptorArray = Vk.True;
+        createChain.Item1Ref.ShaderSampledImageArrayNonUniformIndexing = Vk.True;
+        createChain.Item1Ref.DescriptorBindingVariableDescriptorCount = Vk.True;
+        createChain.Item1Ref.DescriptorBindingPartiallyBound = Vk.True;
+
+        createChain.Item2Ref.DynamicRendering = Vk.True;
+        
+        createChain.Item3Ref.Synchronization2 = Vk.True;
 
         if (Context.LayerInfo != null)
         {
-            createInfo.EnabledLayerCount = Context.LayerInfo.Value.EnabledLayersCount;
-            createInfo.PpEnabledLayerNames = Context.LayerInfo.Value.EnabledLayerNames;
+            createChain.HeadRef.EnabledLayerCount = Context.LayerInfo.Value.EnabledLayersCount;
+            createChain.HeadRef.PpEnabledLayerNames = Context.LayerInfo.Value.EnabledLayerNames;
         }
         else
         {
-            createInfo.EnabledLayerCount = 0;
+            createChain.HeadRef.EnabledLayerCount = 0;
         }
-
-        if (Context.Api.CreateDevice(physicalDevice.WrappedDevice, &createInfo, null, out var device) != Result.Success)
-        {
-            throw new Exception("Failed to create logical device.");
-        }
+        
+        Context.Api.CreateDevice(physicalDevice.WrappedDevice, createChain.HeadRef, null, out var device)
+            .TryThrow("Failed to create logical device.");
 
         queues = familyIndices.ToDictionary(x => x, x => Context.Api.GetDeviceQueue(device, x, 0));
         
         WrappedDevice = device;
 
-        SilkMarshal.Free((nint)createInfo.PpEnabledExtensionNames);
+        SilkMarshal.Free((nint)createChain.HeadRef.PpEnabledExtensionNames);
     }
 
     public static implicit operator Device(VkLogicalDevice logicalDevice)

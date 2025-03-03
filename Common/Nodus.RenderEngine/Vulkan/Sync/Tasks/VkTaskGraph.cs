@@ -4,9 +4,10 @@ using Semaphore = Silk.NET.Vulkan.Semaphore;
 
 namespace Nodus.RenderEngine.Vulkan.Sync;
 
-/// <summary></summary>
+/// <summary>
 /// Represents a task graph for executing GPU work items.
 /// A task graph manages a collection of tasks and their dependencies, and provides methods to execute and manipulate them.
+/// </summary>
 public interface IVkTaskGraph : IVkUnmanagedHook
 {
     ///<summary>
@@ -68,7 +69,7 @@ public class VkTaskGraph : VkObject, IVkTaskGraph
     {
         if (submissionPayload == null)
         {
-            throw new Exception("Failed to submit tasks: graph must be baked prior to the submission.");
+            throw new VulkanTaskException("Failed to submit tasks: graph must be baked prior to the submission.");
         }
 
         if (submissionPayload.Count == 0) return;
@@ -106,7 +107,7 @@ public class VkTaskGraph : VkObject, IVkTaskGraph
             submissionPayload.Add(new SubmissionPayloadToken
             {
                 Task = sortedTasks[i],
-                Semaphore = sortedTasks[i].SignalSemaphore,
+                Semaphore = sortedTasks[i].CompletionSemaphore,
                 Order = i
             });
         }

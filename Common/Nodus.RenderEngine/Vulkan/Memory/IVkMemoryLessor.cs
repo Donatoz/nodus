@@ -22,7 +22,7 @@ public interface IVkMemoryLease : IDisposable
     /// </summary>
     /// <remarks>
     /// The property provides a stream of new lease mutations that represent the current lase state within a memory allocation.
-    /// The stream emits the updated state value every time the lease bound memory or region changes (for example, after defragmentation).
+    /// The stream emits an updated state value every time the lease-bound memory or region changes (for example, after defragmentation).
     /// </remarks>
     IObservable<IVkMemoryLease> MutationStream { get; }
 

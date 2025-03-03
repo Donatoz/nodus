@@ -24,9 +24,9 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
     private IDisposable? leaseMutationContract;
     private ulong currentMemoryOffset;
     
-    public VkBoundBuffer(IVkContext vkContext, IVkLogicalDevice device, IVkBufferContext bufferContext) : base(vkContext)
+    public VkBoundBuffer(IVkContext vkContext, IVkBufferContext bufferContext) : base(vkContext)
     {
-        this.device = device;
+        device = vkContext.RenderServices.Devices.LogicalDevice;
         this.bufferContext = bufferContext;
         
         WrappedBuffer = CreateBuffer();
@@ -121,6 +121,8 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
         
         if (leaseMemoryChanged || leaseRegionChanged)
         {
+            // TODO: Everything in this scope has to be executed via dispatcher, without blocking the current thread. 
+            
             bufferContext.BlockingFences?.ForEach(x => x.Await());
 
             // The buffer has to be recreated between frames, and, most importantly, outside any command buffer.
@@ -144,7 +146,7 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
     {
         if (memory == null)
         {
-            throw new Exception("Failed to perform buffer operation: memory was not leased.");
+            throw new VulkanMemoryException("Failed to perform buffer operation: memory was not leased.");
         }
     }
 
@@ -154,7 +156,7 @@ public class VkBoundBuffer : VkObject, IVkBoundBuffer
         
         if (!memory!.Memory.IsAllocated())
         {
-            throw new Exception("Failed to perform buffer operation: memory was not allocated.");
+            throw new VulkanMemoryException("Failed to perform buffer operation: memory was not allocated.");
         }
     }
 

@@ -22,7 +22,7 @@ public static class HeapVisualizer
         
         if (!SystemFonts.TryGet("Lato", out var family))
         {
-            throw new Exception("Failed to get Roboto system font.");
+            throw new Exception("Failed to get Lato system font.");
         }
 
         var font = family.CreateFont(heapTitleSize, FontStyle.Regular);

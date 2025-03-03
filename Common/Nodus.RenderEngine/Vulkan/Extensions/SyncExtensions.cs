@@ -25,7 +25,7 @@ public static class SyncExtensions
 
     public static IVkTask AsTask(this IVkFence fence, IVkContext context, PipelineStageFlags waitStage = PipelineStageFlags.None)
     {
-        return new VkTask(waitStage, (sm, _) =>
+        return new VkHostTask(waitStage, (sm, _) =>
         {
             sm?.AwaitAll(context);
             fence.Await();

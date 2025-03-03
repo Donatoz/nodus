@@ -71,7 +71,7 @@ public class VkMemory : VkObject, IVkMemory
     {
         if (!this.IsAllocated())
         {
-            throw new Exception("Failed to provide memory as a lease: memory was not allocated.");
+            throw new VulkanMemoryException("Failed to provide memory as a lease: memory was not allocated.");
         }
         
         return new VkLeaseAdapter(Context, this, size, alignment);
@@ -92,7 +92,7 @@ public class VkMemory : VkObject, IVkMemory
             }
         }
 
-        throw new Exception("Failed to find memory type.");
+        throw new VulkanMemoryException("Failed to find memory type.");
     }
     
     private unsafe void TryFreeAllocatedMemory()

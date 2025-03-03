@@ -42,6 +42,15 @@ public unsafe class VkFence : VkObject, IVkFence
     {
         Context.Api.ResetFences(device.WrappedDevice, 1, WrappedFence);
     }
+
+    public static void Await(IVkContext context, Action<Fence> action)
+    {
+        using var fence = new VkFence(context, context.RenderServices.Devices.LogicalDevice);
+        
+        action.Invoke(fence.WrappedFence);
+        
+        fence.Await();
+    }
     
     protected override void Dispose(bool disposing)
     {

@@ -53,8 +53,9 @@ public interface IVkSwapChain : IVkUnmanagedHook
     PresentModeKHR PresentMode { get; }
     SwapchainKHR WrappedSwapChain { get; }
     KhrSwapchain SwapChainExtension { get; }
-    ImageView[] Views { get; }
     Framebuffer[]? FrameBuffers { get; }
+    IVkImage[] Images { get; }
+    IVkImage? DepthStencilImage { get; }
 
     /// <summary>
     /// Acquire the next image in the swap chain for rendering.
@@ -82,6 +83,8 @@ public interface IVkSwapChain : IVkUnmanagedHook
     /// <param name="newContext">The new context for the swapchain.
     /// If not provided - the state will be re-created using the current one.</param>
     void RecreateState(IVkSwapChainContext? newContext = null);
+    
+    void CmdTransitionCurrentImage(int imgIndex, CommandBuffer cmdBuffer, ImageLayout oldLayout, ImageLayout newLayout, ImageSubresourceRange subresourceRange, VkImageMemoryBarrierMasks masks);
 }
 
 public class VkSwapChain : VkObject, IVkSwapChain
@@ -92,11 +95,11 @@ public class VkSwapChain : VkObject, IVkSwapChain
     public PresentModeKHR PresentMode { get; private set; }
     public SwapchainKHR WrappedSwapChain { get; private set; }
     public KhrSwapchain SwapChainExtension { get; }
-    public ImageView[] Views { get; private set; } = null!;
     public Framebuffer[]? FrameBuffers { get; protected set; }
+    public IVkImage[] Images { get; private set; } = null!;
+    public IVkImage? DepthStencilImage => depthImage;
 
     protected IVkSwapChainContext SwapChainContext { get; private set; }
-    protected Image[] Images { get; private set; } = null!;
 
     private IVkMemoryLease depthImageMemory = null!;
     private IVkImage? depthImage;
@@ -109,7 +112,7 @@ public class VkSwapChain : VkObject, IVkSwapChain
     {
         if (!extensionProvider.TryGetCurrentDeviceExtension(out KhrSwapchain swapChainExt))
         {
-            throw new Exception($"Failed to create swapchain: {KhrSwapchain.ExtensionName} is not supported.");
+            throw new VulkanRenderingException($"Failed to create swapchain: {KhrSwapchain.ExtensionName} is not supported.");
         }
         
         SwapChainExtension = swapChainExt;
@@ -185,12 +188,12 @@ public class VkSwapChain : VkObject, IVkSwapChain
         var physicalDevice = Context.RenderServices.Devices.PhysicalDevice;
         
         DepthFormat = ImageUtility.GetSupportedFormat(
-            [Format.D32Sfloat, Format.D32SfloatS8Uint, Format.D24UnormS8Uint],
+            [Format.D32SfloatS8Uint, Format.D24UnormS8Uint],
             physicalDevice, ImageTiling.Optimal, FormatFeatureFlags.DepthStencilAttachmentBit);
         
         depthImage = new VkImage(Context, device, new VkImageSpecification(ImageType.Type2D,
             Extent.CastUp(), DepthFormat, ImageUsageFlags.DepthStencilAttachmentBit,
-            ImageViewType.Type2D, physicalDevice.Properties.Limits.MaxSamplerAnisotropy, ImageAspectFlags.DepthBit));
+            ImageViewType.Type2D, physicalDevice.Properties.Limits.MaxSamplerAnisotropy, ImageAspectFlags.DepthBit | ImageAspectFlags.StencilBit));
 
         Context.Api.GetImageMemoryRequirements(device.WrappedDevice, depthImage.WrappedImage, out var requirements);
         
@@ -202,7 +205,7 @@ public class VkSwapChain : VkObject, IVkSwapChain
             previousDepthMemorySize = depthImageMemory.Region.Size;
         }
         
-        depthImage.BindToMemory(depthImageMemory.Memory);
+        depthImage.BindToMemory(depthImageMemory);
         depthImage.CreateView();
 
         var cmdBuffer = commandPool.GetBuffer(0);
@@ -211,7 +214,7 @@ public class VkSwapChain : VkObject, IVkSwapChain
         
         depthImage.CmdTransitionLayout(cmdBuffer, ImageLayout.DepthStencilAttachmentOptimal);
         
-        cmdBuffer.SubmitBuffer(Context, device.TryGetGraphicsQueue(Context.RenderServices.Devices.PhysicalDevice.QueueInfo)!.Value);
+        VkFence.Await(Context, f => cmdBuffer.SubmitBuffer(Context, device.TryGetGraphicsQueue(Context.RenderServices.Devices.PhysicalDevice.QueueInfo)!.Value, f));
     }
 
     private unsafe void CreateImages(uint imageCount)
@@ -230,22 +233,16 @@ public class VkSwapChain : VkObject, IVkSwapChain
             }
         }
 
-        Images = images;
+        Images = images.Select(IVkImage (x) =>
+            {
+                var img = new VkImage(Context, device, x, new VkImageSpecification(ImageType.Type2D, Extent.CastUp(),
+                    SurfaceFormat.Format, ImageUsageFlags.None, ImageViewType.Type2D,
+                    Context.RenderServices.Devices.PhysicalDevice.Properties.Limits.MaxSamplerAnisotropy));
+                img.CreateView();
 
-        var views = new ImageView[Images.Length];
-
-        for (var i = 0; i < Images.Length; i++)
-        {
-            var viewCreateInfo = GetImageViewInfo(i);
-            var view = new ImageView();
-            
-            Context.Api.CreateImageView(SwapChainContext.LogicalDevice.WrappedDevice, in viewCreateInfo, null, &view)
-                .TryThrow($"Failed to create image view for image: {i}");
-            
-            views[i] = view;
-        }
-
-        Views = views;
+                return img;
+            })
+            .ToArray();
     }
 
     protected virtual SurfaceFormatKHR GetFormat(SurfaceFormatKHR[] availableFormats, VkSurfaceFormatRequest requestedFormatRequest)
@@ -279,32 +276,6 @@ public class VkSwapChain : VkObject, IVkSwapChain
         return extent;
     }
 
-    protected virtual ImageViewCreateInfo GetImageViewInfo(int imageIndex)
-    {
-        return new ImageViewCreateInfo
-        {
-            SType = StructureType.ImageViewCreateInfo,
-            Image = Images[imageIndex],
-            ViewType = ImageViewType.Type2D,
-            Format = SurfaceFormat.Format,
-            Components = new ComponentMapping
-            {
-                R = ComponentSwizzle.Identity,
-                G = ComponentSwizzle.Identity,
-                B = ComponentSwizzle.Identity,
-                A = ComponentSwizzle.Identity,
-            },
-            SubresourceRange = new ImageSubresourceRange
-            {
-                AspectMask = ImageAspectFlags.ColorBit,
-                BaseMipLevel = 0,
-                LevelCount = 1,
-                BaseArrayLayer = 0,
-                LayerCount = 1
-            }
-        };
-    }
-
     public unsafe Result AcquireNextImage(out uint imageIndex, IVkSemaphore? semaphore, IVkFence? fence, ulong timeout)
     {
         var imgIndex = 0u;
@@ -320,11 +291,11 @@ public class VkSwapChain : VkObject, IVkSwapChain
     public virtual unsafe void CreateFrameBuffers(RenderPass pass)
     {
         TryDestroyCurrentFrameBuffers();
-        FrameBuffers = new Framebuffer[Views.Length];
+        FrameBuffers = new Framebuffer[Images.Length];
         
-        for (var i = 0; i < Views.Length; i++)
+        for (var i = 0; i < Images.Length; i++)
         {
-            var attachments = stackalloc[] { Views[i], depthImage!.Views[0] };
+            var attachments = stackalloc[] { Images[i].Views[0], depthImage!.Views[0] };
             var framebufferInfo = CreateFrameBufferInfo(pass, 2, attachments);
             Framebuffer buffer;
 
@@ -348,6 +319,14 @@ public class VkSwapChain : VkObject, IVkSwapChain
         UpdateState();
     }
 
+    public void CmdTransitionCurrentImage(int imgIndex, CommandBuffer cmdBuffer, ImageLayout oldLayout, ImageLayout newLayout,
+        ImageSubresourceRange subresourceRange, VkImageMemoryBarrierMasks masks)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(imgIndex, Images.Length);
+        
+        ImageUtility.CmdTransitionLayoutManual(cmdBuffer, Context, Images[imgIndex].WrappedImage, oldLayout, newLayout, subresourceRange, masks);
+    }
+
     protected unsafe void TryDestroyCurrentFrameBuffers()
     {
         FrameBuffers?.ForEach(x => Context.Api.DestroyFramebuffer(device.WrappedDevice, x, null));
@@ -360,15 +339,12 @@ public class VkSwapChain : VkObject, IVkSwapChain
         {
             SwapChainExtension.DestroySwapchain(SwapChainContext.LogicalDevice.WrappedDevice, WrappedSwapChain, null);
         }
-        if (Views.Length != 0)
-        {
-            Views.ForEach(x => Context.Api.DestroyImageView(SwapChainContext.LogicalDevice.WrappedDevice, x, null));
-        }
+        
+        Images.DisposeAll();
         
         depthImage?.Dispose();
         depthImage = null;
-
-        Views = [];
+        
         WrappedSwapChain = default;
     }
 

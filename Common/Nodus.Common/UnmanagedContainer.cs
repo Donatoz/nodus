@@ -2,6 +2,10 @@ using System.Runtime.InteropServices;
 
 namespace Nodus.Common;
 
+/// <summary>
+/// Represents an allocation for unmanaged data.
+/// </summary>
+/// <typeparam name="T">Unmanaged type</typeparam>
 public sealed unsafe class UnmanagedContainer<T> : IDisposable where T : unmanaged
 {
     public T* Data { get; private set; }
